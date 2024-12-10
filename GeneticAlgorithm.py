@@ -1,5 +1,3 @@
-# GeneticAlgorithm.py
-
 import numpy as np
 import random
 import logging
@@ -16,27 +14,27 @@ class GeneticAlgorithm:
         self.population = self.initialize_population()
 
     def initialize_population(self):
-        """Create the initial population with random configurations."""
+        """Create a diverse initial population with a configurable maximum initial size."""
         population = []
         for i in range(self.config.population_size):
             initial_state = np.zeros((self.config.grid_size, self.config.grid_size), dtype=int)
 
-            # Randomly place between 3 to 7 live cells for diversity
-            live_cells = 0
-            num_live_cells = random.randint(3, 7)
-            while live_cells < num_live_cells:
-                x, y = random.randint(0, self.config.grid_size - 1), random.randint(0, self.config.grid_size - 1)
-                if initial_state[x, y] == 0:
+            # Populate the grid with up to max_initial_size live cells
+            live_cells_count = 0
+            while live_cells_count < self.config.max_initial_size:
+                x = random.randint(0, self.config.grid_size - 1)
+                y = random.randint(0, self.config.grid_size - 1)
+                if initial_state[x, y] == 0:  # Ensure only new live cells are counted
                     initial_state[x, y] = 1
-                    live_cells += 1
+                    live_cells_count += 1
 
             config_name = f"Config_{i + 1}"
             config = Configuration(name=config_name, initial_state=initial_state, config=self.config)
             population.append(config)
-            logging.debug(f"Initialized {config_name} with initial_state:\n{initial_state}")
-
-        logging.debug(f"Population initialized with {len(population)} configurations.")
+            logging.debug(f"Initialized {config_name} with {live_cells_count} live cells.")
         return population
+
+
 
     def evolve(self):
         """
@@ -62,7 +60,8 @@ class GeneticAlgorithm:
                 best_fitness = max(self.config.metrics["best_fitness"])
                 avg_fitness = self.config.metrics["avg_fitness"][-1]
                 fitness_variance = self.config.metrics["fitness_variance"][-1]
-                logging.info(f"Generation {generation + 1}: Best Fitness = {best_fitness}, Avg Fitness = {avg_fitness}, Variance = {fitness_variance}")
+                logging.info(f"Generation {generation + 1}: Best Fitness = {best_fitness}, "
+                             f"Avg Fitness = {avg_fitness}, Variance = {fitness_variance}")
             else:
                 logging.warning("No fitness metrics available.")
 
@@ -73,73 +72,69 @@ class GeneticAlgorithm:
         logging.info("Evolution completed.")
         return self.config.top_5_configs[0] if self.config.top_5_configs else None
 
-    def next_generation(self, current_generation):
-        """Generate the next population using selection, crossover, mutation, and elitism."""
+    def selection(self):
+        """Select parents using tournament selection."""
+        tournament_size = 5
+        selected = random.sample(self.population, tournament_size)
+        return max(selected, key=self.fitness), max(selected, key=self.fitness)
+
+    def next_generation(self, generation):
+        """Create the next population using selection, crossover, and mutation."""
         new_population = []
 
-        # Elitism: retain the top 2 configurations
-        elitism_count = 2
-        elites = sorted(self.population, key=self.fitness, reverse=True)[:elitism_count]
+        # Elitism: Retain top 2 configurations
+        elites = sorted(self.population, key=self.fitness, reverse=True)[:2]
         new_population.extend(elites)
-        logging.debug(f"Elitism: Retaining {elitism_count} top configurations.")
 
-        # Generate the rest of the population
+        # Generate new configurations
         while len(new_population) < self.config.population_size:
             parent1, parent2 = self.selection()
             child = self.crossover(parent1, parent2)
-            child = self.mutate(child, current_generation)
+            child = self.mutate(child, generation)
             new_population.append(child)
-            logging.debug(f"Created child {child.name} from parents {parent1.name} & {parent2.name}")
 
         return new_population
 
-    def selection(self):
-        """Select two parents using tournament selection."""
-        tournament_size = 5
-        selected = random.sample(self.population, min(tournament_size, len(self.population)))
-        parent1 = max(selected, key=self.fitness)
-        parent2 = max(selected, key=self.fitness)
-        return parent1, parent2
-
     def crossover(self, parent1, parent2):
-        """Perform crossover to create a child configuration."""
-        grid_size = self.config.grid_size
-        crossover_point = random.randint(1, grid_size - 1)
-        child_state_top = parent1.initial_state[:crossover_point, :]
-        child_state_bottom = parent2.initial_state[crossover_point:, :]
-        child_state = np.vstack((child_state_top, child_state_bottom))
-        child_name = f"Child_{random.randint(1000,9999)}"
-        return Configuration(name=child_name, initial_state=child_state, config=self.config)
+        """Create a child configuration by combining two parents."""
+        child_state = np.zeros_like(parent1.initial_state)
+        for x in range(self.config.grid_size):
+            for y in range(self.config.grid_size):
+                # Inherit cells from one of the parents
+                child_state[x, y] = random.choice([parent1.initial_state[x, y], parent2.initial_state[x, y]])
+
+        child_name = f"Child_{random.randint(1000, 9999)}"
+        child_config = Configuration(name=child_name, initial_state=child_state, config=self.config)
+        logging.debug(f"Created child {child_name} from parents {parent1.name} & {parent2.name}")
+        return child_config
 
     def mutate(self, config, generation):
-        """Apply mutation to a configuration with an adaptive mutation rate."""
-        # Example: Decrease mutation rate as generations progress
-        adaptive_mutation_rate = self.config.mutation_rate * (1 - (generation / self.config.generations))
-        if random.random() < adaptive_mutation_rate:
+        """Apply controlled mutation respecting the max_initial_size."""
+        mutation_rate = max(0.01, self.config.mutation_rate * (1 - generation / self.config.generations))
+        num_mutations = int(mutation_rate * self.config.grid_size**2)
+        for _ in range(num_mutations):
             x, y = random.randint(0, self.config.grid_size - 1), random.randint(0, self.config.grid_size - 1)
-            config.initial_state[x, y] = 1 - config.initial_state[x, y]  # Flip the cell value
-            logging.debug(f"Mutated {config.name} at position ({x}, {y}) with mutation rate {adaptive_mutation_rate:.4f}")
+            current_live_cells = np.sum(config.initial_state)
+            if current_live_cells < self.config.max_initial_size or config.initial_state[x, y] == 1:
+                # Flip cell state only if under max_initial_size or flipping to 0
+                config.initial_state[x, y] = 1 - config.initial_state[x, y]
         return config
 
     def fitness(self, config):
-        """
-        Evaluate the fitness of a configuration based on stabilization time and final size.
-        :param config: A Configuration instance.
-        :return: The fitness score.
-        """
+        """Evaluate fitness with an emphasis on delayed stabilization and size."""
         if config.stabilization_time is None or config.final_size is None:
             config.analyze()
-            logging.debug(f"Fitness recalculated for {config.name}")
 
-        stabilization_time = config.stabilization_time or 0
+        lifetime = config.lifetime or 0
         final_size = config.final_size or 0
+        penalty = 0
 
-        # Apply a penalty if final_size is 0 to discourage extinction
-        penalty = 1000 if final_size == 0 else 0
+        # Penalize quick stabilization
+        if lifetime < self.config.stability_threshold:
+            penalty += 500
 
-        # Adjust fitness function to balance stabilization_time and final_size
-        fitness_score = self.config.alpha * stabilization_time + self.config.beta * final_size - penalty
-
+        # Reward larger final sizes and longer lifetimes
+        fitness_score = self.config.alpha * lifetime + self.config.beta * final_size - penalty
         logging.debug(f"Fitness for {config.name}: {fitness_score} (Penalty: {penalty})")
         return fitness_score
 

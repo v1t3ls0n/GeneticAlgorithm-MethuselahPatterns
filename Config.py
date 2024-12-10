@@ -2,6 +2,7 @@
 
 import logging
 
+
 class Config:
     _instance = None  # Singleton instance
 
@@ -13,16 +14,20 @@ class Config:
     def __init__(self):
         if not hasattr(self, "_initialized"):  # Ensure attributes are initialized only once
             # Simulation parameters
-            self._grid_size = 20  # Default grid size (20x20)
-            self._max_generations = 200
-            self._stability_threshold = 5  # Reduced for quicker stabilization detection
+            self._grid_size = 50  # Default grid size (20x20)
+            self._max_generations = 1200  # Increased for Methuselah detection
+            self._stability_threshold = 1  # Reduced for quicker stabilization detection
+            self._max_initial_size = 10  # Default maximum initial size
 
             # Genetic algorithm parameters
-            self._population_size = 20
-            self._generations = 50  # Number of GA generations
+            self._population_size = 10
+            self._generations = 1250  # Number of GA generations
             self._mutation_rate = 0.1
             self._alpha = 0.5  # Weight for stabilization time
             self._beta = 1.5   # Weight for final size
+
+            # Initial size of live cells
+            self._initial_size = 10  # Default initial size of live cells
 
             # Visualization parameters
             self._simulation_delay = 0.1  # Delay between generations in seconds
@@ -39,7 +44,7 @@ class Config:
 
             self._initialized = True
 
-    # Getters and setters for parameters
+    # Getters and setters for all parameters
     @property
     def grid_size(self):
         return self._grid_size
@@ -78,6 +83,19 @@ class Config:
         else:
             logging.error("Invalid stability_threshold value. It must be a positive integer.")
             raise ValueError("stability_threshold must be a positive integer.")
+
+    @property
+    def initial_size(self):
+        return self._initial_size
+
+    @initial_size.setter
+    def initial_size(self, value):
+        if isinstance(value, int) and value > 0:
+            self._initial_size = value
+            logging.debug(f"Set initial_size to {value}")
+        else:
+            logging.error("Invalid initial_size value. It must be a positive integer.")
+            raise ValueError("initial_size must be a positive integer.")
 
     @property
     def population_size(self):
@@ -157,10 +175,18 @@ class Config:
             logging.error("Invalid simulation_delay value. It must be a non-negative number.")
             raise ValueError("simulation_delay must be a non-negative number.")
 
-    # Metrics
     @property
     def metrics(self):
         return self._metrics
+
+    @metrics.setter
+    def metrics(self, value):
+        if isinstance(value, dict) and all(isinstance(k, str) and isinstance(v, list) for k, v in value.items()):
+            self._metrics = value
+            logging.debug("Updated metrics")
+        else:
+            logging.error("Invalid metrics value. It must be a dictionary with string keys and list values.")
+            raise ValueError("metrics must be a dictionary with string keys and list values.")
 
     def update_metrics(self, key, value):
         """Update a specific metric."""
@@ -171,7 +197,6 @@ class Config:
             logging.error(f"Invalid metric key: {key}")
             raise KeyError(f"Metric '{key}' does not exist.")
 
-    # Top results
     @property
     def top_5_configs(self):
         return self._top_5_configs
@@ -191,18 +216,34 @@ class Config:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
+    
+    @property
+    def max_initial_size(self):
+        return self._max_initial_size
+
+    @max_initial_size.setter
+    def max_initial_size(self, value):
+        if isinstance(value, int) and value > 0:
+            self._max_initial_size = value
+            logging.debug(f"Set max_initial_size to {value}")
+        else:
+            logging.error("Invalid max_initial_size value. It must be a positive integer.")
+            raise ValueError("max_initial_size must be a positive integer.")
+        
 
     def reset(self):
         """Reset configuration to default values."""
         logging.debug("Resetting configuration to default values.")
-        self._grid_size = 20
+        self._max_initial_size = 10  # Default maximum initial size
+        self._grid_size = 50
         self._max_generations = 200
         self._stability_threshold = 5
-        self._population_size = 20
-        self._generations = 50
+        self._population_size = 10
+        self._generations = 1200
         self._mutation_rate = 0.1
         self._alpha = 0.5
         self._beta = 1.5
+        self._initial_size = 10
         self._simulation_delay = 0.1
         self._metrics = {
             "best_fitness": [],

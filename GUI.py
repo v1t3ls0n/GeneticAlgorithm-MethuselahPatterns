@@ -1,5 +1,3 @@
-# GUI.py
-
 import tkinter as tk
 from tkinter import ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -7,6 +5,9 @@ from matplotlib.figure import Figure
 import numpy as np
 import logging
 from GameOfLife import GameOfLife
+import matplotlib.pyplot as plt
+
+plt.rcParams['font.family'] = 'Arial'  # Replace 'Arial' with your desired font
 
 
 class GeneticAlgorithmGUI:
@@ -118,7 +119,7 @@ class GeneticAlgorithmGUI:
         self.plot_ax.set_xlabel("Generation")
         self.plot_ax.set_ylabel("Live Cells")
         self.plot_ax.legend()
-        self.canvas.draw()
+        self.canvas.draw_idle()
 
     def update_simulation_canvas(self):
         """Update the simulation canvas with the current generation."""
@@ -129,31 +130,34 @@ class GeneticAlgorithmGUI:
 
         config = self.config.top_5_configs[self.current_config_index]
 
-        # Initialize self.game if it's None or the configuration has changed
+        # Initialize GameOfLife instance if needed
         if self.game is None or not np.array_equal(self.game.initial_state, config.initial_state):
             self.game = GameOfLife(initial_state=config.initial_state, config=self.config)
             self.current_generation_index = 0
             logging.debug(f"Initialized GameOfLife for {config.name}")
 
-        # Ensure enough generations are computed
+        # Compute necessary generations
         while len(self.game.generations) <= self.current_generation_index:
             self.game.next_generation()
             logging.debug(f"Computed generation {len(self.game.generations)} for {config.name}")
 
+        # Render current generation
         generation = self.game.generations[self.current_generation_index]
         generation_array = np.array(generation)
         cell_size = max(1, 400 // self.config.grid_size)
 
-        logging.debug(f"Drawing generation {self.current_generation_index + 1} for {config.name}")
-
+        live_cells = 0
         for x, row in enumerate(generation_array):
             for y, cell in enumerate(row):
                 if cell:
+                    live_cells += 1
                     self.simulation_canvas.create_rectangle(
                         y * cell_size, x * cell_size,
                         (y + 1) * cell_size, (x + 1) * cell_size,
-                        fill="black"
+                        fill="black", outline=""  # Improved performance
                     )
+
+        logging.debug(f"Generation {self.current_generation_index + 1} for {config.name}: {live_cells} live cells")
 
         # Update iteration number
         self.iteration_label.config(text=f"Generation: {self.current_generation_index + 1}")
