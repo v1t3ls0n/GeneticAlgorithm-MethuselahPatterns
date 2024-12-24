@@ -488,6 +488,6 @@ def main(grid_size, population_size, generations, mutation_rate, alive_cells_wei
 
 
 # Example call to main function
-main(grid_size=5, population_size=5, generations=20, mutation_rate=0.05,
+main(grid_size=20, population_size=20, generations=20, mutation_rate=0.05,
      alive_cells_weight=50, lifespan_weight=10, alive_growth_weight=5,
      cells_per_part=5, parts_with_cells=2)
