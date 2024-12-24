@@ -199,14 +199,22 @@ class GeneticAlgorithm:
         self.best_histories = []
         self.population = []
 
+
+
+
+
+
+
+
+
+
     def fitness(self, configuration):
         configuration_tuple = tuple(configuration)
         expected_size = self.grid_size * self.grid_size
 
-        # בדוק שהגודל של הקונפיגורציה תואם את הגודל הצפוי
+        # ודא שהקונפיגורציה בגודל הנכון
         if len(configuration_tuple) != expected_size:
-            raise ValueError(f"""Configuration size must be {
-                             expected_size}, but got {len(configuration_tuple)}""")
+            raise ValueError(f"""Configuration size must be {expected_size}, but got {len(configuration_tuple)}""")
 
         if configuration_tuple not in self.fitness_cache:
             # יצירת מופע של GameOfLife עם הקונפיגורציה הנוכחית
@@ -215,17 +223,31 @@ class GeneticAlgorithm:
 
             alive_history = game.get_alive_history()  # היסטוריית התאים החיים
             total_alive_cells = sum(alive_history)  # סך התאים החיים
-            alive_growth = max(alive_history) - \
-                total_alive_cells  # הגדילה של התאים החיים
+
+            # הגדרת alive_growth לפי max() אם יש תוצאות, אחרת שים 0
+            if alive_history:
+                alive_growth = max(alive_history) - total_alive_cells  # הגדילה של התאים החיים
+            else:
+                alive_growth = 0  # אם אין היסטוריה, הגדילה היא 0
 
             # חישוב ה-Fitness score על בסיס נתוני המשחק
             lifespan = game.get_lifespan()
             fitness_score = (lifespan * self.lifespan_weight +
-                             total_alive_cells / self.alive_cells_weight +
-                             alive_growth * self.alive_growth_weight)
+                            total_alive_cells / self.alive_cells_weight +
+                            alive_growth * self.alive_growth_weight)
+
+            # אם לא הצלחנו לחשב את ה-Fitness, החזר 0
+            if fitness_score is None:
+                fitness_score = 0
 
             self.fitness_cache[configuration_tuple] = fitness_score
             return fitness_score
+
+
+
+
+
+
 
     def mutate(self, configuration):
         N = self.grid_size
@@ -233,29 +255,42 @@ class GeneticAlgorithm:
 
         # ודא שהקונפיגורציה בגודל הנכון
         if len(configuration) != expected_size:
-            raise ValueError(f"""Configuration size must be {
-                             expected_size}, but got {len(configuration)}""")
+            raise ValueError(f"""Configuration size must be {expected_size}, but got {len(configuration)}""")
 
-        # יצירת מטריצה בגודל N x N
-        matrix = [configuration[i * N:(i + 1) * N] for i in range(N)]
+        # חילוק הוקטור למטריצה בגודל N x N (אך עדיין וקטור חד-ממדי)
+        matrix = [configuration[i * N:(i + 1) * N] for i in range(N)]  # חילוק הוקטור למטריצה
 
-        # הפוך את המטריצה לבלוקים
+        # הפוך את המטריצה לבלוקים בעמודות
         blocks = []
         for i in range(N):
-            block = [matrix[j][i] for j in range(N)]
+            block = [matrix[j][i] for j in range(N)]  # בנה בלוק מ- N תאים בעמודה
             blocks.append(block)
 
         # ערבב את הבלוקים
         random.shuffle(blocks)
 
-        # צור את המטריצה החדשה מהבלוקים המעורבבים
-        new_matrix = []
-        for i in range(N):
-            new_matrix.extend(blocks[i])
+        # צור את הוקטור החדש מהבלוקים המעורבבים
+        new_configuration = [cell for block in blocks for cell in block]  # המרת הבלוקים חזרה לוקטור
 
-        logging.info(f"new_configuration : {new_matrix}")
+        logging.debug(f"new_configuration : {new_configuration}")  # הדפסת הקונפיגורציה החדשה
 
-        return tuple(new_matrix)
+        return tuple(new_configuration)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def select_parents(self):
         fitness_scores = [self.fitness(config) for config in self.population]
@@ -267,20 +302,20 @@ class GeneticAlgorithm:
         return parents
 
     def crossover(self, parent1, parent2):
-        N = self.grid_size  # כאן נשתמש ב-grid_size ישירות
+        N = self.grid_size
         mid = N // 2  # חצי מהגודל של המטריצה
 
+        # ודא שההורים הם בגודל נכון
+        if len(parent1) != N * N or len(parent2) != N * N:
+            raise ValueError(f"""Parent configurations must be {N * N}, but got sizes: {len(parent1)} and {len(parent2)}""")
+
         # חישוב החלקים המופרדים מהמטריצה הראשונה
-        father_top_left = [parent1[i * N + j]
-                           for i in range(mid) for j in range(mid)]
-        father_bottom_right = [
-            parent1[(i + mid) * N + (j + mid)] for i in range(mid) for j in range(mid)]
+        father_top_left = [parent1[i * N + j] for i in range(mid) for j in range(mid)]
+        father_bottom_right = [parent1[(i + mid) * N + (j + mid)] for i in range(mid) for j in range(mid)]
 
         # חישוב החלקים המופרדים מהמטריצה השנייה
-        mother_top_right = [parent2[i * N + (j + mid)]
-                            for i in range(mid) for j in range(mid)]
-        mother_bottom_left = [parent2[(i + mid) * N + j]
-                              for i in range(mid) for j in range(mid)]
+        mother_top_right = [parent2[i * N + (j + mid)] for i in range(mid) for j in range(mid)]
+        mother_bottom_left = [parent2[(i + mid) * N + j] for i in range(mid) for j in range(mid)]
 
         # יצירת הילד מהחלקים השונים של ההורים
         child_top_left = father_top_left
@@ -294,6 +329,11 @@ class GeneticAlgorithm:
         child.extend(child_top_right)
         child.extend(child_bottom_left)
         child.extend(child_bottom_right)
+
+        # ווידוא שה-child בגודל הנכון
+        if len(child) != N * N:
+            logging.debug(f"child size mismatch, expected {N * N}, got {len(child)}")
+            child = child + [0] * (N * N - len(child))  # רפד את ה-child במקרה של שגיאה בגודל
 
         return tuple(child)
 
@@ -347,8 +387,8 @@ class GeneticAlgorithm:
                 total_alive_cells += 1  # עדכון סך התאים החיים
 
         # הדפס את הקונפיגורציה הסופית
-        logging.debug(f"Generated configuration: {configuration} with {
-                      total_alive_cells} alive cells")
+        logging.debug(f"""Generated configuration: {configuration} with {
+                      total_alive_cells} alive cells""")
 
         return tuple(configuration)
 
@@ -363,7 +403,7 @@ class GeneticAlgorithm:
 
                 # Create child by crossover
                 child = self.crossover(parent1, parent2)
-
+                logging.info(f"""child = {child}""")
                 # Mutate child
                 child = self.mutate(child)
 
