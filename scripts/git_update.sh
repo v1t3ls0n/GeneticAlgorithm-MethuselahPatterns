@@ -1,1 +1,1 @@
-git add . && git commit -m 'update' && git push origin HEAD -f
+git add . && git commit -m 'update' && git push origin HEAD
