@@ -15,6 +15,7 @@ class GameOfLife:
         grid = [0] * (grid_size * grid_size) if initial_state is None else list(initial_state)
         self.grid = grid
         self.history = [tuple(grid)]  # לשמור את כל המצבים
+        self.stable_count = 0  # מונה את מספר הדורות שבהם המצב נשאר יציב
 
     def step(self):
         new_grid = [0] * (self.grid_size * self.grid_size)
@@ -47,30 +48,20 @@ class GameOfLife:
         alive_count = sum(self.grid)
         return alive_count
 
-    def is_stable(self):
-        """בדיקה אם המצב הנוכחי התייצב (אינו משתנה בין הצעדים)"""
-        current_state = tuple(self.grid)
-        if current_state == self.history[-1]:  # אם המצב לא השתנה בין הצעד הנוכחי לקודם
+    def is_static_or_repeating(self):
+        if self.get_alive_cells_count() == 0:
             return True
-        return False
-
-    def has_cycle(self):
-        """בדיקה אם קיימת מחזוריות, כלומר המצב חזר על עצמו לאחר מספר צעדים"""
         current_state = tuple(self.grid)
-        if current_state in self.history[:-1]:  # אם המצב כבר היה בהיסטוריה (אבל לא מיד הצעד הקודם)
+        if current_state in self.history[:-1]:
             return True
         return False
 
     def get_lifespan(self, max_generations):
         for generation in range(max_generations):
-            if self.is_stable():  # אם המצב התייצב (מתושלח)
-                logging.info("""Stable state (Methuselah) detected. Stopping simulation.""")
-                return True
-            if self.has_cycle():  # אם יש מחזוריות (בלינקר או גליידר)
-                logging.info("""Cycle detected (Blip/Glider). Stopping simulation.""")
-                return False
+            if self.is_static_or_repeating():
+                return generation
             self.step()
-        return False
+        return max_generations
 
 
 class GeneticAlgorithm:
@@ -88,10 +79,10 @@ class GeneticAlgorithm:
         self.alive_growth_weight = alive_growth_weight
         self.fitness_cache = {}
         self.predefined_configurations = predefined_configurations
-        self.partition_ratio = partition_ratio
+        self.partition_ratio = partition_ratio  # הגדרת ה-partition_ratio
         self.population = self.initialize_population()
-        self.min_fitness_score = min_fitness_score
-        self.best_histories = []
+        self.min_fitness_score = min_fitness_score  # מינימום ציון כושר חיובי
+        self.best_histories = []  # הוספת האטריבוט לשמירת ההיסטוריה של הקונפיגורציות הטובות ביותר
 
     def fitness(self, configuration):
         configuration_tuple = tuple(configuration)
@@ -108,13 +99,6 @@ class GeneticAlgorithm:
         game = GameOfLife(self.grid_size, configuration_tuple)
 
         lifespan = game.get_lifespan(self.max_lifespan)
-
-        if lifespan == True:  # זיהוי מתושלח שהתייצב
-            logging.info("""Stable state (Methuselah) detected. Stopping development.""")
-            return 1  # Return a flag for Methuselah
-        if lifespan == False:  # זיהוי מחזוריות (בלינקר או גליידר)
-            logging.info("""Cycle detected (Blip/Glider). Stopping development.""")
-            return -1  # Return a flag for cycle (not Methuselah)
 
         alive_counts = [game.get_alive_cells_count()]
         for _ in range(lifespan):
@@ -158,17 +142,20 @@ class GeneticAlgorithm:
             configuration = [0] * (self.grid_size * self.grid_size)
             all_cells = list(range(self.grid_size * self.grid_size))
 
-            num_subquarters = self.grid_size // self.partition_ratio
+            # חישוב מספר האזורים לפי הפרמטר partition_ratio
+            num_subquarters = self.grid_size  // self.partition_ratio
 
-            k = random.randint(1, num_subquarters)
+            k = random.randint(1, num_subquarters)  # בחר את תת-הרבע מתוך האפשרויות
 
             quarter_size = len(all_cells) // num_subquarters
             start_index = (k - 1) * quarter_size
             end_index = start_index + quarter_size
 
+            # לבדוק אם יש מספיק תאים ברבע שנבחר
             if self.initial_alive_cells <= quarter_size:
                 chosen_cells = random.sample(all_cells[start_index:end_index], self.initial_alive_cells)
             else:
+                # אם אין מספיק תאים, נבחר את כל התאים
                 chosen_cells = all_cells[start_index:end_index]
 
             for cell in chosen_cells:
@@ -180,18 +167,18 @@ class GeneticAlgorithm:
         return tuple(configuration)
 
     def mutate(self, configuration):
-        configuration = list(configuration)
-        N = self.grid_size * self.grid_size
+        configuration = list(configuration)  # המרה מ-tuple ל-list
+        N = self.grid_size * self.grid_size  # מספר התאים במערך
 
         alive_cells = [i for i, cell in enumerate(configuration) if cell == 1]
 
         for i in alive_cells:
-            move = random.choice([1, -1, N, -N])
-            new_index = (i + move) % N
+            move = random.choice([1, -1, N, -N])  # הזזה אקראית
+            new_index = (i + move) % N  # מציאת המיקום החדש
 
             while new_index != i and configuration[new_index] == 1:
-                move = random.choice([1, -1, N, -N])
-                new_index = (i + move) % N
+                move = random.choice([1, -1, N, -N])  # בחר מחדש אם המיקום תפוס
+                new_index = (i + move) % N  # עדכון המיקום
 
             configuration[i] = 0
             configuration[new_index] = 1
@@ -231,10 +218,10 @@ class GeneticAlgorithm:
             fitness_scores = [self.fitness(config) for config in self.population]
             all_fitness_scores.append(fitness_scores)
 
+            # לוגינג לדור הנוכחי
             avg_fitness = sum(fitness_scores) / len(fitness_scores)
             std_fitness = (sum([(score - avg_fitness) ** 2 for score in fitness_scores]) / len(fitness_scores)) ** 0.5
-            logging.info(f"""Generation {generation + 1}: Avg Fitness: {avg_fitness}, Std Dev: {std_fitness}""")
-
+            logging.info(f"Generation {generation + 1}: Avg Fitness: {avg_fitness}, Std Dev: {std_fitness}")
             # לוגינג של פרטי הדור הנוכחי לכל קונפיגורציה
             for idx, config in enumerate(self.population):
                 game = GameOfLife(self.grid_size, config)
@@ -242,29 +229,31 @@ class GeneticAlgorithm:
                 total_alive_cells = sum([game.get_alive_cells_count() for _ in range(lifespan)])
                 alive_growth = max([game.get_alive_cells_count() for _ in range(lifespan)]) - self.initial_alive_cells
 
-                logging.info(f"""  Configuration {idx + 1}:""")
-                logging.info(f"""    Lifespan: {lifespan}""")
-                logging.info(f"""    Total Alive Cells: {total_alive_cells}""")
-                logging.info(f"""    Alive Growth: {alive_growth}""")
+                logging.info(f"  Configuration {idx + 1}:")
+                logging.info(f"    Lifespan: {lifespan}")
+                logging.info(f"    Total Alive Cells: {total_alive_cells}")
+                logging.info(f"    Alive Growth: {alive_growth}")
+
 
         fitness_scores = [(config, self.fitness(config)) for config in self.population]
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
         best_configs = [config for config, _ in fitness_scores[:5]]
 
-        self.best_histories = []
+        self.best_histories = []  # לאתחל את ההיסטוריות עבור הקונפיגורציות הטובות ביותר
         for config in best_configs:
             game = GameOfLife(self.grid_size, config)
             lifespan = game.get_lifespan(self.max_lifespan)
-            history = game.history
+            history = game.history  # שמירה של ההיסטוריה של כל הדורות
             self.best_histories.append(history)
 
+            # לוגינג של 5 הקונפיגורציות הטובות ביותר
             total_alive_cells = sum([game.get_alive_cells_count() for _ in range(lifespan)])
             alive_growth = max([game.get_alive_cells_count() for _ in range(lifespan)]) - self.initial_alive_cells
-            logging.info(f"""Top {config} Configuration:""")
-            logging.info(f"""  Fitness Score: {self.fitness(config)}""")
-            logging.info(f"""  Lifespan: {lifespan}""")
-            logging.info(f"""  Total Alive Cells: {total_alive_cells}""")
-            logging.info(f"""  Alive Growth: {alive_growth}""")
+            logging.info(f"Top {config} Configuration:")
+            logging.info(f"  Fitness Score: {self.fitness(config)}")
+            logging.info(f"  Lifespan: {lifespan}")
+            logging.info(f"  Total Alive Cells: {total_alive_cells}")
+            logging.info(f"  Alive Growth: {alive_growth}")
 
         return best_configs
 
@@ -340,8 +329,8 @@ def main(grid_size, population_size, generations, mutation_rate, initial_alive_c
         best_configs, algorithm.best_histories, grid_size)
     simulation.run()
 
-# קריאה לפונקציה הראשית עם הפרמטר החדש partition_ratio
-main(grid_size=20, population_size=20, generations=100, mutation_rate=0.02,
+# קריאה לפונקציה הראשית
+main(grid_size=20, population_size=20, generations=20, mutation_rate=0.02,
      initial_alive_cells=5, alive_cells_weight=50, max_lifespan=5000,
      lifespan_weight=10, alive_growth_weight=5, partition_ratio=4)
 
