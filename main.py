@@ -142,7 +142,7 @@ class GeneticAlgorithm:
             all_cells = list(range(self.grid_size * self.grid_size))
 
             # חישוב מספר האזורים לפי הפרמטר partition_ratio
-            num_subquarters = self.grid_size*self.grid_size  // self.partition_ratio
+            num_subquarters = self.grid_size  // self.partition_ratio
 
             k = random.randint(1, num_subquarters)  # בחר את תת-הרבע מתוך האפשרויות
 
@@ -219,19 +219,36 @@ class GeneticAlgorithm:
 
             # לוגינג לדור הנוכחי
             avg_fitness = sum(fitness_scores) / len(fitness_scores)
-            logging.info(f"Generation {generation + 1}: Avg Fitness: {avg_fitness}")
+            std_fitness = (sum([(score - avg_fitness) ** 2 for score in fitness_scores]) / len(fitness_scores)) ** 0.5
+            logging.info(f"Generation {generation + 1}: Avg Fitness: {avg_fitness}, Std Dev: {std_fitness}")
+            # לוגינג של פרטי הדור הנוכחי לכל קונפיגורציה
+            for idx, config in enumerate(self.population):
+                game = GameOfLife(self.grid_size, config)
+                lifespan = game.get_lifespan(self.max_lifespan)
+                total_alive_cells = sum([game.get_alive_cells_count() for _ in range(lifespan)])
+                alive_growth = max([game.get_alive_cells_count() for _ in range(lifespan)]) - self.initial_alive_cells
+
+                logging.info(f"  Configuration {idx + 1}:")
+                logging.info(f"    Lifespan: {lifespan}")
+                logging.info(f"    Total Alive Cells: {total_alive_cells}")
+                logging.info(f"    Alive Growth: {alive_growth}")
+
 
         fitness_scores = [(config, self.fitness(config)) for config in self.population]
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
         best_configs = [config for config, _ in fitness_scores[:5]]
 
-        # לוגינג של 5 הקונפיגורציות הטובות ביותר
-        for idx, config in enumerate(best_configs):
+        self.best_histories = []  # לאתחל את ההיסטוריות עבור הקונפיגורציות הטובות ביותר
+        for config in best_configs:
             game = GameOfLife(self.grid_size, config)
             lifespan = game.get_lifespan(self.max_lifespan)
+            history = game.history  # שמירה של ההיסטוריה של כל הדורות
+            self.best_histories.append(history)
+
+            # לוגינג של 5 הקונפיגורציות הטובות ביותר
             total_alive_cells = sum([game.get_alive_cells_count() for _ in range(lifespan)])
             alive_growth = max([game.get_alive_cells_count() for _ in range(lifespan)]) - self.initial_alive_cells
-            logging.info(f"Top {idx + 1} Configuration:")
+            logging.info(f"Top {config} Configuration:")
             logging.info(f"  Fitness Score: {self.fitness(config)}")
             logging.info(f"  Lifespan: {lifespan}")
             logging.info(f"  Total Alive Cells: {total_alive_cells}")
@@ -312,7 +329,7 @@ def main(grid_size, population_size, generations, mutation_rate, initial_alive_c
     simulation.run()
 
 # קריאה לפונקציה הראשית עם הפרמטר החדש partition_ratio
-main(grid_size=30, population_size=20, generations=50, mutation_rate=0.02,
+main(grid_size=20, population_size=20, generations=100, mutation_rate=0.02,
      initial_alive_cells=5, alive_cells_weight=50, max_lifespan=5000,
      lifespan_weight=10, alive_growth_weight=5, partition_ratio=4)
 
