@@ -278,20 +278,24 @@ class GeneticAlgorithm:
         return parents
 
     def crossover(self, parent1, parent2):
-        N = self.grid_size * self.grid_size
-        mid = N // 2
+        grid_size = self.grid_size  # הגודל של המטריצה (מימד מטריצה)
+        mid = grid_size // 2  # חצי מהגודל של המטריצה
 
-        father_top_left = [parent1[i * N + j] for i in range(mid) for j in range(mid)]
-        father_bottom_right = [parent1[(i + mid) * N + (j + mid)] for i in range(mid) for j in range(mid)]
+        # חישוב החלקים המופרדים מהמטריצה הראשונה
+        father_top_left = [parent1[i * grid_size + j] for i in range(mid) for j in range(mid)]
+        father_bottom_right = [parent1[(i + mid) * grid_size + (j + mid)] for i in range(mid) for j in range(mid)]
 
-        mother_top_right = [parent2[i * N + (j + mid)] for i in range(mid) for j in range(mid)]
-        mother_bottom_left = [parent2[(i + mid) * N + j] for i in range(mid) for j in range(mid)]
+        # חישוב החלקים המופרדים מהמטריצה השנייה
+        mother_top_right = [parent2[i * grid_size + (j + mid)] for i in range(mid) for j in range(mid)]
+        mother_bottom_left = [parent2[(i + mid) * grid_size + j] for i in range(mid) for j in range(mid)]
 
+        # יצירת הילד מהחלקים השונים של ההורים
         child_top_left = father_top_left
         child_top_right = mother_top_right
         child_bottom_left = mother_bottom_left
         child_bottom_right = father_bottom_right
 
+        # חיבור כל החלקים יחד ליצירת הילד המלא
         child = []
         child.extend(child_top_left)
         child.extend(child_top_right)
@@ -299,6 +303,7 @@ class GeneticAlgorithm:
         child.extend(child_bottom_right)
 
         return tuple(child)
+
 
     def initialize_population(self):
         if self.predefined_configurations is not None:
