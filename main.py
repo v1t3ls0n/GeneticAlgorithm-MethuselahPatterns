@@ -221,9 +221,9 @@ class GeneticAlgorithm:
 
             # אם אין היסטוריה, הגדר את צמיחת התאים כ-0
             alive_growth = 0
-            if alive_history:  # רק אם קיימת היסטוריה
-                alive_growth = max(alive_history) - \
-                    sum(alive_history)  # צמיחת התאים
+            if len(alive_history) > 1:
+                alive_growth = alive_history[-1] - alive_history[0]  # צמיחה של תאים בין הדורות
+
 
             total_alive_cells = sum(alive_history)  # סך התאים החיים
 
