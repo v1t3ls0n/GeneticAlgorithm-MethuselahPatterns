@@ -296,11 +296,14 @@ class GeneticAlgorithm:
 
     def random_configuration(self):
         while True:
+            # יצירת מערך ריק של תאים
             configuration = [0] * (self.grid_size * self.grid_size)
             all_cells = list(range(self.grid_size * self.grid_size))
 
             # חישוב חלוקה ל- num_parts חלקים
             part_size = self.grid_size * self.grid_size // self.num_parts
+
+            # בחר את החלקים שבהם יהיו תאים חיים
             parts_with_cells_indices = random.sample(
                 range(self.num_parts), self.parts_with_cells)
 
@@ -308,15 +311,28 @@ class GeneticAlgorithm:
             for part_index in parts_with_cells_indices:
                 start_idx = part_index * part_size
                 end_idx = start_idx + part_size
-                chosen_cells = random.sample(
-                    all_cells[start_idx:end_idx], self.cells_per_part)
+
+                # בחר תאים מתוך החלק שנבחר
+                chosen_cells = random.sample(all_cells[start_idx:end_idx], self.cells_per_part)
+
                 for cell in chosen_cells:
                     configuration[cell] = 1
 
+            # אם מספר התאים החיים קטן או שווה ל- initial_alive_cells, נשלים את יתר התאים בצורה אקראית
+            if sum(configuration) <= self.initial_alive_cells:
+                remaining_cells = self.initial_alive_cells - sum(configuration)
+                if remaining_cells > 0:
+                    available_cells = [i for i, val in enumerate(configuration) if val == 0]
+                    chosen_cells = random.sample(available_cells, remaining_cells)
+                    for cell in chosen_cells:
+                        configuration[cell] = 1
+
+            # יציאה מהלולאה אם כמות התאים החיים מתאימה
             if sum(configuration) == self.initial_alive_cells:
                 break
 
         return tuple(configuration)
+
 
     def run(self):
         all_fitness_scores = []
@@ -385,11 +401,12 @@ def main(grid_size, population_size, generations, mutation_rate, initial_alive_c
          alive_cells_weight, max_lifespan, lifespan_weight, alive_growth_weight, predefined_configurations=None):
     # חישוב פרמטרים מתוך grid_size ו-initial_alive_cells
     # נניח 10x10 חלקים בתוך גריד בגודל grid_size
-    num_parts = (grid_size // 10) ** 2
+    num_parts = (grid_size ** 2)  // initial_alive_cells
     # נחשב כמה תאים חיים יהיו בכל חלק
-    cells_per_part = initial_alive_cells // num_parts
+    cells_per_part = initial_alive_cells
     # נוודא שמספר החלקים לא יעלה על מספר התאים החיים
     parts_with_cells = min(num_parts, (initial_alive_cells // cells_per_part))
+    # parts_with_cells = 1
 
     # יצירת מופע של אלגוריתם גנטי עם כל הפרמטרים
     algorithm = GeneticAlgorithm(
