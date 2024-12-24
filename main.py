@@ -110,9 +110,9 @@ class GameOfLife:
         # Size of the grid (N x N)
         new_grid = [0] * (self.grid_size * self.grid_size)
 
-        logging.info(f"life span = {self.lifespan}")
-        logging.info(f"grid = {tuple(cur_grid)}")
-        logging.info(f"history = {list(self.history)}")
+        # logging.info(f"life span = {self.lifespan}")
+        # logging.info(f"grid = {tuple(cur_grid)}")
+        # logging.info(f"history = {list(self.history)}")
 
         for x in range(self.grid_size):
             for y in range(self.grid_size):
@@ -271,7 +271,7 @@ class GeneticAlgorithm:
     def select_parents(self):
         # חישוב ציוני ה-Fitness לכל חבר באוכלוסייה
         fitness_scores = []
-        logging.info(f"""{self.population}""")
+        # logging.info(f"""{self.population}""")
         for config in self.population:
             score = self.fitness(config)
             if score is not None:
@@ -395,7 +395,7 @@ class GeneticAlgorithm:
             for i in range(self.population_size):
                 parent1, parent2 = self.select_parents()
                 child = self.crossover(parent1, parent2)
-                logging.info(f"""child = {child}""")
+                # logging.info(f"""child = {child}""")
                 child = self.mutate(child)
                 new_population.append(child)
 
