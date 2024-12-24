@@ -46,7 +46,6 @@ class GameOfLife:
 
     def get_alive_cells_count(self):
         alive_count = sum(self.grid)
-        logging.info(f"Alive cells count: {alive_count}")
         return alive_count
 
     def is_static_or_repeating(self):
@@ -92,13 +91,11 @@ class GeneticAlgorithm:
             return self.fitness_cache[configuration_tuple]
 
         # כאן אנו בודקים ומגבילים את מספר התאים החיים רק בעת יצירת הקונפיגורציה הראשונה
-        # כל מצב בהתחלה חייב להכיל בדיוק `self.initial_alive_cells` תאים חיים
         if configuration_tuple not in self.fitness_cache:  # אם זה המצב הראשון לקונפיגורציה הזו
             alive_cells_count = sum(configuration_tuple)
             if alive_cells_count != self.initial_alive_cells:
-                logging.warning(f"Configuration skipped: Found {alive_cells_count} alive cells, expected {self.initial_alive_cells}.")
-                self.fitness_cache[configuration_tuple] = self.min_fitness_score -1 # ציון כושר חיובי נמוך אם הקונפיגורציה לא עומדת בדרישות
-                return self.min_fitness_score -1 # ציון כושר מינימלי חיובי אם מספר התאים החיים לא תואם למגבלה
+                self.fitness_cache[configuration_tuple] = self.min_fitness_score - 1  # ציון כושר חיובי נמוך אם הקונפיגורציה לא עומדת בדרישות
+                return self.min_fitness_score - 1
 
         # יצירת המשחק עם הקונפיגורציה שהוגבלה מראש
         game = GameOfLife(self.grid_size, configuration_tuple)
@@ -114,16 +111,16 @@ class GeneticAlgorithm:
         alive_growth = max(alive_counts) - self.initial_alive_cells
 
         fitness_score = (lifespan * self.lifespan_weight +
-                         total_alive_cells / self.alive_cells_weight +
-                         alive_growth * self.alive_growth_weight)
+                        total_alive_cells / self.alive_cells_weight +
+                        alive_growth * self.alive_growth_weight)
 
         # מנגנון לוודא שהציון לא יהיה נמוך מהמינימום
         fitness_score = max(fitness_score, self.min_fitness_score)
-
         logging.info(f"Fitness score: {fitness_score}, Lifespan: {lifespan}, Total alive cells: {total_alive_cells}, Alive growth: {alive_growth}")
         self.fitness_cache[configuration_tuple] = fitness_score
         return fitness_score
-    
+
+
 
     def initialize_population(self):
         if self.predefined_configurations is not None:
@@ -160,7 +157,6 @@ class GeneticAlgorithm:
 
             # בחירת תאים חיים אקראית בדיוק לפי מספר התאים שצריך
             chosen_cells = random.sample(all_cells, self.initial_alive_cells)
-            logging.info(f"Chosen cells for initial configuration: {chosen_cells}")
 
             # הצבת התאים החיים במיקומים שנבחרו
             for cell in chosen_cells:
@@ -168,30 +164,26 @@ class GeneticAlgorithm:
 
             # מוודאים שאין יותר תאים חיים מהדרישה
             if sum(configuration) == self.initial_alive_cells:
-                logging.info(f"Generated valid configuration: {configuration}")
                 break  # יצאנו מהלולאה כאשר יש בדיוק את מספר התאים החיים שנדרש
-            else:
-                logging.warning(f"Invalid configuration generated: {configuration}, retrying...")
 
         return tuple(configuration)
 
     def mutate(self, configuration):
-        # חישוב המוטציה כ- shift של כל התאים החיים
         configuration = list(configuration)  # המרה מ-tuple ל-list
-        N = self.grid_size * self.grid_size
+        N = self.grid_size * self.grid_size  # מספר התאים במערך
 
         # בחרת כל התאים החיים
         alive_cells = [i for i, cell in enumerate(configuration) if cell == 1]
-        logging.info(f"""alive cells : {alive_cells}""")
-
-        # בחר כיוון (למשל שמאלה או ימינה או למעלה/למטה)
 
         for i in alive_cells:
-            k = random.randint(1, N)
-            new_index = (i + k) % N
+            # בחר מספר רנדומלי מתוך [1, -1, N, -N]
+            move = random.choice([1, -1, N, -N])  # הזזה אקראית
+            new_index = (i + move) % N  # מציאת המיקום החדש
+
+            # בדוק אם המיקום החדש פנוי
             while new_index != i and configuration[new_index] == 1:
-                k = random.randint(1, N)  # offset אקראי (הזזה)
-                new_index = (i + k) % N
+                move = random.choice([1, -1, N, -N])  # בחר מחדש אם המיקום תפוס
+                new_index = (i + move) % N  # עדכון המיקום
 
             # המרת התא המת שנמצא באינדקס החדש לתא חי
             configuration[i] = 0
@@ -204,8 +196,6 @@ class GeneticAlgorithm:
         fitness_scores = [self.fitness(config) for config in self.population]
         total_fitness = sum(fitness_scores)
         if total_fitness == 0:
-            logging.warning(
-                "Total fitness is zero, selecting parents randomly.")
             return random.choices(self.population, k=2)
         probabilities = [score / total_fitness for score in fitness_scores]
         parents = random.choices(self.population, weights=probabilities, k=2)
@@ -222,14 +212,11 @@ class GeneticAlgorithm:
     def run(self):
         all_fitness_scores = []
         for generation in range(self.generations):
-            logging.info(f"Generation {generation + 1}/{self.generations}")
             new_population = []
             for i in range(self.population_size):
                 parent1, parent2 = self.select_parents()
                 child = self.crossover(parent1, parent2)
                 child = self.mutate(child)
-                logging.info(
-                    f"Child {i + 1}: Created via crossover and mutation")
                 new_population.append(child)
 
             self.population = new_population
@@ -241,8 +228,6 @@ class GeneticAlgorithm:
             avg_fitness = sum(fitness_scores) / len(fitness_scores)
             std_fitness = (sum(
                 [(score - avg_fitness) ** 2 for score in fitness_scores]) / len(fitness_scores)) ** 0.5
-            logging.info(f"Avg Fitness for Generation {generation + 1}: {avg_fitness}")
-            logging.info(f"Std Dev of Fitness for Generation {generation + 1}: {std_fitness}")
 
         fitness_scores = [(config, self.fitness(config))
                           for config in self.population]
@@ -334,18 +319,14 @@ def main(grid_size, population_size, generations, mutation_rate, initial_alive_c
                                  alive_cells_weight, max_lifespan, lifespan_weight, alive_growth_weight, predefined_configurations=predefined_configurations)
     best_configs = algorithm.run()
 
-    logging.info("Top 5 configs")
-    for idx, config in enumerate(best_configs):
-        logging.info(f"Configuration {idx + 1}: {config}")
-
     simulation = InteractiveSimulation(
         best_configs, algorithm.best_histories, grid_size)
     simulation.run()
 
 
 # קריאה לפונקציה הראשית עם פרמטרים מותאמים אישית
-main(grid_size=5, population_size=20, generations=2, mutation_rate=0.02,
-     initial_alive_cells=2, alive_cells_weight=50, max_lifespan=5000,
+main(grid_size=20, population_size=100, generations=20, mutation_rate=0.02,
+     initial_alive_cells=10, alive_cells_weight=50, max_lifespan=5000,
      lifespan_weight=10, alive_growth_weight=5)
 
 
