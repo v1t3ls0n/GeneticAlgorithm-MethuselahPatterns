@@ -10,7 +10,7 @@ import collections
 class GeneticAlgorithm:
     def __init__(self, grid_size, population_size, generations, mutation_rate,
                  alive_cells_weight, lifespan_weight, alive_growth_weight,
-                 cells_per_part, parts_with_cells, predefined_configurations=None, min_fitness_score=1):
+                 alive_cells_per_block, alive_blocks, predefined_configurations=None, min_fitness_score=1):
         logging.info("Initializing GeneticAlgorithm.")
         self.grid_size = grid_size
         self.population_size = population_size
@@ -22,8 +22,8 @@ class GeneticAlgorithm:
         self.configuration_cache = collections.defaultdict(collections.defaultdict)
         self.generations_cache = collections.defaultdict(collections.defaultdict)
         self.predefined_configurations = predefined_configurations
-        self.cells_per_part = cells_per_part
-        self.parts_with_cells = parts_with_cells
+        self.alive_cells_per_block = alive_cells_per_block
+        self.alive_blocks = alive_blocks
         self.min_fitness_score = min_fitness_score
         self.best_histories = []
         self.population = []
@@ -170,6 +170,7 @@ class GeneticAlgorithm:
         logging.info(f"""Generation {1} started.""")
 
         self.population = [self.random_configuration() for _ in range(self.population_size)]
+        generation = 0
         scores = []
         lifespans = []
         alive_growth_rates = []
@@ -182,15 +183,24 @@ class GeneticAlgorithm:
             total_alive_cells.append(self.configuration_cache[configuration]['total_alive_cells'])
 
 
-        self.generations_cache[0]['avg_fitness'] = np.average(scores)
-        self.generations_cache[0]['avg_lifespan'] = np.average(lifespans)
-        self.generations_cache[0]['avg_alive_growth_rate'] = np.average(alive_growth_rates)
-        self.generations_cache[0]['avg_total_alive_cells'] = np.average(total_alive_cells)
 
-        self.generations_cache[0]['std_fitness'] = np.std(scores)
-        self.generations_cache[0]['std_lifespan'] = np.std(lifespans)
-        self.generations_cache[0]['std_alive_growth_rate'] = np.std(alive_growth_rates)
-        self.generations_cache[0]['std_total_alive_cells'] = np.std(total_alive_cells)
+        self.generations_cache[generation]['avg_fitness'] = np.average(scores)
+        self.generations_cache[generation]['avg_lifespan'] = np.average(lifespans)
+        self.generations_cache[generation]['avg_alive_growth_rate'] = np.average(alive_growth_rates)
+        self.generations_cache[generation]['avg_total_alive_cells'] = np.average(total_alive_cells)
+
+            # Calculate the standard deviations for each metric
+        self.generations_cache[generation]['std_fitness'] = np.std(scores)
+        self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
+        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(alive_growth_rates)
+        self.generations_cache[generation]['std_total_alive_cells'] = np.std(total_alive_cells)
+
+            # Standardize the values for each metric (mean = avg, std = std)
+        self.generations_cache[generation]['std_fitness_values'] = [(x - self.generations_cache[generation]['avg_fitness']) / self.generations_cache[generation]['std_fitness'] for x in scores]
+        self.generations_cache[generation]['std_lifespan_values'] = [(x - self.generations_cache[generation]['avg_lifespan']) / self.generations_cache[generation]['std_lifespan'] for x in lifespans]
+        self.generations_cache[generation]['std_alive_growth_rate_values'] = [(x - self.generations_cache[generation]['avg_alive_growth_rate']) / self.generations_cache[generation]['std_alive_growth_rate'] for x in alive_growth_rates]
+        self.generations_cache[generation]['std_total_alive_cells_values'] = [(x - self.generations_cache[generation]['avg_total_alive_cells']) / self.generations_cache[generation]['std_total_alive_cells'] for x in total_alive_cells]
+
 
     def random_configuration(self):
         # Size of the matrix (grid_size * grid_size)
@@ -204,19 +214,19 @@ class GeneticAlgorithm:
         part_size = self.grid_size  # Size of each part
 
         # Choose parts to assign live cells
-        parts_with_cells_indices = random.sample(
-            range(self.grid_size), self.parts_with_cells)
+        alive_blocks_indices = random.sample(
+            range(self.grid_size), self.alive_blocks)
 
         total_alive_cells = 0  # This will track the number of alive cells assigned
 
         # Choose cells for each selected part
-        for part_index in parts_with_cells_indices:
+        for part_index in alive_blocks_indices:
             start_idx = part_index * part_size
             end_idx = start_idx + part_size
 
             # Choose the cells allocated for the selected part
             chosen_cells = random.sample(
-                range(start_idx, end_idx), min(self.cells_per_part,end_idx-start_idx))
+                range(start_idx, end_idx), min(self.alive_cells_per_block,end_idx-start_idx))
 
             # Log the selected block information
             # logging.info(f"Block {part_index} chosen cells: {chosen_cells}")
@@ -251,23 +261,33 @@ class GeneticAlgorithm:
                 total_alive_cells.append(self.configuration_cache[configuration]['total_alive_cells'])
                 
                 
+
+
             self.generations_cache[generation]['avg_fitness'] = np.average(scores)
             self.generations_cache[generation]['avg_lifespan'] = np.average(lifespans)
             self.generations_cache[generation]['avg_alive_growth_rate'] = np.average(alive_growth_rates)
             self.generations_cache[generation]['avg_total_alive_cells'] = np.average(total_alive_cells)
 
-
+            # Calculate the standard deviations for each metric
             self.generations_cache[generation]['std_fitness'] = np.std(scores)
             self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
             self.generations_cache[generation]['std_alive_growth_rate'] = np.std(alive_growth_rates)
             self.generations_cache[generation]['std_total_alive_cells'] = np.std(total_alive_cells)
+
+            # Standardize the values for each metric (mean = avg, std = std)
+            self.generations_cache[generation]['std_fitness_values'] = [(x - self.generations_cache[generation]['avg_fitness']) / self.generations_cache[generation]['std_fitness'] for x in scores]
+            self.generations_cache[generation]['std_lifespan_values'] = [(x - self.generations_cache[generation]['avg_lifespan']) / self.generations_cache[generation]['std_lifespan'] for x in lifespans]
+            self.generations_cache[generation]['std_alive_growth_rate_values'] = [(x - self.generations_cache[generation]['avg_alive_growth_rate']) / self.generations_cache[generation]['std_alive_growth_rate'] for x in alive_growth_rates]
+            self.generations_cache[generation]['std_total_alive_cells_values'] = [(x - self.generations_cache[generation]['avg_total_alive_cells']) / self.generations_cache[generation]['std_total_alive_cells'] for x in total_alive_cells]
+
+
 
 
         logging.info(f"""population size = {len(set(self.population))}""")
         fitness_scores = [(config, self.configuration_cache[config]['fitness_score'])
                           for config in self.population]
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
-        logging.info(f"""fitness score sorted : {fitness_scores}""")
+        # logging.info(f"""fitness score sorted : {fitness_scores}""")
 
         best_configs = fitness_scores[:5]
 

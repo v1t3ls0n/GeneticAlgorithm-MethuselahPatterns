@@ -8,25 +8,25 @@ logging.basicConfig(filename="simulation.log",
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 def main(grid_size, population_size, generations, mutation_rate, alive_cells_weight,
-         lifespan_weight, alive_growth_weight, cells_per_part, parts_with_cells, predefined_configurations=None):
+         lifespan_weight, alive_growth_weight, alive_cells_per_block, alive_blocks, predefined_configurations=None):
     logging.info(f"""Starting run with parameters: grid_size={grid_size}, population_size={population_size}, generations={generations}, mutation_rate={mutation_rate}, alive_cells_weight={
-                 alive_cells_weight}, lifespan_weight={lifespan_weight}, alive_growth_weight={alive_growth_weight}, cells_per_part={cells_per_part}, parts_with_cells={parts_with_cells}""")
+                 alive_cells_weight}, lifespan_weight={lifespan_weight}, alive_growth_weight={alive_growth_weight}, alive_cells_per_block={alive_cells_per_block}, alive_blocks={alive_blocks}""")
 
     algorithm = GeneticAlgorithm(
         grid_size, population_size, generations, mutation_rate,
         alive_cells_weight, lifespan_weight, alive_growth_weight,
-        cells_per_part=cells_per_part, parts_with_cells=parts_with_cells,
+        alive_cells_per_block=alive_cells_per_block, alive_blocks=alive_blocks,
         predefined_configurations=predefined_configurations
     )
 
     best_configs = algorithm.run()
 
     simulation = InteractiveSimulation(
-        best_configs, algorithm.best_histories, grid_size)
+        best_configs, algorithm.best_histories, grid_size, generations_cache=algorithm.generations_cache)
     simulation.run()
 
 
 # Example call to main function
-main(grid_size=4, population_size=20, generations=50, mutation_rate=0.5,
+main(grid_size=10, population_size=30, generations=100, mutation_rate=0.02,
      alive_cells_weight=1.3, lifespan_weight=2, alive_growth_weight=1.1,
-     cells_per_part=5, parts_with_cells=1)
+     alive_cells_per_block=5, alive_blocks=1)

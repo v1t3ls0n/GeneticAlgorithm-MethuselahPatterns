@@ -75,9 +75,9 @@ class GameOfLife:
             self.alive_history)/max(1, min(self.alive_history)) if self.alive_history else 1
 
         # Log the final result
-        logging.info(f"""Inside Game Of Life Instance:
-                        Total Alive Cells: {self.total_alive_cells}, Lifespan: {self.lifespan}, Alive Growth: {self.alive_growth},
-                        game history length: {len(self.history)}, unique history states: {len(set(self.history))}""")
+        # logging.info(f"""Inside Game Of Life Instance:
+        #                 Total Alive Cells: {self.total_alive_cells}, Lifespan: {self.lifespan}, Alive Growth: {self.alive_growth},
+        #                 game history length: {len(self.history)}, unique history states: {len(set(self.history))}""")
 
     def count_alive_neighbors(self, x, y):
         alive = 0
