@@ -274,13 +274,12 @@ class GeneticAlgorithm:
             self.generations_cache[generation]['std_alive_growth_rate'] = np.std(alive_growth_rates)
             self.generations_cache[generation]['std_total_alive_cells'] = np.std(total_alive_cells)
 
-            # Standardize the values for each metric (mean = avg, std = std)
-            self.generations_cache[generation]['std_fitness_values'] = [(x - self.generations_cache[generation]['avg_fitness']) / self.generations_cache[generation]['std_fitness'] for x in scores]
-            self.generations_cache[generation]['std_lifespan_values'] = [(x - self.generations_cache[generation]['avg_lifespan']) / self.generations_cache[generation]['std_lifespan'] for x in lifespans]
-            self.generations_cache[generation]['std_alive_growth_rate_values'] = [(x - self.generations_cache[generation]['avg_alive_growth_rate']) / self.generations_cache[generation]['std_alive_growth_rate'] for x in alive_growth_rates]
-            self.generations_cache[generation]['std_total_alive_cells_values'] = [(x - self.generations_cache[generation]['avg_total_alive_cells']) / self.generations_cache[generation]['std_total_alive_cells'] for x in total_alive_cells]
 
-
+            # Then use the above function in the code as follows:
+            self.generations_cache[generation]['std_fitness_values'] = self.safe_standardize(scores, self.generations_cache[generation]['avg_fitness'], self.generations_cache[generation]['std_fitness'])
+            self.generations_cache[generation]['std_lifespan_values'] = self.safe_standardize(lifespans, self.generations_cache[generation]['avg_lifespan'], self.generations_cache[generation]['std_lifespan'])
+            self.generations_cache[generation]['std_alive_growth_rate_values'] = self.safe_standardize(alive_growth_rates, self.generations_cache[generation]['avg_alive_growth_rate'], self.generations_cache[generation]['std_alive_growth_rate'])
+            self.generations_cache[generation]['std_total_alive_cells_values'] = self.safe_standardize(total_alive_cells, self.generations_cache[generation]['avg_total_alive_cells'], self.generations_cache[generation]['std_total_alive_cells'])
 
 
         logging.info(f"""population size = {len(set(self.population))}""")
@@ -304,3 +303,9 @@ class GeneticAlgorithm:
             logging.info(f"""  Alive Growth: {self.configuration_cache[config]['alive_growth']}""")
 
         return best_configs
+    
+    def safe_standardize(self,values, avg, std):
+        if std == 0:
+            logging.warning(f"Standard deviation is zero, returning zero for all values. Avg: {avg}, Std: {std}")
+            return [0] * len(values)  # Return zero if std is zero to avoid division by zero
+        return [(x - avg) / std for x in values]
