@@ -62,7 +62,7 @@ class GameOfLife:
         
         # Update the total alive cells and alive growth
         self.total_alive_cells = sum(self.alive_history)
-        self.alive_growth = max(self.alive_history) - self.alive_history[0] if self.alive_history else 0
+        self.alive_growth = max(self.alive_history)/max(1,min(self.alive_history)) if self.alive_history else 1
 
         # Log the final result
         logging.info(f"""Inside Game Of Life Instance:

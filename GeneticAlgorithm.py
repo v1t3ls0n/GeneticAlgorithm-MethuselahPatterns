@@ -226,16 +226,9 @@ class GeneticAlgorithm:
 
             # logging.info(f"""Inside genetic algorithms:\ngame history:{game.history} history length {
             #              len(game.history)} uniq history states: {len(set(game.history))}""")
-
             lifespan = game.get_lifespan()
-            alive_growth = 0
-            total_alive_cells = 0
-
-            if lifespan > 0:
-                alive_history = game.get_alive_history()
-                if alive_history:
-                    alive_growth = max(alive_history) - sum(alive_history)
-                total_alive_cells = sum(alive_history)
+            alive_growth = game.alive_growth
+            total_alive_cells = game.total_alive_cells
 
             logging.info(f"""Best Configuration in Generation {
                          generation + 1}:""")
