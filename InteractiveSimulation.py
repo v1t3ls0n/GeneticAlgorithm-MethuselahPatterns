@@ -16,7 +16,6 @@ class InteractiveSimulation:
         self.grid_fig, self.grid_ax = plt.subplots(figsize=(5, 5))  # Single plot for the grid
         self.grid_ax.set_title(f"Configuration {self.current_config_index + 1}, Generation {self.current_generation}")
         self.update_grid()
-        self.render_statistics()
 
         # Create a second figure for the statistics graphs
         self.stats_fig, self.stats_ax = plt.subplots(2, 2, figsize=(12, 10))  # 2x2 grid for the subplots
@@ -36,6 +35,7 @@ class InteractiveSimulation:
         # Adjust layout
         self.grid_fig.tight_layout()
         self.stats_fig.tight_layout()
+        self.render_statistics()
 
 
     def on_close(self, event):
