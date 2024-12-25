@@ -22,7 +22,7 @@ class GameOfLife:
         self._is_static = False
         # Tracks if the grid is repeating a cycle (tied to the state)
         self._is_periodic = False
-        self.total_alive_cells = 0
+        self.max_alive_cells_count = 0
         self.alive_growth = 0
         # Starting with the number of alive cells in initial state
         self.alive_history = [sum(self.grid)]
@@ -70,13 +70,13 @@ class GameOfLife:
 
         # Update the total alive cells and alive growth
         self.lifespan = len(set(self.history))
-        self.total_alive_cells = sum(self.alive_history)
+        self.max_alive_cells_count = max(self.alive_history)
         self.alive_growth = max(
             self.alive_history)/max(1, min(self.alive_history)) if self.alive_history else 1
 
         # Log the final result
         # logging.info(f"""Inside Game Of Life Instance:
-        #                 Total Alive Cells: {self.total_alive_cells}, Lifespan: {self.lifespan}, Alive Growth: {self.alive_growth},
+        #                 Total Alive Cells: {self.max_alive_cells_count}, Lifespan: {self.lifespan}, Alive Growth: {self.alive_growth},
         #                 game history length: {len(self.history)}, unique history states: {len(set(self.history))}""")
 
     def count_alive_neighbors(self, x, y):

@@ -138,12 +138,12 @@ class InteractiveSimulation:
         self.stats_ax[2].grid(True)
 
         # Standardized Alive Cells
-        avg_total_alive_cells = [self.generations_cache[generation]['avg_total_alive_cells'] for generation in generations]
-        std_total_alive_cells = [self.generations_cache[generation]['std_total_alive_cells'] for generation in generations]
+        avg_max_alive_cells_count = [self.generations_cache[generation]['avg_max_alive_cells_count'] for generation in generations]
+        std_max_alive_cells_count = [self.generations_cache[generation]['std_max_alive_cells_count'] for generation in generations]
         
         self.stats_ax[3].clear()
-        self.stats_ax[3].plot(generations, avg_total_alive_cells, label='Standardized Alive Cells', color='purple')
-        self.stats_ax[3].fill_between(generations, np.subtract(avg_total_alive_cells, std_total_alive_cells), np.add(avg_total_alive_cells, std_total_alive_cells), color='purple', alpha=0.2, label='Standard Deviation')
+        self.stats_ax[3].plot(generations, avg_max_alive_cells_count, label='Standardized Alive Cells', color='purple')
+        self.stats_ax[3].fill_between(generations, np.subtract(avg_max_alive_cells_count, std_max_alive_cells_count), np.add(avg_max_alive_cells_count, std_max_alive_cells_count), color='purple', alpha=0.2, label='Standard Deviation')
         self.stats_ax[3].set_xlabel("Generation")
         self.stats_ax[3].set_ylabel("Standardized Alive Cells")
         self.stats_ax[3].set_title("Standardized Alive Cells over Generations")
