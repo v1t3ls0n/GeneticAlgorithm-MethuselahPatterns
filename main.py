@@ -85,13 +85,12 @@ class InteractiveSimulation:
 
 class GameOfLife:
     def __init__(self, grid_size, initial_state=None):
-        logging.info("Initializing GameOfLife.")
         self.grid_size = grid_size
         self.grid = [0] * (grid_size * grid_size) if initial_state is None else list(initial_state)
-
+        
         # Store the initial state of the grid
         self.initial_state = tuple(self.grid)
-
+        
         # Store initial state in history
         self.history = [self.initial_state]
         self.stable_count = 0  # Counter for stable generations
@@ -101,7 +100,7 @@ class GameOfLife:
         self.extra_lifespan = 0  # Lifespan for static or periodic grids
         self.static_state = False  # Tracks if the grid has become static (tied to the state)
         self._is_periodic = False  # Tracks if the grid is repeating a cycle (tied to the state)
-
+        
         # Track the number of alive cells per generation
         self.alive_history = [sum(self.grid)]
 
@@ -147,13 +146,12 @@ class GameOfLife:
 
     def run(self):
         """ Run the Game of Life until static or periodic state is reached, and calculate fitness. """
-        logging.info("Running Game of Life simulation.")
         while (not self.static_state and not self._is_periodic) or self.stable_count < self.max_stable_generations:
             self.step()  # Run one step of the game
 
         # Add extra lifespan for static or periodic grids
         self.lifespan += self.extra_lifespan
-
+        
         # Calculate the "Alive Growth" correctly
         alive_history = self.get_alive_history()
         alive_growth = 0
@@ -163,10 +161,7 @@ class GameOfLife:
         total_alive_cells = sum(alive_history)
         lifespan = self.lifespan  # The final lifespan after all steps
 
-        logging.info(f"Total Alive Cells: {total_alive_cells}, Alive Growth: {alive_growth}, Lifespan: {lifespan}")
-
         return total_alive_cells, alive_growth, alive_history, lifespan
-
     def count_alive_neighbors(self, x, y):
         alive = 0
         # Check neighbors for valid indices
@@ -237,19 +232,24 @@ class GeneticAlgorithm:
         configuration_tuple = tuple(configuration)
         expected_size = self.grid_size * self.grid_size
 
-        # Ensure configuration is of the correct size
+        # ודא שהקונפיגורציה בגודל הנכון
         if len(configuration_tuple) != expected_size:
-            logging.error(f"Configuration size must be {expected_size}, but got {len(configuration_tuple)}")
             raise ValueError(f"""Configuration size must be {expected_size}, but got {len(configuration_tuple)}""")
 
         if configuration_tuple in self.fitness_cache:
             return self.fitness_cache[configuration_tuple]
 
-        # Create an instance of GameOfLife with the current configuration
+        # יצירת מופע של GameOfLife עם הקונפיגורציה הנוכחית
         game = GameOfLife(self.grid_size, configuration_tuple)
-        total_alive_cells, alive_growth, alive_history, lifespan = game.run()  # Run Game of Life to get alive history
+        total_alive_cells, alive_growth, alive_history, lifespan = game.run()  # ריצה של משחק החיים כדי לחשב את ההיסטוריה של התאים החיים
 
-        # Calculate fitness score based on the game data
+        logging.info(f"Starting Game of Life with configuration: {configuration_tuple}")
+        logging.info(f"Initial state of grid: {game.grid}")
+        logging.info(f"Lifespan of grid: {lifespan}")
+        logging.info(f"Alive Growth: {alive_growth}")
+        logging.info(f"Total Alive Cells: {total_alive_cells}")
+
+        # חישוב ה-Fitness score על בסיס נתוני המשחק
         fitness_score = (lifespan * self.lifespan_weight +
                          total_alive_cells / self.alive_cells_weight +
                          alive_growth * self.alive_growth_weight)
