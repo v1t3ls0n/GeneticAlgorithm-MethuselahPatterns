@@ -291,10 +291,10 @@ class GeneticAlgorithm:
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
 
         best_configs = fitness_scores[:5]
-        logging.info(f"""fitness score length : {len(fitness_scores)}""")
-        logging.info(f"""best configs length : {len(best_configs)}""")
-        logging.info(f"""best configs: {best_configs}""")
-        logging.info(f"""all current population: {self.population}""")
+        # logging.info(f"""fitness score length : {len(fitness_scores)}""")
+        # logging.info(f"""best configs length : {len(best_configs)}""")
+        # logging.info(f"""best configs: {best_configs}""")
+        # logging.info(f"""all current population: {self.population}""")
 
 
 
