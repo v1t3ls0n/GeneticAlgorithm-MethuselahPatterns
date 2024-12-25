@@ -24,20 +24,14 @@ class GeneticAlgorithm:
         self.best_histories = []
         self.population = self.initialize_population()
 
-
-
-
-
-
-
-
     def fitness(self, configuration):
         configuration_tuple = tuple(configuration)
         expected_size = self.grid_size * self.grid_size
 
         # Ensure the configuration is of the correct size
         if len(configuration_tuple) != expected_size:
-            raise ValueError(f"""Configuration size must be {expected_size}, but got {len(configuration_tuple)}""")
+            raise ValueError(f"""Configuration size must be {
+                             expected_size}, but got {len(configuration_tuple)}""")
 
         if configuration_tuple in self.fitness_cache:
             return self.fitness_cache[configuration_tuple]
@@ -48,37 +42,20 @@ class GeneticAlgorithm:
 
         # Access the result directly from the GameOfLife instance
         fitness_score = (game.lifespan * self.lifespan_weight +
-                        game.total_alive_cells / self.alive_cells_weight +
-                        game.alive_growth * self.alive_growth_weight)
+                         game.total_alive_cells * self.alive_cells_weight +
+                         game.alive_growth * self.alive_growth_weight)
 
         if game.lifespan == 1:
-            logging.warning("""Warning: Lifespan is 1, which may indicate an issue with the simulation!""")
+            logging.warning(
+                """Warning: Lifespan is 1, which may indicate an issue with the simulation!""")
 
         self.fitness_cache[configuration_tuple] = fitness_score
         return fitness_score
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def mutate(self, configuration):
         N = self.grid_size
         expected_size = N * N
-        logging.info(f"""inside mutate, configuration arg = {configuration}\nconfiguration legnth:{len(configuration)}\nexpected size:{expected_size}""")
+        # logging.info(f"""inside mutate, configuration arg = {configuration}\nconfiguration legnth:{len(configuration)}\nexpected size:{expected_size}""")
 
         # Ensure configuration is of the correct size
         if len(configuration) != expected_size:
@@ -105,9 +82,10 @@ class GeneticAlgorithm:
         new_configuration = tuple([cell for block in blocks for cell in block])
 
         # Log the new configuration
-        logging.info(f"""old_configuration : {configuration}""")
-        logging.info(f"""new_configuration : {new_configuration}""")
-        logging.info(f"""old_configuration == new_configuration : {new_configuration==configuration}""")
+        # logging.info(f"""old_configuration : {configuration}""")
+        # logging.info(f"""new_configuration : {new_configuration}""")
+        # logging.info(f"""old_configuration == new_configuration : {
+        #              new_configuration == configuration}""")
 
         return new_configuration
 
@@ -138,13 +116,17 @@ class GeneticAlgorithm:
 
         # ווידוא שההורים הם בגודל הנכון
         if len(parent1) != total_cells or len(parent2) != total_cells:
-            logging.error(f"Parent configurations must be {total_cells}, but got sizes: {len(parent1)} and {len(parent2)}")
-            raise ValueError(f"Parent configurations must be {total_cells}, but got sizes: {len(parent1)} and {len(parent2)}")
+            logging.info(f"""Parent configurations must be {total_cells}, but got sizes: {
+                          len(parent1)} and {len(parent2)}""")
+            raise ValueError(f"""Parent configurations must be {
+                             total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
 
         # נחלק את הווקטור ל-N בלוקים
         block_size = total_cells // N
-        blocks_parent1 = [parent1[i * block_size:(i + 1) * block_size] for i in range(N)]
-        blocks_parent2 = [parent2[i * block_size:(i + 1) * block_size] for i in range(N)]
+        blocks_parent1 = [
+            parent1[i * block_size:(i + 1) * block_size] for i in range(N)]
+        blocks_parent2 = [
+            parent2[i * block_size:(i + 1) * block_size] for i in range(N)]
 
         # נבחר את הבלוקים לפי האינדקסים האי זוגיים של האב והזוגיים של האם
         child_blocks = []
@@ -156,12 +138,13 @@ class GeneticAlgorithm:
 
         # ווידוא שהילד בגודל הנכון
         if len(child_blocks) != total_cells:
-            logging.info(f"Child size mismatch, expected {total_cells}, got {len(child_blocks)}")
-            child_blocks = child_blocks + [0] * (total_cells - len(child_blocks))  # במקרה של שגיאת גודל, נוסיף תאים חיים נוספים
+            logging.info(f"""Child size mismatch, expected {
+                         total_cells}, got {len(child_blocks)}""")
+            # במקרה של שגיאת גודל, נוסיף תאים חיים נוספים
+            child_blocks = child_blocks + [0] * \
+                (total_cells - len(child_blocks))
 
         return tuple(child_blocks)
-
-
 
     def initialize_population(self):
         return [self.random_configuration() for _ in range(self.population_size)]
@@ -193,7 +176,7 @@ class GeneticAlgorithm:
                 range(start_idx, end_idx), self.cells_per_part)
 
             # Log the selected block information
-            logging.info(f"Block {part_index} chosen cells: {chosen_cells}")
+            # logging.info(f"Block {part_index} chosen cells: {chosen_cells}")
 
             # Mark the chosen cells as alive
             for cell in chosen_cells:
@@ -201,8 +184,8 @@ class GeneticAlgorithm:
                 total_alive_cells += 1  # Update total alive cells
 
         # Log the final configuration
-        logging.info(f"""Generated configuration: {configuration} with {
-                      total_alive_cells} alive cells""")
+        # logging.info(f"""Generated configuration: {configuration} with {
+        #     total_alive_cells} alive cells""")
 
         return tuple(configuration)
 
@@ -214,20 +197,24 @@ class GeneticAlgorithm:
             for i in range(self.population_size):
                 parent1, parent2 = self.select_parents()
                 child = self.crossover(parent1, parent2)
-                child = self.mutate(child)
+                if random.uniform(0,1) < self.mutation_rate:
+                    child = self.mutate(child)
                 new_population.append(child)
+
+
 
             self.population = new_population
             self.fitness_cache.clear()
 
             fitness_scores = [self.fitness(config)
-                            for config in self.population]
+                              for config in self.population]
             all_fitness_scores.append(fitness_scores)
 
             avg_fitness = sum(fitness_scores) / len(fitness_scores)
             std_fitness = (sum(
                 [(score - avg_fitness) ** 2 for score in fitness_scores]) / len(fitness_scores)) ** 0.5
-            logging.info(f"""Generation {generation + 1}: Avg Fitness: {avg_fitness}, Std Dev: {std_fitness}""")
+            logging.info(f"""Generation {
+                         generation + 1}: Avg Fitness: {avg_fitness}, Std Dev: {std_fitness}""")
             logging.info(f"fitness scores:{fitness_scores}")
 
             best_fitness_score = max(fitness_scores)
@@ -237,8 +224,9 @@ class GeneticAlgorithm:
             game = GameOfLife(self.grid_size, best_config)
             game.run()  # run the game for the best configuration
 
-            logging.info(f"""Inside genetic algorithms:\ngame history:{game.history} history length {len(game.history)} uniq history states: {len(set(game.history))}""")
-            
+            # logging.info(f"""Inside genetic algorithms:\ngame history:{game.history} history length {
+            #              len(game.history)} uniq history states: {len(set(game.history))}""")
+
             lifespan = game.get_lifespan()
             alive_growth = 0
             total_alive_cells = 0
@@ -249,14 +237,16 @@ class GeneticAlgorithm:
                     alive_growth = max(alive_history) - sum(alive_history)
                 total_alive_cells = sum(alive_history)
 
-            logging.info(f"""Best Configuration in Generation {generation + 1}:""")
+            logging.info(f"""Best Configuration in Generation {
+                         generation + 1}:""")
             logging.info(f"""    Fitness Score: {best_fitness_score}""")
             logging.info(f"""    Lifespan: {lifespan}""")
             logging.info(f"""    Total Alive Cells: {total_alive_cells}""")
             logging.info(f"""    Alive Growth: {alive_growth}""")
 
         # Getting the best configurations at the end of all generations
-        fitness_scores = [(config, self.fitness(config)) for config in self.population]
+        fitness_scores = [(config, self.fitness(config))
+                          for config in self.population]
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
 
         best_configs = [config for config, _ in fitness_scores[:5]]
