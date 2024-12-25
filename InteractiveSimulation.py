@@ -1,6 +1,8 @@
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
+import tkinter as tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 class InteractiveSimulation:
     def __init__(self, configurations, histories, grid_size, generations_cache):
@@ -12,39 +14,64 @@ class InteractiveSimulation:
         self.current_config_index = 0
         self.current_generation = 0
 
-        # Create a root figure for the grid
-        self.grid_fig, self.grid_ax = plt.subplots(figsize=(5, 5))  # Single plot for the grid
-        self.grid_ax.set_title(f"Configuration {self.current_config_index + 1}, Generation {self.current_generation}")
+        # Set up the root window with Tkinter
+        self.root = tk.Tk()
+        self.root.title("Interactive Simulation")
+
+        # Create a frame for the grid and graphs
+        self.grid_frame = tk.Frame(self.root)
+        self.grid_frame.pack(side=tk.LEFT, padx=10)
+
+        self.graph_frame = tk.Frame(self.root)
+        self.graph_frame.pack(side=tk.LEFT, padx=10, fill=tk.BOTH, expand=True)
+
+        # Create the grid and initialize it
+        self.grid_fig, self.grid_ax = plt.subplots(figsize=(5, 5))
         self.update_grid()
 
-        # Create a second figure for the statistics graphs
+        # Set up the canvas for the grid figure
+        self.grid_canvas = FigureCanvasTkAgg(self.grid_fig, self.grid_frame)
+        self.grid_canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        # Create a scrollable canvas for the graphs
+        self.graph_canvas = tk.Canvas(self.graph_frame)
+        self.graph_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.graph_scrollbar = tk.Scrollbar(self.graph_frame, orient="vertical", command=self.graph_canvas.yview)
+        self.graph_scrollbar.pack(side=tk.RIGHT, fill="y")
+
+        self.graph_canvas.config(yscrollcommand=self.graph_scrollbar.set)
+
+        self.graph_window = tk.Frame(self.graph_canvas)
+        self.graph_canvas.create_window((0, 0), window=self.graph_window, anchor="nw")
+
+        # Create the figure for the stats and attach it to the graph window
         self.stats_fig, self.stats_ax = plt.subplots(3, 2, figsize=(15, 15))  # 3x2 grid for the subplots
         self.stats_ax = self.stats_ax.flatten()  # Flatten to iterate easily
 
-        # Set up standardized plot references for metrics
         self.standardized_fitness_plot, = self.stats_ax[0].plot([], [], label='Standardized Fitness', color='blue')
         self.standardized_lifespan_plot, = self.stats_ax[1].plot([], [], label='Standardized Lifespan', color='green')
         self.standardized_growth_rate_plot, = self.stats_ax[2].plot([], [], label='Standardized Growth Rate', color='red')
         self.standardized_alive_cells_plot, = self.stats_ax[3].plot([], [], label='Standardized Alive Cells', color='purple')
 
-        # Render the statistics (these will not update unless manually requested)
+        # Render the statistics
         self.render_statistics()
 
         # Attach key press events to control grid navigation
-        self.grid_fig.canvas.mpl_connect('key_press_event', self.on_key)
+        self.root.bind('<KeyPress>', self.on_key)
 
-        # Adjust layout
-        self.grid_fig.tight_layout()
-        self.stats_fig.tight_layout()
+        # Adjust layout and add padding for scrollable area
+        self.graph_window.update_idletasks()
+        self.graph_canvas.config(scrollregion=self.graph_canvas.bbox("all"))
 
     def on_key(self, event):
-        if event.key == 'right':
+        if event.keycode == 39:  # Right Arrow Key
             self.next_configuration()
-        elif event.key == 'left':
+        elif event.keycode == 37:  # Left Arrow Key
             self.previous_configuration()
-        elif event.key == 'up':
+        elif event.keycode == 38:  # Up Arrow Key
             self.next_generation()
-        elif event.key == 'down':
+        elif event.keycode == 40:  # Down Arrow Key
             self.previous_generation()
 
     def next_configuration(self):
@@ -79,7 +106,7 @@ class InteractiveSimulation:
         self.grid_ax.clear()  # Clear the current axis to update the grid
         self.grid_ax.imshow(grid, cmap="binary")
         self.grid_ax.set_title(f"""Configuration {self.current_config_index + 1}, Generation {self.current_generation}""")
-        self.grid_fig.canvas.draw()
+        self.grid_canvas.draw()
 
     def render_statistics(self):
         """
@@ -144,4 +171,4 @@ class InteractiveSimulation:
 
     def run(self):
         logging.info("""Running interactive simulation.""")
-        plt.show()
+        self.root.mainloop()  # Start the Tkinter main loop
