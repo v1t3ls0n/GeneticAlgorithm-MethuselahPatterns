@@ -39,8 +39,7 @@ class InteractiveSimulation:
             self.previous_generation()
 
     def next_configuration(self):
-        logging.debug(f"""Switching to next configuration. Current index: {
-                      self.current_config_index}""")
+        logging.debug(f"Switching to next configuration. Current index: {self.current_config_index}")
         self.current_config_index = (
             self.current_config_index + 1) % len(self.configurations)
         self.current_generation = 0
@@ -49,8 +48,7 @@ class InteractiveSimulation:
         self.update_plot()
 
     def previous_configuration(self):
-        logging.debug(f"""Switching to previous configuration. Current index: {
-                      self.current_config_index}""")
+        logging.debug(f"Switching to previous configuration. Current index: {self.current_config_index}")
         self.current_config_index = (
             self.current_config_index - 1) % len(self.configurations)
         self.current_generation = 0
@@ -60,16 +58,14 @@ class InteractiveSimulation:
 
     def next_generation(self):
         if self.current_generation + 1 < len(self.histories[self.current_config_index]):
-            logging.debug(f"""Switching to next generation. Current generation: {
-                          self.current_generation}""")
+            logging.debug(f"Switching to next generation. Current generation: {self.current_generation}")
             self.current_generation += 1
             self.game.grid = self.histories[self.current_config_index][self.current_generation]
             self.update_plot()
 
     def previous_generation(self):
         if self.current_generation > 0:
-            logging.debug(f"""Switching to previous generation. Current generation: {
-                          self.current_generation}""")
+            logging.debug(f"Switching to previous generation. Current generation: {self.current_generation}")
             self.current_generation -= 1
             self.game.grid = self.histories[self.current_config_index][self.current_generation]
             self.update_plot()
@@ -90,103 +86,129 @@ class InteractiveSimulation:
 class GameOfLife:
     def __init__(self, grid_size, initial_state=None):
         self.grid_size = grid_size
-        self.grid = [
-            0] * (grid_size * grid_size) if initial_state is None else list(initial_state)
-        self.history = [tuple(self.grid)]  # לשמור את כל המצבים
-        self.stable_count = 0  # מונה את מספר הדורות שבהם המצב נשאר יציב
-        self.max_stable_generations = 10  # הגדרת גבול לדורות יציבים
-        self.lifespan = 0  # ספירה של אורך החיים של הגריד
-        self.extra_lifespan = 0  # תוספת לאורך החיים עבור גרידים יציבים או מחזוריים
-        self.static_state = False  # מצב סטטי (לא משתנה)
-        self._is_periodic = False  # מצב מחזורי (חוזר על עצמו)
-        self.alive_history = [self.get_alive_cells_count()]
+        self.grid = [0] * (grid_size * grid_size) if initial_state is None else list(initial_state)
+        
+        # Store the initial state of the grid
+        self.initial_state = tuple(self.grid)
+        
+        # Store initial state in history
+        self.history = [self.initial_state]
+        self.stable_count = 0  # Counter for stable generations
+        self.max_stable_generations = 10  # Set the number of generations before it's considered static
+        self.dynamic_lifespan = 0  # Track dynamic lifespan of the grid
+        self.lifespan = 0  # Total lifespan (should start at 0)
+        self.extra_lifespan = 0  # Lifespan for static or periodic grids
+        self.static_state = False  # Tracks if the grid has become static (tied to the state)
+        self._is_periodic = False  # Tracks if the grid is repeating a cycle (tied to the state)
+        self.total_alive_cells = 0
+        self.alive_growth = 0
+        self.alive_history = [sum(self.grid)]
 
     def step(self):
-        """ ביצוע שלב אחד במשחק החיים """
+        """ Perform a single step in the Game of Life and update history. """
+        if self._is_periodic or self.static_state:
+            self.stable_count += 1
+
+        cur_grid = self.grid[:]
         new_grid = [0] * (self.grid_size * self.grid_size)
+
+        # Iterate over the grid to apply the Game of Life rules
         for x in range(self.grid_size):
             for y in range(self.grid_size):
-                index = x * self.grid_size + y
+                index = x * self.grid_size + y  # Calculate index for 2D to 1D conversion
                 alive_neighbors = self.count_alive_neighbors(x, y)
-                if self.grid[index] == 1:
+                if cur_grid[index] == 1:
                     if alive_neighbors in [2, 3]:
                         new_grid[index] = 1
                 else:
                     if alive_neighbors == 3:
                         new_grid[index] = 1
-        self.grid = new_grid
-        self.history.append(tuple(new_grid))  # שמירת המצב הנוכחי כ-tuple
 
+        newState = tuple(new_grid)  # New state after the step
+        curState = tuple(cur_grid)  # Current state of the grid
+
+        # Check for static state (no change between current and previous grid)
+        if newState == curState:
+            self.static_state = True
+        # Check for periodicity (if the new state has appeared before)
+        elif newState in self.history[:-1]:
+            self._is_periodic = True
+        else:
+            self.grid = new_grid
+
+
+
+
+
+
+
+    def run(self):
+        """ Run the Game of Life until static or periodic state is reached, and calculate fitness. """
+        while (not self.static_state and not self._is_periodic) or self.stable_count < self.max_stable_generations:
+            alive_history = self.get_alive_history()
+            self.alive_history.append(alive_history)
+            self.history.append(tuple(self.grid[:]))
+            self.lifespan += 1  # Increment lifespan on each step
+            self.step()  # Run one step of the game
+
+
+
+        if len(self.alive_history) > 1:
+            self.alive_growth = self.alive_history[-1] - self.alive_history[0]  # Growth of alive cells from start to end
+        self.total_alive_cells = sum(self.alive_history)
+
+        # הוספת לוג של התוצאה הסופית
+        logging.info(f"Total Alive Cells: {self.total_alive_cells}, Lifespan: {self.lifespan}, Alive Growth: {self.alive_growth}")
+        
+        return total_alive_cells, alive_growth, alive_history, lifespan
+
+        
+        
+    
     def count_alive_neighbors(self, x, y):
         alive = 0
-        for i in range(-1, 2):
-            for j in range(-1, 2):
+        # Check neighbors for valid indices
+        for i in range(-1, 2):  # Iterating over rows
+            for j in range(-1, 2):  # Iterating over columns
                 if i == 0 and j == 0:
-                    continue
+                    continue  # Skip the cell itself
                 nx, ny = x + i, y + j
+                # Ensure neighbor is within grid bounds
                 if 0 <= nx < self.grid_size and 0 <= ny < self.grid_size:
-                    index = nx * self.grid_size + ny
-                    alive += self.grid[index]
+                    index = nx * self.grid_size + ny  # Convert 2D to 1D index
+                    alive += self.grid[index]  # Add 1 if neighbor is alive
         return alive
 
     def get_alive_cells_count(self):
-        alive_count = sum(self.grid)
-        return alive_count
+        return sum(self.grid)
 
-    def is_static_or_repeating(self):
-        if self.get_alive_cells_count() == 0:
-            return True
-        current_state = tuple(self.grid)
-        if current_state in self.history[:-1]:
-            return True
-        return False
+    def get_lifespan(self):
+        """ Return the lifespan of the current grid (including extra lifespan for static/periodic) """
+        return self.lifespan + self.extra_lifespan
 
-    def get_lifespan(self, max_generations):
-        for generation in range(max_generations):
-            if self.is_static_or_repeating():
-                return generation
-            self.step()
-        return max_generations
+    def get_alive_history(self):
+        """ Return the history of the number of alive cells for each generation """
+        return self.alive_history
 
-    def run(self):
-        """ ריצה של משחק החיים עד למצב סטטי או מחזורי """
-        while not self.static_state and not self._is_periodic:
-            self.step()  # ריצה של שלב במשחק החיים
+    def is_static(self):
+        """ Return if the grid is static """
+        return self.static_state
 
-        # אם הגריד הגיע למצב יציב או מחזורי, נוסיף לו את הזמן הנוסף
-        self.lifespan += self.extra_lifespan
-
-        # הוספת לוגים עבור lifespan
-        logging.debug(f"""Final Lifespan: {self.lifespan}, Extra Lifespan: {
-                      self.extra_lifespan}""")
-
-        # חישוב "צמיחה של תאים חיים"
-        alive_history = self.alive_history
-        alive_growth = 0
-        if len(alive_history) > 1:
-            # הצמיחה של התאים החיים מהתחלה ועד הסוף
-            alive_growth = alive_history[-1] - alive_history[0]
-
-        total_alive_cells = sum(alive_history)
-        lifespan = self.lifespan  # אורך החיים הסופי לאחר כל השלבים
-
-        # הוספת לוג של התוצאה הסופית
-        logging.info(f"""Total Alive Cells: {total_alive_cells}, Lifespan: {
-                     lifespan}, Alive Growth: {alive_growth}""")
-
-        return total_alive_cells, alive_growth, alive_history, lifespan
+    def check_periodicity(self):
+        """ Return if the grid is periodic (repeating) """
+        return self._is_periodic
 
     def reset(self):
-        """ לאתחל את הגריד למצב ההתחלתי """
+        """ Reset the grid to its initial state """
         logging.debug("Resetting the grid to initial state.")
-        self.grid = list(self.history[0])
-        self.history = [tuple(self.grid)]
+        self.grid = list(self.initial_state)
+        self.history = [self.initial_state]
         self.static_state = False
         self._is_periodic = False
         self.lifespan = 0
         self.extra_lifespan = 0
         self.stable_count = 0
-        self.alive_history = [self.get_alive_cells_count()]
+        self.alive_history = [sum(self.grid)]
 
 
 class GeneticAlgorithm:
@@ -213,42 +235,53 @@ class GeneticAlgorithm:
         configuration_tuple = tuple(configuration)
         expected_size = self.grid_size * self.grid_size
 
-        # Ensure the configuration is of the correct size
+        # ודא שהקונפיגורציה בגודל הנכון
         if len(configuration_tuple) != expected_size:
             raise ValueError(f"Configuration size must be {expected_size}, but got {len(configuration_tuple)}")
 
         if configuration_tuple in self.fitness_cache:
             return self.fitness_cache[configuration_tuple]
 
-        # Create a GameOfLife instance with the current configuration
+        # יצירת מופע של GameOfLife עם הקונפיגורציה הנוכחית
         game = GameOfLife(self.grid_size, configuration_tuple)
-        total_alive_cells, alive_growth, alive_history, lifespan = game.run()  # Run the Game of Life to calculate fitness
+        game.run()
+        total_alive_cells, alive_growth, alive_history, lifespan = game.toa
+         # ריצה של משחק החיים כדי לחשב את ההיסטוריה של התאים החיים
+        if not game.alive_history: 
+            game.alive_growth = 0
+        else:
+            alive_growth = max(alive_history) - alive_history[0]
 
-        # Calculate the fitness score based on the game data
+        logging.info(f"Configuration: {configuration_tuple}, Lifespan: {game.lifespan}, Alive Growth: {game.alive_growth}, Alive Cells: {game.total_alive_cells}")
+
+        # הוספת חישוב ה-Fitness score כך שה-lifespan לא יתאפס
         fitness_score = (lifespan * self.lifespan_weight +
-                         total_alive_cells / self.alive_cells_weight +
-                         alive_growth * self.alive_growth_weight)
+                        total_alive_cells / self.alive_cells_weight +
+                        alive_growth * self.alive_growth_weight)
 
-        # Cache the fitness score for the current configuration
+        if lifespan == 1:  # אם ה-lifespan לא מתעדכן כראוי, נוודא שהחישוב לא יתבצע
+            logging.warning(f"Warning: Lifespan is 1, which may indicate an issue with the simulation!")
+
         self.fitness_cache[configuration_tuple] = fitness_score
         return fitness_score
+
 
     def mutate(self, configuration):
         N = self.grid_size
         expected_size = N * N
 
-        # Ensure the configuration is of the correct size
+        # Ensure configuration is of the correct size
         if len(configuration) != expected_size:
             logging.error(f"Configuration size must be {expected_size}, but got {len(configuration)}")
-            raise ValueError(f"Configuration size must be {expected_size}, but got {len(configuration)}")
+            raise ValueError(f"""Configuration size must be {expected_size}, but got {len(configuration)}""")
 
-        # Split the vector into an NxN matrix
-        matrix = [configuration[i * N:(i + 1) * N] for i in range(N)]
+        # Split the vector into an NxN matrix (still one-dimensional)
+        matrix = [configuration[i * N:(i + 1) * N] for i in range(N)]  # Split the vector into a matrix
 
         # Shuffle columns to create mutations
         blocks = []
         for i in range(N):
-            block = [matrix[j][i] for j in range(N)]  # Create a block from N cells in a column
+            block = [matrix[j][i] for j in range(N)]  # Create block from N cells in column
             blocks.append(block)
 
         # Shuffle the blocks
@@ -270,10 +303,12 @@ class GeneticAlgorithm:
             if score is not None:
                 fitness_scores.append(score)
             else:
-                fitness_scores.append(0)  # Assign a minimum score if fitness could not be computed
+                # If we failed to compute fitness, assign it a minimum score (e.g., 0)
+                fitness_scores.append(0)
 
         total_fitness = sum(fitness_scores)
         if total_fitness == 0:
+            # If all scores are 0, choose random parents
             logging.warning("Total fitness is 0, selecting random parents.")
             return random.choices(self.population, k=2)
 
@@ -285,18 +320,20 @@ class GeneticAlgorithm:
         N = self.grid_size
         mid = N // 2  # Half the size of the matrix
 
-        # Ensure parents are of the correct size
+        # Ensure parents are the correct size
         if len(parent1) != N * N or len(parent2) != N * N:
             logging.error(f"Parent configurations must be {N * N}, but got sizes: {len(parent1)} and {len(parent2)}")
-            raise ValueError(f"Parent configurations must be {N * N}, but got sizes: {len(parent1)} and {len(parent2)}")
+            raise ValueError(f"""Parent configurations must be {N * N}, but got sizes: {len(parent1)} and {len(parent2)}""")
 
         # Calculate the sections separated from the first matrix
         father_top_left = [parent1[i * N + j] for i in range(mid) for j in range(mid)]
-        father_bottom_right = [parent1[(i + mid) * N + (j + mid)] for i in range(mid) for j in range(mid)]
+        father_bottom_right = [
+            parent1[(i + mid) * N + (j + mid)] for i in range(mid) for j in range(mid)]
 
         # Calculate the sections separated from the second matrix
         mother_top_right = [parent2[i * N + (j + mid)] for i in range(mid) for j in range(mid)]
-        mother_bottom_left = [parent2[(i + mid) * N + j] for i in range(mid) for j in range(mid)]
+        mother_bottom_left = [parent2[(i + mid) * N + j]
+                              for i in range(mid) for j in range(mid)]
 
         # Create the child from the different parts of the parents
         child_top_left = father_top_left
@@ -313,8 +350,9 @@ class GeneticAlgorithm:
 
         # Ensure child is of the correct size
         if len(child) != N * N:
-            logging.debug(f"Child size mismatch, expected {N * N}, got {len(child)}")
-            child = child + [0] * (N * N - len(child))  # Pad the child if size mismatch occurs
+            logging.debug(f"""child size mismatch, expected {N * N}, got {len(child)}""")
+            # Pad the child if size mismatch occurs
+            child = child + [0] * (N * N - len(child))
 
         return tuple(child)
 
@@ -322,16 +360,21 @@ class GeneticAlgorithm:
         return [self.random_configuration() for _ in range(self.population_size)]
 
     def random_configuration(self):
+        # Size of the matrix (grid_size * grid_size)
         N = self.grid_size * self.grid_size
         configuration = [0] * N  # Initialize matrix with zeros
 
+        # Calculate num_parts based on grid_size to match matrix dimensions
         num_parts = self.grid_size  # Number of parts is equal to the matrix dimension
+
+        # Divide the matrix into equal parts
         part_size = self.grid_size  # Size of each part
 
         # Choose parts to assign live cells
-        parts_with_cells_indices = random.sample(range(self.grid_size), self.parts_with_cells)
+        parts_with_cells_indices = random.sample(
+            range(self.grid_size), self.parts_with_cells)
 
-        total_alive_cells = 0  # Track the number of alive cells assigned
+        total_alive_cells = 0  # This will track the number of alive cells assigned
 
         # Choose cells for each selected part
         for part_index in parts_with_cells_indices:
@@ -339,15 +382,19 @@ class GeneticAlgorithm:
             end_idx = start_idx + part_size
 
             # Choose the cells allocated for the selected part
-            chosen_cells = random.sample(range(start_idx, end_idx), self.cells_per_part)
+            chosen_cells = random.sample(
+                range(start_idx, end_idx), self.cells_per_part)
 
+            # Log the selected block information
             logging.debug(f"Block {part_index} chosen cells: {chosen_cells}")
 
+            # Mark the chosen cells as alive
             for cell in chosen_cells:
                 configuration[cell] = 1
                 total_alive_cells += 1  # Update total alive cells
 
-        logging.debug(f"Generated configuration: {configuration} with {total_alive_cells} alive cells")
+        # Log the final configuration
+        logging.debug(f"""Generated configuration: {configuration} with {total_alive_cells} alive cells""")
 
         return tuple(configuration)
 
@@ -365,51 +412,67 @@ class GeneticAlgorithm:
             self.population = new_population
             self.fitness_cache.clear()
 
-            fitness_scores = [self.fitness(config) for config in self.population]
+            fitness_scores = [self.fitness(config)
+                              for config in self.population]
             all_fitness_scores.append(fitness_scores)
 
             avg_fitness = sum(fitness_scores) / len(fitness_scores)
-            std_fitness = (sum([(score - avg_fitness) ** 2 for score in fitness_scores]) / len(fitness_scores)) ** 0.5
-            logging.info(f"Generation {generation + 1}: Avg Fitness: {avg_fitness}, Std Dev: {std_fitness}")
+            std_fitness = (sum(
+                [(score - avg_fitness) ** 2 for score in fitness_scores]) / len(fitness_scores)) ** 0.5
+            logging.info(f"""Generation {generation + 1}: Avg Fitness: {avg_fitness}, Std Dev: {std_fitness}""")
 
             best_fitness_score = max(fitness_scores)
             best_config_index = fitness_scores.index(best_fitness_score)
             best_config = self.population[best_config_index]
 
             game = GameOfLife(self.grid_size, best_config)
-            total_alive_cells, alive_growth, alive_history, lifespan = game.run()
+            lifespan = game.get_lifespan()
 
-            logging.info(f"Best Configuration in Generation {generation + 1}:")
-            logging.info(f"    Fitness Score: {best_fitness_score}")
-            logging.info(f"    Lifespan: {lifespan}")
-            logging.info(f"    Total Alive Cells: {total_alive_cells}")
-            logging.info(f"    Alive Growth: {alive_growth}")
+            alive_growth = 0
+            total_alive_cells = 0
 
-        fitness_scores = [(config, self.fitness(config)) for config in self.population]
+            if lifespan > 0:
+                alive_history = game.get_alive_history()
+                if alive_history:
+                    alive_growth = max(alive_history) - sum(alive_history)
+                total_alive_cells = sum(alive_history)
+
+            logging.info(f"""Best Configuration in Generation {generation + 1}:""")
+            logging.info(f"""    Fitness Score: {best_fitness_score}""")
+            logging.info(f"""    Lifespan: {lifespan}""")
+            logging.info(f"""    Total Alive Cells: {total_alive_cells}""")
+            logging.info(f"""    Alive Growth: {alive_growth}""")
+
+        fitness_scores = [(config, self.fitness(config))
+                          for config in self.population]
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
 
         best_configs = [config for config, _ in fitness_scores[:5]]
-        logging.info(f"Best configurations: {best_configs}")
+        logging.info(f"""best configs : {best_configs}""")
 
         self.best_histories = []
         for config in best_configs:
             game = GameOfLife(self.grid_size, config)
-            total_alive_cells, alive_growth, alive_history, lifespan = game.run()
-            self.best_histories.append(game.history)
+            lifespan = game.get_lifespan()
+            history = game.history
+            alive_history = game.get_alive_history()
+            self.best_histories.append(history)
 
-            logging.info(f"Top {config} Configuration:")
-            logging.info(f"  Fitness Score: {self.fitness(config)}")
-            logging.info(f"  Lifespan: {lifespan}")
-            logging.info(f"  Total Alive Cells: {total_alive_cells}")
-            logging.info(f"  Alive Growth: {alive_growth}")
+            total_alive_cells = sum(alive_history)
+            alive_growth = max(alive_history) - sum(alive_history)
+
+            logging.info(f"""Top {config} Configuration:""")
+            logging.info(f"""  Fitness Score: {self.fitness(config)}""")
+            logging.info(f"""  Lifespan: {lifespan}""")
+            logging.info(f"""  Total Alive Cells: {total_alive_cells}""")
+            logging.info(f"""  Alive Growth: {alive_growth}""")
 
         return best_configs
 
 
 def main(grid_size, population_size, generations, mutation_rate, alive_cells_weight,
          lifespan_weight, alive_growth_weight, cells_per_part, parts_with_cells, predefined_configurations=None):
-    logging.info(f"""Starting run with parameters: grid_size={grid_size}, population_size={population_size}, generations={generations}, mutation_rate={mutation_rate}, alive_cells_weight={
-                 alive_cells_weight}, lifespan_weight={lifespan_weight}, alive_growth_weight={alive_growth_weight}, cells_per_part={cells_per_part}, parts_with_cells={parts_with_cells}""")
+    logging.info(f"Starting run with parameters: grid_size={grid_size}, population_size={population_size}, generations={generations}, mutation_rate={mutation_rate}, alive_cells_weight={alive_cells_weight}, lifespan_weight={lifespan_weight}, alive_growth_weight={alive_growth_weight}, cells_per_part={cells_per_part}, parts_with_cells={parts_with_cells}")
 
     algorithm = GeneticAlgorithm(
         grid_size, population_size, generations, mutation_rate,
@@ -420,8 +483,7 @@ def main(grid_size, population_size, generations, mutation_rate, alive_cells_wei
 
     best_configs = algorithm.run()
 
-    simulation = InteractiveSimulation(
-        best_configs, algorithm.best_histories, grid_size)
+    simulation = InteractiveSimulation(best_configs, algorithm.best_histories, grid_size)
     simulation.run()
 
 
