@@ -106,12 +106,8 @@ class GameOfLife:
 
     def step(self):
         """ Perform a single step in the Game of Life and update history. """
-        if self._is_periodic or self.static_state:
-            self.stable_count += 1
-
         cur_grid = self.grid[:]
         new_grid = [0] * (self.grid_size * self.grid_size)
-
         # Iterate over the grid to apply the Game of Life rules
         for x in range(self.grid_size):
             for y in range(self.grid_size):
@@ -144,23 +140,20 @@ class GameOfLife:
 
     def run(self):
         """ Run the Game of Life until static or periodic state is reached, and calculate fitness. """
+
         while (not self.static_state and not self._is_periodic) or self.stable_count < self.max_stable_generations:
-            alive_history = self.get_alive_history()
-            self.alive_history.append(alive_history)
+            self.alive_history.append(self.get_alive_cells_count())
             self.history.append(tuple(self.grid[:]))
+            if self._is_periodic or self.static_state:
+                self.stable_count += 1
             self.lifespan += 1  # Increment lifespan on each step
             self.step()  # Run one step of the game
 
-
-
-        if len(self.alive_history) > 1:
-            self.alive_growth = self.alive_history[-1] - self.alive_history[0]  # Growth of alive cells from start to end
         self.total_alive_cells = sum(self.alive_history)
 
         # הוספת לוג של התוצאה הסופית
         logging.info(f"Total Alive Cells: {self.total_alive_cells}, Lifespan: {self.lifespan}, Alive Growth: {self.alive_growth}")
         
-        return total_alive_cells, alive_growth, alive_history, lifespan
 
         
         
@@ -245,21 +238,20 @@ class GeneticAlgorithm:
         # יצירת מופע של GameOfLife עם הקונפיגורציה הנוכחית
         game = GameOfLife(self.grid_size, configuration_tuple)
         game.run()
-        total_alive_cells, alive_growth, alive_history, lifespan = game.toa
          # ריצה של משחק החיים כדי לחשב את ההיסטוריה של התאים החיים
         if not game.alive_history: 
             game.alive_growth = 0
         else:
-            alive_growth = max(alive_history) - alive_history[0]
+            game.alive_growth = max(game.alive_history) - game.alive_history[0]
 
         logging.info(f"Configuration: {configuration_tuple}, Lifespan: {game.lifespan}, Alive Growth: {game.alive_growth}, Alive Cells: {game.total_alive_cells}")
 
         # הוספת חישוב ה-Fitness score כך שה-lifespan לא יתאפס
-        fitness_score = (lifespan * self.lifespan_weight +
-                        total_alive_cells / self.alive_cells_weight +
-                        alive_growth * self.alive_growth_weight)
+        fitness_score = (game.lifespan * self.lifespan_weight +
+                        game.total_alive_cells / self.alive_cells_weight +
+                        game.alive_growth * self.alive_growth_weight)
 
-        if lifespan == 1:  # אם ה-lifespan לא מתעדכן כראוי, נוודא שהחישוב לא יתבצע
+        if game.lifespan == 1:  # אם ה-lifespan לא מתעדכן כראוי, נוודא שהחישוב לא יתבצע
             logging.warning(f"Warning: Lifespan is 1, which may indicate an issue with the simulation!")
 
         self.fitness_cache[configuration_tuple] = fitness_score
