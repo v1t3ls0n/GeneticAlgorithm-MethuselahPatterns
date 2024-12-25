@@ -144,6 +144,10 @@ class GameOfLife:
         self.grid = new_grid
         self.lifespan += 1  # Increment lifespan on each step
 
+
+
+
+
     def run(self):
         """ Run the Game of Life until static or periodic state is reached, and calculate fitness. """
         while (not self.static_state and not self._is_periodic) or self.stable_count < self.max_stable_generations:
@@ -151,7 +155,10 @@ class GameOfLife:
 
         # Add extra lifespan for static or periodic grids
         self.lifespan += self.extra_lifespan
-        
+
+        # הוספת לוגים עבור lifespan
+        logging.debug(f"Final Lifespan: {self.lifespan}, Extra Lifespan: {self.extra_lifespan}")
+
         # Calculate the "Alive Growth" correctly
         alive_history = self.get_alive_history()
         alive_growth = 0
@@ -161,7 +168,14 @@ class GameOfLife:
         total_alive_cells = sum(alive_history)
         lifespan = self.lifespan  # The final lifespan after all steps
 
+        # הוספת לוג של התוצאה הסופית
+        logging.info(f"Total Alive Cells: {total_alive_cells}, Lifespan: {lifespan}, Alive Growth: {alive_growth}")
+        
         return total_alive_cells, alive_growth, alive_history, lifespan
+
+        
+        
+    
     def count_alive_neighbors(self, x, y):
         alive = 0
         # Check neighbors for valid indices
@@ -234,7 +248,7 @@ class GeneticAlgorithm:
 
         # ודא שהקונפיגורציה בגודל הנכון
         if len(configuration_tuple) != expected_size:
-            raise ValueError(f"""Configuration size must be {expected_size}, but got {len(configuration_tuple)}""")
+            raise ValueError(f"Configuration size must be {expected_size}, but got {len(configuration_tuple)}")
 
         if configuration_tuple in self.fitness_cache:
             return self.fitness_cache[configuration_tuple]
@@ -243,19 +257,19 @@ class GeneticAlgorithm:
         game = GameOfLife(self.grid_size, configuration_tuple)
         total_alive_cells, alive_growth, alive_history, lifespan = game.run()  # ריצה של משחק החיים כדי לחשב את ההיסטוריה של התאים החיים
 
-        logging.info(f"Starting Game of Life with configuration: {configuration_tuple}")
-        logging.info(f"Initial state of grid: {game.grid}")
-        logging.info(f"Lifespan of grid: {lifespan}")
-        logging.info(f"Alive Growth: {alive_growth}")
-        logging.info(f"Total Alive Cells: {total_alive_cells}")
+        logging.info(f"Configuration: {configuration_tuple}, Lifespan: {lifespan}, Alive Growth: {alive_growth}, Alive Cells: {total_alive_cells}")
 
-        # חישוב ה-Fitness score על בסיס נתוני המשחק
+        # הוספת חישוב ה-Fitness score כך שה-lifespan לא יתאפס
         fitness_score = (lifespan * self.lifespan_weight +
-                         total_alive_cells / self.alive_cells_weight +
-                         alive_growth * self.alive_growth_weight)
+                        total_alive_cells / self.alive_cells_weight +
+                        alive_growth * self.alive_growth_weight)
+
+        if lifespan == 1:  # אם ה-lifespan לא מתעדכן כראוי, נוודא שהחישוב לא יתבצע
+            logging.warning(f"Warning: Lifespan is 1, which may indicate an issue with the simulation!")
 
         self.fitness_cache[configuration_tuple] = fitness_score
         return fitness_score
+
 
     def mutate(self, configuration):
         N = self.grid_size
