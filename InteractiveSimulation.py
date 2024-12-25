@@ -98,9 +98,7 @@ class InteractiveSimulation:
         avg_fitness = [self.generations_cache[generation]['avg_fitness'] for generation in generations]
         std_fitness = [self.generations_cache[generation]['std_fitness'] for generation in generations]
 
-        # Standardized values
-        std_fitness_values = [self.generations_cache[generation]['std_fitness_values'] for generation in generations]
-        
+    
         # Plot the graphs
         self.stats_ax[0].clear()
         self.stats_ax[0].plot(generations, avg_fitness, label='Standardized Fitness', color='blue')
