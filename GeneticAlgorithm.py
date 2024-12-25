@@ -2,6 +2,9 @@
 import logging
 from GameOfLife import GameOfLife
 import random
+import math
+import numpy as np
+import collections
 
 
 class GeneticAlgorithm:
@@ -16,15 +19,20 @@ class GeneticAlgorithm:
         self.alive_cells_weight = alive_cells_weight
         self.lifespan_weight = lifespan_weight
         self.alive_growth_weight = alive_growth_weight
-        self.fitness_cache = {}
+        self.configuration_cache = collections.defaultdict(collections.defaultdict)
+        self.generations_cache = collections.defaultdict(collections.defaultdict)
         self.predefined_configurations = predefined_configurations
         self.cells_per_part = cells_per_part
         self.parts_with_cells = parts_with_cells
         self.min_fitness_score = min_fitness_score
         self.best_histories = []
-        self.population = self.initialize_population()
+        self.population = []
 
-    def fitness(self, configuration):
+    def calc_fitness(self,lifespan,total_alive_cells,alive_growth):
+        return (lifespan * self.lifespan_weight +
+                         total_alive_cells * self.alive_cells_weight +
+                         alive_growth * self.alive_growth_weight)
+    def evaluate(self, configuration):
         configuration_tuple = tuple(configuration)
         expected_size = self.grid_size * self.grid_size
 
@@ -33,24 +41,36 @@ class GeneticAlgorithm:
             raise ValueError(f"""Configuration size must be {
                              expected_size}, but got {len(configuration_tuple)}""")
 
-        if configuration_tuple in self.fitness_cache:
-            return self.fitness_cache[configuration_tuple]
+        if configuration_tuple in self.configuration_cache:
+            return self.configuration_cache[configuration_tuple]
 
         # Create an instance of GameOfLife with the current configuration
         game = GameOfLife(self.grid_size, configuration_tuple)
         game.run()  # Run the simulation
+        fitness_score = self.calc_fitness(lifespan=game.lifespan,total_alive_cells=game.total_alive_cells, alive_growth=game.alive_growth)
+        
 
-        # Access the result directly from the GameOfLife instance
-        fitness_score = (game.lifespan * self.lifespan_weight +
-                         game.total_alive_cells * self.alive_cells_weight +
-                         game.alive_growth * self.alive_growth_weight)
+        self.configuration_cache[configuration_tuple] = {
+                'fitness_score': fitness_score, 'history': tuple(game.history), 
+                'lifespan': game.lifespan, 'alive_growth': game.alive_growth, 
+                'total_alive_cells':game.total_alive_cells,
+                'is_static':game.is_static,
+                'is periodic':game._is_periodic,
+                }
+        
+        return self.configuration_cache[configuration_tuple]
+       
+                
 
-        if game.lifespan == 1:
-            logging.warning(
-                """Warning: Lifespan is 1, which may indicate an issue with the simulation!""")
-
-        self.fitness_cache[configuration_tuple] = fitness_score
-        return fitness_score
+    def populate(self):
+        new_population = []
+        for i in range(self.population_size):
+            parent1, parent2 = self.select_parents()
+            child = self.crossover(parent1, parent2)
+            if random.uniform(0, 1) < self.mutation_rate:
+                child = self.mutate(child)
+            new_population.append(child)
+        self.population = new_population
 
     def mutate(self, configuration):
         N = self.grid_size
@@ -93,7 +113,7 @@ class GeneticAlgorithm:
         # Calculate fitness scores for the entire population
         fitness_scores = []
         for config in self.population:
-            score = self.fitness(config)
+            score = self.evaluate(config)['fitness_score']
             if score is not None:
                 fitness_scores.append(score)
             else:
@@ -117,7 +137,7 @@ class GeneticAlgorithm:
         # ווידוא שההורים הם בגודל הנכון
         if len(parent1) != total_cells or len(parent2) != total_cells:
             logging.info(f"""Parent configurations must be {total_cells}, but got sizes: {
-                          len(parent1)} and {len(parent2)}""")
+                len(parent1)} and {len(parent2)}""")
             raise ValueError(f"""Parent configurations must be {
                              total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
 
@@ -146,8 +166,31 @@ class GeneticAlgorithm:
 
         return tuple(child_blocks)
 
-    def initialize_population(self):
-        return [self.random_configuration() for _ in range(self.population_size)]
+    def initialize(self):
+        logging.info(f"""Generation {1} started.""")
+
+        self.population = [self.random_configuration() for _ in range(self.population_size)]
+        scores = []
+        lifespans = []
+        alive_growth_rates = []
+        total_alive_cells = []
+        for configuration in self.population:
+            self.evaluate(configuration)
+            scores.append(self.configuration_cache[configuration]['fitness_score'])
+            lifespans.append(self.configuration_cache[configuration]['lifespan'])
+            alive_growth_rates.append(self.configuration_cache[configuration]['alive_growth'])
+            total_alive_cells.append(self.configuration_cache[configuration]['total_alive_cells'])
+
+
+        self.generations_cache[0]['avg_fitness'] = np.average(scores)
+        self.generations_cache[0]['avg_lifespan'] = np.average(lifespans)
+        self.generations_cache[0]['avg_alive_growth_rate'] = np.average(alive_growth_rates)
+        self.generations_cache[0]['avg_total_alive_cells'] = np.average(total_alive_cells)
+
+        self.generations_cache[0]['std_fitness'] = np.std(scores)
+        self.generations_cache[0]['std_lifespan'] = np.std(lifespans)
+        self.generations_cache[0]['std_alive_growth_rate'] = np.std(alive_growth_rates)
+        self.generations_cache[0]['std_total_alive_cells'] = np.std(total_alive_cells)
 
     def random_configuration(self):
         # Size of the matrix (grid_size * grid_size)
@@ -173,7 +216,7 @@ class GeneticAlgorithm:
 
             # Choose the cells allocated for the selected part
             chosen_cells = random.sample(
-                range(start_idx, end_idx), self.cells_per_part)
+                range(start_idx, end_idx), min(self.cells_per_part,end_idx-start_idx))
 
             # Log the selected block information
             # logging.info(f"Block {part_index} chosen cells: {chosen_cells}")
@@ -190,76 +233,54 @@ class GeneticAlgorithm:
         return tuple(configuration)
 
     def run(self):
-        all_fitness_scores = []
-        for generation in range(self.generations):
-            logging.info(f"Generation {generation + 1} started.")
-            new_population = []
-            for i in range(self.population_size):
-                parent1, parent2 = self.select_parents()
-                child = self.crossover(parent1, parent2)
-                if random.uniform(0,1) < self.mutation_rate:
-                    child = self.mutate(child)
-                new_population.append(child)
+        self.initialize()
+        for generation in range(1,self.generations):
+            logging.info(f"""Generation {generation + 1} started.""")
+            self.populate()
+            scores = []
+            lifespans = []
+            alive_growth_rates = []
+            total_alive_cells = []
+
+            for configuration in self.population:
+                self.evaluate(configuration)
+                scores.append(self.configuration_cache[configuration]['fitness_score'])
+                lifespans.append(self.configuration_cache[configuration]['lifespan'])
+                alive_growth_rates.append(
+                    self.configuration_cache[configuration]['alive_growth'])
+                total_alive_cells.append(self.configuration_cache[configuration]['total_alive_cells'])
+                
+                
+            self.generations_cache[generation]['avg_fitness'] = np.average(scores)
+            self.generations_cache[generation]['avg_lifespan'] = np.average(lifespans)
+            self.generations_cache[generation]['avg_alive_growth_rate'] = np.average(alive_growth_rates)
+            self.generations_cache[generation]['avg_total_alive_cells'] = np.average(total_alive_cells)
 
 
+            self.generations_cache[generation]['std_fitness'] = np.std(scores)
+            self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
+            self.generations_cache[generation]['std_alive_growth_rate'] = np.std(alive_growth_rates)
+            self.generations_cache[generation]['std_total_alive_cells'] = np.std(total_alive_cells)
 
-            self.population = new_population
-            self.fitness_cache.clear()
 
-            fitness_scores = [self.fitness(config)
-                              for config in self.population]
-            all_fitness_scores.append(fitness_scores)
-
-            avg_fitness = sum(fitness_scores) / len(fitness_scores)
-            std_fitness = (sum(
-                [(score - avg_fitness) ** 2 for score in fitness_scores]) / len(fitness_scores)) ** 0.5
-            logging.info(f"""Generation {
-                         generation + 1}: Avg Fitness: {avg_fitness}, Std Dev: {std_fitness}""")
-            logging.info(f"fitness scores:{fitness_scores}")
-
-            best_fitness_score = max(fitness_scores)
-            best_config_index = fitness_scores.index(best_fitness_score)
-            best_config = self.population[best_config_index]
-
-            game = GameOfLife(self.grid_size, best_config)
-            game.run()  # run the game for the best configuration
-
-            # logging.info(f"""Inside genetic algorithms:\ngame history:{game.history} history length {
-            #              len(game.history)} uniq history states: {len(set(game.history))}""")
-            lifespan = game.get_lifespan()
-            alive_growth = game.alive_growth
-            total_alive_cells = game.total_alive_cells
-
-            logging.info(f"""Best Configuration in Generation {
-                         generation + 1}:""")
-            logging.info(f"""    Fitness Score: {best_fitness_score}""")
-            logging.info(f"""    Lifespan: {lifespan}""")
-            logging.info(f"""    Total Alive Cells: {total_alive_cells}""")
-            logging.info(f"""    Alive Growth: {alive_growth}""")
-
-        # Getting the best configurations at the end of all generations
-        fitness_scores = [(config, self.fitness(config))
+        logging.info(f"""population size = {len(set(self.population))}""")
+        fitness_scores = [(config, self.configuration_cache[config]['fitness_score'])
                           for config in self.population]
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
+        logging.info(f"""fitness score sorted : {fitness_scores}""")
 
-        best_configs = [config for config, _ in fitness_scores[:5]]
-        logging.info(f"""best configs : {best_configs}""")
+        best_configs = fitness_scores[:5]
 
-        self.best_histories = []
-        for config in best_configs:
-            game = GameOfLife(self.grid_size, config)
-            game.run()  # Run the game for the best configuration
-            history = game.history
-            alive_history = game.get_alive_history()
-            self.best_histories.append(history)
 
-            total_alive_cells = sum(alive_history)
-            alive_growth = max(alive_history) - sum(alive_history)
+        for config,_ in best_configs:
+            # Use history from the cache
+            history = self.configuration_cache[config]['history']
+            self.best_histories.append(list(history))
 
             logging.info(f"""Top {config} Configuration:""")
-            logging.info(f"""  Fitness Score: {self.fitness(config)}""")
-            logging.info(f"""  Lifespan: {game.get_lifespan()}""")
-            logging.info(f"""  Total Alive Cells: {total_alive_cells}""")
-            logging.info(f"""  Alive Growth: {alive_growth}""")
+            logging.info(f"""  Fitness Score: {self.configuration_cache[config]['fitness_score']}""")
+            logging.info(f"""  Lifespan: {self.configuration_cache[config]['lifespan']}""")
+            logging.info(f"""  Total Alive Cells: {self.configuration_cache[config]['total_alive_cells']}""")
+            logging.info(f"""  Alive Growth: {self.configuration_cache[config]['alive_growth']}""")
 
         return best_configs
