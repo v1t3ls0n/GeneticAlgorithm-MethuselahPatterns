@@ -4,7 +4,7 @@ from GeneticAlgorithm import GeneticAlgorithm
 # Set up logging to append to the same file for each run of the program
 logging.basicConfig(filename="simulation.log",
                     filemode='w',  # Use 'a' to append to the file
-                    level=logging.DEBUG,
+                    level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 def main(grid_size, population_size, generations, mutation_rate, alive_cells_weight,

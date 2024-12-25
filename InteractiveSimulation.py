@@ -31,7 +31,7 @@ class InteractiveSimulation:
             self.previous_generation()
 
     def next_configuration(self):
-        logging.debug(f"""Switching to next configuration. Current index: {
+        logging.info(f"""Switching to next configuration. Current index: {
                       self.current_config_index}""")
         self.current_config_index = (
             self.current_config_index + 1) % len(self.configurations)
@@ -41,7 +41,7 @@ class InteractiveSimulation:
         self.update_plot()
 
     def previous_configuration(self):
-        logging.debug(f"""Switching to previous configuration. Current index: {
+        logging.info(f"""Switching to previous configuration. Current index: {
                       self.current_config_index}""")
         self.current_config_index = (
             self.current_config_index - 1) % len(self.configurations)
@@ -52,7 +52,7 @@ class InteractiveSimulation:
 
     def next_generation(self):
         if self.current_generation + 1 < len(self.histories[self.current_config_index]):
-            logging.debug(f"""Switching to next generation. Current generation: {
+            logging.info(f"""Switching to next generation. Current generation: {
                           self.current_generation}""")
             self.current_generation += 1
             self.game.grid = self.histories[self.current_config_index][self.current_generation]
@@ -60,7 +60,7 @@ class InteractiveSimulation:
 
     def previous_generation(self):
         if self.current_generation > 0:
-            logging.debug(f"""Switching to previous generation. Current generation: {
+            logging.info(f"""Switching to previous generation. Current generation: {
                           self.current_generation}""")
             self.current_generation -= 1
             self.game.grid = self.histories[self.current_config_index][self.current_generation]

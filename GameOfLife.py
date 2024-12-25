@@ -1,10 +1,10 @@
 import random
 import logging
+
 class GameOfLife:
     def __init__(self, grid_size, initial_state=None):
         self.grid_size = grid_size
-        self.grid = [
-            0] * (grid_size * grid_size) if initial_state is None else list(initial_state)
+        self.grid = [0] * (grid_size * grid_size) if initial_state is None else list(initial_state)
 
         # Store the initial state of the grid
         self.initial_state = tuple(self.grid)
@@ -12,18 +12,15 @@ class GameOfLife:
         # Store initial state in history
         self.history = [self.initial_state]
         self.stable_count = 0  # Counter for stable generations
-        # Set the number of generations before it's considered static
-        self.max_stable_generations = 10
+        self.max_stable_generations = 10  # Set the number of generations before it's considered static
         self.dynamic_lifespan = 0  # Track dynamic lifespan of the grid
         self.lifespan = 0  # Total lifespan (should start at 0)
         self.extra_lifespan = 0  # Lifespan for static or periodic grids
-        # Tracks if the grid has become static (tied to the state)
-        self.static_state = False
-        # Tracks if the grid is repeating a cycle (tied to the state)
-        self._is_periodic = False
+        self.static_state = False  # Tracks if the grid has become static (tied to the state)
+        self._is_periodic = False  # Tracks if the grid is repeating a cycle (tied to the state)
         self.total_alive_cells = 0
         self.alive_growth = 0
-        self.alive_history = [sum(self.grid)]
+        self.alive_history = [sum(self.grid)]  # Starting with the number of alive cells in initial state
 
     def step(self):
         """ Perform a single step in the Game of Life and update history. """
@@ -55,7 +52,6 @@ class GameOfLife:
 
     def run(self):
         """ Run the Game of Life until static or periodic state is reached, and calculate fitness. """
-
         while (not self.static_state and not self._is_periodic) or self.stable_count < self.max_stable_generations:
             self.alive_history.append(self.get_alive_cells_count())
             self.history.append(tuple(self.grid[:]))
@@ -63,13 +59,15 @@ class GameOfLife:
                 self.stable_count += 1
             self.lifespan += 1  # Increment lifespan on each step
             self.step()  # Run one step of the game
-
         
+        # Update the total alive cells and alive growth
         self.total_alive_cells = sum(self.alive_history)
+        self.alive_growth = self.alive_history[-1] - self.alive_history[0] if self.alive_history else 0
 
-        # הוספת לוג של התוצאה הסופית
-        logging.info(f"""Inside Game Of Life Instance:\nTotal Alive Cells: {self.total_alive_cells}, Lifespan: {
-                     self.lifespan}, Alive Growth: {self.alive_growth} game history:{self.history}""")
+        # Log the final result
+        logging.info(f"""Inside Game Of Life Instance:
+                        Total Alive Cells: {self.total_alive_cells}, Lifespan: {self.lifespan}, Alive Growth: {self.alive_growth}, 
+                        game history length: {len(self.history)}, unique history states: {len(set(self.history))}""")
 
     def count_alive_neighbors(self, x, y):
         alive = 0
@@ -106,7 +104,7 @@ class GameOfLife:
 
     def reset(self):
         """ Reset the grid to its initial state """
-        logging.debug("Resetting the grid to initial state.")
+        logging.debug("""Resetting the grid to initial state.""")
         self.grid = list(self.initial_state)
         self.history = [self.initial_state]
         self.static_state = False
