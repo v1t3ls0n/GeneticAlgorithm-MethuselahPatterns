@@ -60,7 +60,10 @@ class GameOfLife:
         limiter = self.game_iteration_limit
 
         while limiter and ((not self._is_static and not self._is_periodic) or self.stable_count < self.max_stable_generations):
-            self.alive_history.append(self.get_alive_cells_count())
+            alive_cell_count = self.get_alive_cells_count()
+            if not alive_cell_count:
+                self._is_static = True
+            self.alive_history.append(alive_cell_count)
             self.history.append(tuple(self.grid[:]))
             if self._is_periodic or self._is_static:
                 self.stable_count += 1

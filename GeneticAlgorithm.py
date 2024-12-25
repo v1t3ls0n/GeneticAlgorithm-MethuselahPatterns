@@ -19,8 +19,10 @@ class GeneticAlgorithm:
         self.alive_cells_weight = alive_cells_weight
         self.lifespan_weight = lifespan_weight
         self.alive_growth_weight = alive_growth_weight
-        self.configuration_cache = collections.defaultdict(collections.defaultdict)
-        self.generations_cache = collections.defaultdict(collections.defaultdict)
+        self.configuration_cache = collections.defaultdict(
+            collections.defaultdict)
+        self.generations_cache = collections.defaultdict(
+            collections.defaultdict)
         self.predefined_configurations = predefined_configurations
         self.alive_cells_per_block = alive_cells_per_block
         self.alive_blocks = alive_blocks
@@ -28,11 +30,12 @@ class GeneticAlgorithm:
         self.best_histories = []
         self.population = set()
 
-    def calc_fitness(self,lifespan,max_alive_cells_count,alive_growth):
+    def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth):
         return (lifespan * self.lifespan_weight +
-                         +max_alive_cells_count * self.alive_cells_weight 
-                         
-                         +alive_growth * self.alive_growth_weight)
+                +max_alive_cells_count * self.alive_cells_weight
+
+                + alive_growth * self.alive_growth_weight)
+
     def evaluate(self, configuration):
         configuration_tuple = tuple(configuration)
         expected_size = self.grid_size * self.grid_size
@@ -48,19 +51,21 @@ class GeneticAlgorithm:
         # Create an instance of GameOfLife with the current configuration
         game = GameOfLife(self.grid_size, configuration_tuple)
         game.run()  # Run the simulation
-        fitness_score = self.calc_fitness(lifespan=game.lifespan,max_alive_cells_count=game.max_alive_cells_count, alive_growth=game.alive_growth)
-        
+        fitness_score = self.calc_fitness(
+            lifespan=game.lifespan, max_alive_cells_count=game.max_alive_cells_count, alive_growth=game.alive_growth)
+        # logging.info(f"""configuration is static?{game._is_static}\n""")
+        # logging.info(f"""configuration is peridioc?{game._is_periodic}\n""")
 
         self.configuration_cache[configuration_tuple] = {
-                'fitness_score': fitness_score, 'history': tuple(game.history), 
-                'lifespan': game.lifespan, 'alive_growth': game.alive_growth, 
-                'max_alive_cells_count':game.max_alive_cells_count,
-                'is_static':game.is_static,
-                'is periodic':game._is_periodic,
-                }
-        
+            'fitness_score': fitness_score, 'history': tuple(game.history),
+            'lifespan': game.lifespan, 'alive_growth': game.alive_growth,
+            'max_alive_cells_count': game.max_alive_cells_count,
+            'is_static': game.is_static,
+            'is periodic': game._is_periodic,
+        }
+
         return self.configuration_cache[configuration_tuple]
-       
+
     def populate(self):
         new_population = set()  # לא נרצה כפילויות, נשתמש ב-set
         for i in range(self.population_size):
@@ -74,19 +79,20 @@ class GeneticAlgorithm:
         combined_population = list(self.population) + list(new_population)
 
         # חישוב הכושר של כל הקונפיגורציות
-        fitness_scores = [(config, self.evaluate(config)['fitness_score']) for config in combined_population]
+        fitness_scores = [(config, self.evaluate(config)['fitness_score'])
+                          for config in combined_population]
         # מיון לפי ציון כושר, מהטוב ביותר לפחות טוב
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
 
         # שמירה רק על הקונפיגורציות הטובות ביותר
         # אנחנו שומרים את ה-set, אבל כדי לשמור על הסדר (נחוץ כדי לבחור את הטובות ביותר)
-        self.population = [config for config, _ in fitness_scores[:self.population_size]]
+        self.population = [config for config,
+                           _ in fitness_scores[:self.population_size]]
 
         # הפיכת ה-population ל-set כדי לשמור על הייחודיות (למנוע כפילויות)
         self.population = set(self.population)
 
-
-    def mutate(self, configuration):
+    def mutate2(self, configuration):
         N = self.grid_size
         expected_size = N * N
         # logging.info(f"""inside mutate, configuration arg = {configuration}\nconfiguration legnth:{len(configuration)}\nexpected size:{expected_size}""")
@@ -121,6 +127,29 @@ class GeneticAlgorithm:
         # logging.info(f"""old_configuration == new_configuration : {
         #              new_configuration == configuration}""")
 
+        return new_configuration
+
+    def mutate(self, configuration):
+        N = self.grid_size
+        expected_size = N * N
+
+        # Ensure configuration is of the correct size
+        if len(configuration) != expected_size:
+            raise ValueError(f"""Configuration size must be {expected_size}, but got {len(configuration)}""")
+
+        matrix = [configuration[i * N:(i + 1) * N] for i in range(N)]
+        
+        # Here we can focus on "tweaking" small areas rather than randomizing large portions
+        blocks = []
+        for i in range(N):
+            block = [matrix[j][i] for j in range(N)]
+            blocks.append(block)
+
+        # Instead of random shuffle, try controlled mutation based on the grid's history
+        # Example: Focus on rows or regions that might be more likely to lead to longer lifespans
+        random.shuffle(blocks[:N//2])  # Apply changes to the first half of blocks to encourage pattern variations
+
+        new_configuration = tuple([cell for block in blocks for cell in block])
         return new_configuration
 
     def select_parents(self):
@@ -184,7 +213,8 @@ class GeneticAlgorithm:
     def initialize(self):
         logging.info(f"""Generation {1} started.""")
 
-        self.population = [self.random_configuration() for _ in range(self.population_size)]
+        self.population = [self.random_configuration()
+                           for _ in range(self.population_size)]
         generation = 0
         scores = []
         lifespans = []
@@ -192,25 +222,30 @@ class GeneticAlgorithm:
         max_alive_cells_count = []
         for configuration in self.population:
             self.evaluate(configuration)
-            scores.append(self.configuration_cache[configuration]['fitness_score'])
-            lifespans.append(self.configuration_cache[configuration]['lifespan'])
-            alive_growth_rates.append(self.configuration_cache[configuration]['alive_growth'])
-            max_alive_cells_count.append(self.configuration_cache[configuration]['max_alive_cells_count'])
-
-
+            scores.append(
+                self.configuration_cache[configuration]['fitness_score'])
+            lifespans.append(
+                self.configuration_cache[configuration]['lifespan'])
+            alive_growth_rates.append(
+                self.configuration_cache[configuration]['alive_growth'])
+            max_alive_cells_count.append(
+                self.configuration_cache[configuration]['max_alive_cells_count'])
 
         self.generations_cache[generation]['avg_fitness'] = np.average(scores)
-        self.generations_cache[generation]['avg_lifespan'] = np.average(lifespans)
-        self.generations_cache[generation]['avg_alive_growth_rate'] = np.average(alive_growth_rates)
-        self.generations_cache[generation]['avg_max_alive_cells_count'] = np.average(max_alive_cells_count)
+        self.generations_cache[generation]['avg_lifespan'] = np.average(
+            lifespans)
+        self.generations_cache[generation]['avg_alive_growth_rate'] = np.average(
+            alive_growth_rates)
+        self.generations_cache[generation]['avg_max_alive_cells_count'] = np.average(
+            max_alive_cells_count)
 
-            # Calculate the standard deviations for each metric
+        # Calculate the standard deviations for each metric
         self.generations_cache[generation]['std_fitness'] = np.std(scores)
         self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
-        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(alive_growth_rates)
-        self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(max_alive_cells_count)
-
-
+        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(
+            alive_growth_rates)
+        self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
+            max_alive_cells_count)
 
     def random_configuration(self):
         # Size of the matrix (grid_size * grid_size)
@@ -236,7 +271,7 @@ class GeneticAlgorithm:
 
             # Choose the cells allocated for the selected part
             chosen_cells = random.sample(
-                range(start_idx, end_idx), min(self.alive_cells_per_block,end_idx-start_idx))
+                range(start_idx, end_idx), min(self.alive_cells_per_block, end_idx-start_idx))
 
             # Log the selected block information
             # logging.info(f"Block {part_index} chosen cells: {chosen_cells}")
@@ -254,7 +289,7 @@ class GeneticAlgorithm:
 
     def run(self):
         self.initialize()
-        for generation in range(1,self.generations):
+        for generation in range(1, self.generations):
             logging.info(f"""Generation {generation + 1} started.""")
             self.populate()
             scores = []
@@ -264,26 +299,32 @@ class GeneticAlgorithm:
 
             for configuration in self.population:
                 self.evaluate(configuration)
-                scores.append(self.configuration_cache[configuration]['fitness_score'])
-                lifespans.append(self.configuration_cache[configuration]['lifespan'])
+                scores.append(
+                    self.configuration_cache[configuration]['fitness_score'])
+                lifespans.append(
+                    self.configuration_cache[configuration]['lifespan'])
                 alive_growth_rates.append(
                     self.configuration_cache[configuration]['alive_growth'])
-                max_alive_cells_count.append(self.configuration_cache[configuration]['max_alive_cells_count'])
-                
-                
+                max_alive_cells_count.append(
+                    self.configuration_cache[configuration]['max_alive_cells_count'])
 
-
-            self.generations_cache[generation]['avg_fitness'] = np.average(scores)
-            self.generations_cache[generation]['avg_lifespan'] = np.average(lifespans)
-            self.generations_cache[generation]['avg_alive_growth_rate'] = np.average(alive_growth_rates)
-            self.generations_cache[generation]['avg_max_alive_cells_count'] = np.average(max_alive_cells_count)
+            self.generations_cache[generation]['avg_fitness'] = np.average(
+                scores)
+            self.generations_cache[generation]['avg_lifespan'] = np.average(
+                lifespans)
+            self.generations_cache[generation]['avg_alive_growth_rate'] = np.average(
+                alive_growth_rates)
+            self.generations_cache[generation]['avg_max_alive_cells_count'] = np.average(
+                max_alive_cells_count)
 
             # Calculate the standard deviations for each metric
             self.generations_cache[generation]['std_fitness'] = np.std(scores)
-            self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
-            self.generations_cache[generation]['std_alive_growth_rate'] = np.std(alive_growth_rates)
-            self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(max_alive_cells_count)
-
+            self.generations_cache[generation]['std_lifespan'] = np.std(
+                lifespans)
+            self.generations_cache[generation]['std_alive_growth_rate'] = np.std(
+                alive_growth_rates)
+            self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
+                max_alive_cells_count)
 
         logging.info(f"""population size = {len(set(self.population))}""")
         fitness_scores = [(config, self.configuration_cache[config]['fitness_score'])
@@ -296,21 +337,23 @@ class GeneticAlgorithm:
         # logging.info(f"""best configs: {best_configs}""")
         # logging.info(f"""all current population: {self.population}""")
 
-
-
-        for config,_ in best_configs:
+        for config, _ in best_configs:
             # Use history from the cache
             history = list(self.configuration_cache[config]['history'])
             self.best_histories.append(history)
 
             logging.info(f"""Top {config} Configuration:""")
-            logging.info(f"""  Fitness Score: {self.configuration_cache[config]['fitness_score']}""")
-            logging.info(f"""  Lifespan: {self.configuration_cache[config]['lifespan']}""")
-            logging.info(f"""  Total Alive Cells: {self.configuration_cache[config]['max_alive_cells_count']}""")
-            logging.info(f"""  Alive Growth: {self.configuration_cache[config]['alive_growth']}""")
+            logging.info(f"""  Fitness Score: {
+                         self.configuration_cache[config]['fitness_score']}""")
+            logging.info(f"""  Lifespan: {
+                         self.configuration_cache[config]['lifespan']}""")
+            logging.info(f"""  Total Alive Cells: {
+                         self.configuration_cache[config]['max_alive_cells_count']}""")
+            logging.info(f"""  Alive Growth: {
+                         self.configuration_cache[config]['alive_growth']}""")
 
         return best_configs
-    
+
     # def safe_standardize(self,values, avg, std):
     #     if std == 0:
     #         logging.warning(f"Standard deviation is zero, returning zero for all values. Avg: {avg}, Std: {std}")
