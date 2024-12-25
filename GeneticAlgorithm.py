@@ -63,6 +63,7 @@ class GeneticAlgorithm:
     def mutate(self, configuration):
         N = self.grid_size
         expected_size = N * N
+        logging.info(f"""inside mutate, configuration arg = {configuration}\nconfiguration legnth:{len(configuration)}\nexpected size:{expected_size}""")
 
         # Ensure configuration is of the correct size
         if len(configuration) != expected_size:
@@ -86,14 +87,14 @@ class GeneticAlgorithm:
         random.shuffle(blocks)
 
         # Create the new configuration from the shuffled blocks
-        new_configuration = [cell for block in blocks for cell in block]
+        new_configuration = tuple([cell for block in blocks for cell in block])
 
         # Log the new configuration
         logging.debug(f"""old_configuration : {configuration}""")
         logging.debug(f"""new_configuration : {new_configuration}""")
         logging.debug(f"""old_configuration == new_configuration : {new_configuration==configuration}""")
 
-        return tuple(new_configuration)
+        return new_configuration
 
     def select_parents(self):
         # Calculate fitness scores for the entire population
@@ -117,50 +118,35 @@ class GeneticAlgorithm:
         return parents
 
     def crossover(self, parent1, parent2):
-        logging.info(f"""in crossover parent1 : {parent1} parent2 : {parent2}""")
         N = self.grid_size
-        mid = N // 2  # Half the size of the matrix
+        total_cells = N * N
 
-        # Ensure parents are the correct size
-        if len(parent1) != N * N or len(parent2) != N * N:
-            logging.error(f"""Parent configurations must be {
-                          N * N}, but got sizes: {len(parent1)} and {len(parent2)}""")
-            raise ValueError(f"""Parent configurations must be {
-                             N * N}, but got sizes: {len(parent1)} and {len(parent2)}""")
+        # ווידוא שההורים הם בגודל הנכון
+        if len(parent1) != total_cells or len(parent2) != total_cells:
+            logging.error(f"Parent configurations must be {total_cells}, but got sizes: {len(parent1)} and {len(parent2)}")
+            raise ValueError(f"Parent configurations must be {total_cells}, but got sizes: {len(parent1)} and {len(parent2)}")
 
-        # Calculate the sections separated from the first matrix
-        father_top_left = [parent1[i * N + j]
-                           for i in range(mid) for j in range(mid)]
-        father_bottom_right = [
-            parent1[(i + mid) * N + (j + mid)] for i in range(mid) for j in range(mid)]
+        # נחלק את הווקטור ל-N בלוקים
+        block_size = total_cells // N
+        blocks_parent1 = [parent1[i * block_size:(i + 1) * block_size] for i in range(N)]
+        blocks_parent2 = [parent2[i * block_size:(i + 1) * block_size] for i in range(N)]
 
-        # Calculate the sections separated from the second matrix
-        mother_top_right = [parent2[i * N + (j + mid)]
-                            for i in range(mid) for j in range(mid)]
-        mother_bottom_left = [parent2[(i + mid) * N + j]
-                              for i in range(mid) for j in range(mid)]
+        # נבחר את הבלוקים לפי האינדקסים האי זוגיים של האב והזוגיים של האם
+        child_blocks = []
+        for i in range(N):
+            if i % 2 == 0:  # אינדקסים זוגיים (מאמא)
+                child_blocks.extend(blocks_parent2[i])
+            else:  # אינדקסים אי זוגיים (מאבא)
+                child_blocks.extend(blocks_parent1[i])
 
-        # Create the child from the different parts of the parents
-        child_top_left = father_top_left
-        child_top_right = mother_top_right
-        child_bottom_left = mother_bottom_left
-        child_bottom_right = father_bottom_right
+        # ווידוא שהילד בגודל הנכון
+        if len(child_blocks) != total_cells:
+            logging.debug(f"Child size mismatch, expected {total_cells}, got {len(child_blocks)}")
+            child_blocks = child_blocks + [0] * (total_cells - len(child_blocks))  # במקרה של שגיאת גודל, נוסיף תאים חיים נוספים
 
-        # Combine all parts to create the full child
-        child = []
-        child.extend(child_top_left)
-        child.extend(child_top_right)
-        child.extend(child_bottom_left)
-        child.extend(child_bottom_right)
+        return tuple(child_blocks)
 
-        # Ensure child is of the correct size
-        if len(child) != N * N:
-            logging.debug(f"""child size mismatch, expected {
-                          N * N}, got {len(child)}""")
-            # Pad the child if size mismatch occurs
-            child = child + [0] * (N * N - len(child))
 
-        return tuple(child)
 
     def initialize_population(self):
         return [self.random_configuration() for _ in range(self.population_size)]
@@ -235,7 +221,7 @@ class GeneticAlgorithm:
             best_config = self.population[best_config_index]
 
             game = GameOfLife(self.grid_size, best_config)
-            logging.info(f"""game history:{game.history}\n history length {len(game.history)} uniq history states : {len(set(game.history))}""")
+            logging.info(f"""inside genetic algorithms:\ngame history:{game.history} history length {len(game.history)} uniq history states : {len(set(game.history))}""")
             lifespan = game.get_lifespan()
 
             alive_growth = 0

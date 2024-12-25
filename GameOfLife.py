@@ -64,11 +64,12 @@ class GameOfLife:
             self.lifespan += 1  # Increment lifespan on each step
             self.step()  # Run one step of the game
 
+        
         self.total_alive_cells = sum(self.alive_history)
 
         # הוספת לוג של התוצאה הסופית
-        logging.info(f"""Total Alive Cells: {self.total_alive_cells}, Lifespan: {
-                     self.lifespan}, Alive Growth: {self.alive_growth}""")
+        logging.info(f"""Inside Game Of Life Instance:\nTotal Alive Cells: {self.total_alive_cells}, Lifespan: {
+                     self.lifespan}, Alive Growth: {self.alive_growth} game history:{self.history}""")
 
     def count_alive_neighbors(self, x, y):
         alive = 0
