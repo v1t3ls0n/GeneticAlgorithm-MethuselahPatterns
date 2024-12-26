@@ -14,7 +14,8 @@ def main(grid_size, population_size, generations, mutation_rate, alive_cells_wei
 
     algorithm = GeneticAlgorithm(
         grid_size, population_size, generations, mutation_rate,
-        alive_cells_weight, lifespan_weight, alive_growth_weight,
+        alive_cells_weight, lifespan_weight, alive_growth_weight,stableness_weight,
+        
         alive_cells_per_block=alive_cells_per_block, alive_blocks=alive_blocks,
         predefined_configurations=predefined_configurations
     )
@@ -27,6 +28,6 @@ def main(grid_size, population_size, generations, mutation_rate, alive_cells_wei
 
 
 # Example call to main function
-main(grid_size=5, population_size=50, generations=100, mutation_rate=1,
-     alive_cells_weight=0.3, lifespan_weight=100, alive_growth_weight=0.55,
+main(grid_size=5, population_size=50, generations=100, mutation_rate=0.2,
+     alive_cells_weight=0.3, lifespan_weight=100, alive_growth_weight=0.55, stableness_weight = 10,
      alive_cells_per_block=5, alive_blocks=1)

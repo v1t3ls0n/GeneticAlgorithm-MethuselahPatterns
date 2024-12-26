@@ -9,7 +9,7 @@ import collections
 
 class GeneticAlgorithm:
     def __init__(self, grid_size, population_size, generations, mutation_rate,
-                 alive_cells_weight, lifespan_weight, alive_growth_weight,
+                 alive_cells_weight, lifespan_weight, alive_growth_weight,stableness_weight,
                  alive_cells_per_block, alive_blocks, predefined_configurations=None, min_fitness_score=1):
         logging.info("Initializing GeneticAlgorithm.")
         self.grid_size = grid_size
@@ -18,8 +18,9 @@ class GeneticAlgorithm:
         self.mutation_rate = mutation_rate
         self.alive_cells_weight = alive_cells_weight
         self.lifespan_weight = lifespan_weight
-        self.lifespan_threshold = grid_size * grid_size
+        self.lifespan_threshold = (grid_size * grid_size) * 3
         self.alive_growth_weight = alive_growth_weight
+        self.stableness_weight = stableness_weight
         self.configuration_cache = collections.defaultdict(
             collections.defaultdict)
         self.generations_cache = collections.defaultdict(
@@ -32,7 +33,7 @@ class GeneticAlgorithm:
         self.population = set()
 
     def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, stableness):
-        return (lifespan * self.lifespan_weight + max_alive_cells_count * self.alive_cells_weight + alive_growth * self.alive_growth_weight) * stableness
+        return (lifespan * self.lifespan_weight + max_alive_cells_count * self.alive_cells_weight + alive_growth * self.alive_growth_weight + stableness * self.stableness_weight) 
 
     def evaluate(self, configuration):
         configuration_tuple = tuple(configuration)
@@ -383,7 +384,10 @@ class GeneticAlgorithm:
         return tuple(configuration)
 
     def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, stableness, max_alive_cells_count):
-
+        scores = np.array(scores)
+        lifespans = np.array(lifespans)
+        alive_growth_rates = np.array(alive_growth_rates)
+        stableness = np.array(stableness)
         self.generations_cache[generation]['avg_fitness'] = np.average(
             scores)
         self.generations_cache[generation]['avg_lifespan'] = np.average(
@@ -432,8 +436,8 @@ class GeneticAlgorithm:
             prev_fitness = self.generations_cache[generation - 1]['avg_fitness']
             curr_fitness = self.generations_cache[generation]['avg_fitness']
             fitness_improvement_rate = curr_fitness / prev_fitness if prev_fitness != 0 else 1
-            self.mutation_rate = fitness_improvement_rate * max(
-                0.05, self.mutation_rate / (1 + generation + self.generations_cache[generation - 1]['avg_fitness'])) 
+            self.mutation_rate = max(0.2, self.mutation_rate * fitness_improvement_rate)
+
 
             if self.generations_cache[generation]['std_fitness'] < self.lifespan_threshold:  # low fitness standard deviation
                 self.mutation_rate = self.mutation_rate / 1.5  # Reduce mutation rate significantly
@@ -444,10 +448,10 @@ class GeneticAlgorithm:
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
 
         best_configs = fitness_scores[:5]
-        # logging.info(f"""fitness score length : {len(fitness_scores)}""")
-        # logging.info(f"""best configs length : {len(best_configs)}""")
-        # logging.info(f"""best configs: {best_configs}""")
-        # logging.info(f"""all current population: {self.population}""")
+        logging.info(f"""fitness score length : {len(fitness_scores)}""")
+        logging.info(f"""best configs length : {len(best_configs)}""")
+        logging.info(f"""best configs: {best_configs}""")
+        logging.info(f"""all current population: {self.population}""")
 
         for config, _ in best_configs:
             # Use history from the cache

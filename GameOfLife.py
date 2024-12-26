@@ -22,7 +22,7 @@ class GameOfLife:
         self.is_static = 0
         # Tracks if the grid is repeating a cycle (tied to the state)
         self.is_periodic = 0
-        selfstableness = 0
+
         self.max_alive_cells_count = 0
         self.alive_growth = 0
         # Starting with the number of alive cells in initial state
