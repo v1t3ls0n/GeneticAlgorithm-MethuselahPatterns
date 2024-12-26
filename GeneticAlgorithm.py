@@ -392,7 +392,7 @@ class GeneticAlgorithm:
             alive_growth_rates)
         self.generations_cache[generation]['avg_max_alive_cells_count'] = np.average(
             max_alive_cells_count)
-        self.generations_cache[generation]['avg_stableness'] = np.avg(
+        self.generations_cache[generation]['avg_stableness'] = np.average(
             stableness)
         # Calculate the standard deviations for each metric
         self.generations_cache[generation]['std_fitness'] = np.std(scores)
