@@ -71,7 +71,7 @@ class InteractiveSimulation:
         self.grid_ax.set_title("Grid Window")
         
         # Optional: connect a close event to kill the entire program
-        self.grid_fig.canvas.mpl_connect("close_event", self.on_close_all)
+        self.grid_fig.canvas.mpl_connect("close_event", self.on_close)
 
         # 2) Create the 'Stats Window'
         self.stats_fig = plt.figure(figsize=(6, 4))
@@ -79,7 +79,7 @@ class InteractiveSimulation:
         self.stats_ax.set_title("Stats Window")
         
         # Connect a close event, too
-        self.stats_fig.canvas.mpl_connect("close_event", self.on_close_all)
+        self.stats_fig.canvas.mpl_connect("close_event", self.on_close)
 
         self.button_ax = self.stats_fig.add_axes([0.2, 0.02, 0.6, 0.07])
         self.focus_button = Button(self.button_ax, "Focus Grid Window")
