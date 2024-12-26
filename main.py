@@ -1,9 +1,18 @@
+"""
+main.py
+-------
+
+Defines the main entry point of the program. It sets up logging, runs the GeneticAlgorithm
+with specified parameters, and then launches the InteractiveSimulation to visualize results.
+"""
+
 import logging
 from InteractiveSimulation import InteractiveSimulation
 from GeneticAlgorithm import GeneticAlgorithm
-# Set up logging to append to the same file for each run of the program
+
+# Configure logging to append to a log file
 logging.basicConfig(filename="simulation.log",
-                    filemode='a',  # Use 'a' to append to the file
+                    filemode='a',
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -19,40 +28,75 @@ def main(grid_size=10,
          alive_cells_per_block=5,
          alive_blocks=1,
          predefined_configurations=None):
-    logging.info(f"""Starting run with parameters:
-                 grid_size={grid_size}, 
-                 population_size={population_size}, 
-                 generations={generations}, 
-                 initial_mutation_rate={initial_mutation_rate}, 
-                 alive_cells_weight={alive_cells_weight}, 
-                 mutation_rate_lower_limit={mutation_rate_lower_limit},
-                 lifespan_weight={lifespan_weight}, 
-                 alive_growth_weight={alive_growth_weight}, 
-                 stableness_weight={stableness_weight},
-                 alive_cells_per_block={alive_cells_per_block}, 
-                 alive_blocks={alive_blocks}, 
-                 predefined_configurations={predefined_configurations}""")
+    """
+    Main function that drives the process:
+    1. Instantiates the GeneticAlgorithm with the given parameters.
+    2. Runs the GA to completion, returning the top 5 best configurations.
+    3. Passes those configurations to InteractiveSimulation for visualization and analysis.
 
-    algorithm = GeneticAlgorithm(
-        grid_size, population_size, generations, initial_mutation_rate, mutation_rate_lower_limit,
-        alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight,
-        alive_cells_per_block=alive_cells_per_block, alive_blocks=alive_blocks,
-        predefined_configurations=predefined_configurations
-    )
+    Args:
+        grid_size (int): NxN dimension of the grid.
+        population_size (int): Number of individuals in each GA generation.
+        generations (int): Number of generations to run in the GA.
+        initial_mutation_rate (float): Probability of mutating a cell at the start.
+        mutation_rate_lower_limit (float): The minimum bound on mutation rate.
+        alive_cells_weight (float): Fitness weight for maximum alive cells.
+        lifespan_weight (float): Fitness weight for lifespan.
+        alive_growth_weight (float): Fitness weight for growth ratio.
+        stableness_weight (float): Fitness weight for how quickly a pattern stabilizes or not.
+        alive_cells_per_block (int): In random init, how many living cells per block?
+        alive_blocks (int): In random init, how many blocks receive living cells?
+        predefined_configurations (None or iterable): If you want to pass known patterns.
+    """
+    logging.info(f"Starting run with parameters: "
+                 f"grid_size={grid_size}, "
+                 f"population_size={population_size}, "
+                 f"generations={generations}, "
+                 f"initial_mutation_rate={initial_mutation_rate}, "
+                 f"alive_cells_weight={alive_cells_weight}, "
+                 f"mutation_rate_lower_limit={mutation_rate_lower_limit}, "
+                 f"lifespan_weight={lifespan_weight}, "
+                 f"alive_growth_weight={alive_growth_weight}, "
+                 f"stableness_weight={stableness_weight}, "
+                 f"alive_cells_per_block={alive_cells_per_block}, "
+                 f"alive_blocks={alive_blocks}, "
+                 f"predefined_configurations={predefined_configurations}")
+
+    algorithm = GeneticAlgorithm(grid_size,
+                                 population_size,
+                                 generations,
+                                 initial_mutation_rate,
+                                 mutation_rate_lower_limit,
+                                 alive_cells_weight,
+                                 lifespan_weight,
+                                 alive_growth_weight,
+                                 stableness_weight,
+                                 alive_cells_per_block=alive_cells_per_block,
+                                 alive_blocks=alive_blocks,
+                                 predefined_configurations=predefined_configurations)
 
     best_configs = algorithm.run()
 
-    # Pass the mutation rate history to the InteractiveSimulation
-    simulation = InteractiveSimulation(
-        best_configs, algorithm.best_histories, grid_size, generations_cache=algorithm.generations_cache, 
-        mutation_rate_history=algorithm.mutation_rate_history)
+    # Launch interactive simulation with the best configurations
+    simulation = InteractiveSimulation(best_configs,
+                                       algorithm.best_histories,
+                                       grid_size,
+                                       generations_cache=algorithm.generations_cache,
+                                       mutation_rate_history=algorithm.mutation_rate_history)
     simulation.run()
 
 
 def get_user_param(prompt: str, default_value: str) -> str:
     """
-    מציג למשתמש prompt, ומחזיר את הטקסט שהמשתמש הקליד.
-    אם המשתמש לוחץ Enter בלי להקליד כלום - מחזירים את default_value.
+    Prompt the user for a parameter with a default fallback.
+    If the user just presses Enter, the default is returned.
+
+    Args:
+        prompt (str): The text shown to the user.
+        default_value (str): The default string if the user does not provide input.
+
+    Returns:
+        str: The user-entered string or the default if empty.
     """
     user_input = input(f"{prompt} [{default_value}]: ").strip()
     return user_input if user_input else default_value
@@ -60,14 +104,13 @@ def get_user_param(prompt: str, default_value: str) -> str:
 
 def run_main_interactively():
     """
-    פונקציית מעטפת שמבקשת מהמשתמש להזין ערכים או לבחור ברירת מחדל לכולם.
+    Interactive function that asks the user whether to use all default parameters or
+    to input custom values for each parameter individually.
     """
     use_defaults = input("Use default values for ALL parameters? (y/N): ").lower()
     if use_defaults.startswith('y'):
-        # מפעילים את main עם ערכי ברירת המחדל
         main()
     else:
-        # מאפשרים להזין באופן אינטראקטיבי לכל פרמטר
         grid_size = int(get_user_param("Enter grid_size", "10"))
         population_size = int(get_user_param("Enter population_size", "50"))
         generations = int(get_user_param("Enter generations", "200"))
@@ -95,5 +138,4 @@ def run_main_interactively():
 
 
 if __name__ == '__main__':
-    # מפעילים את הפונקציה שתקרא ל-main עם הפרמטרים שהמשתמש בוחר
     run_main_interactively()
