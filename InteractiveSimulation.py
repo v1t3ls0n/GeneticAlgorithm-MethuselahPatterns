@@ -43,6 +43,7 @@ class InteractiveSimulation:
         self.grid_fig = plt.figure(figsize=(6, 8))
         self.grid_ax = self.grid_fig.add_subplot(111)
         self.grid_ax.set_title("Grid Window")
+
         # If user closes the grid window => close everything
         self.grid_fig.canvas.mpl_connect("close_event", self.on_close)
 
@@ -93,7 +94,8 @@ class InteractiveSimulation:
             button_text="Focus Metrics Window",
             on_click=self.bring_metrics_to_front
         )
-
+        self.update_grid()
+        self.render_statistics()
 
 
 
@@ -220,28 +222,22 @@ class InteractiveSimulation:
         self.grid_ax.clear()
         self.grid_ax.imshow(grid_2d, cmap="binary")
         self.grid_ax.set_title(
-            f"Config #{self.current_config_index + 1}, Generation {self.current_generation}"
+            f"Best Initial Config #{self.current_config_index + 1}, Day {self.current_generation}"
         )
-        self.grid_ax.set_xlabel("ARROWS: UP/DOWN=configs, LEFT/RIGHT=gens")
+        self.grid_ax.set_ylabel("ARROWS: UP/DOWN=configs, LEFT/RIGHT=gens")
 
-        if self.current_config_index < len(self.best_params):
-            param_dict = self.best_params[self.current_config_index]
-            lifespan = param_dict.get('lifespan', 0)
-            max_alive = param_dict.get('max_alive_cells_count', 0)
-            growth = param_dict.get('alive_growth', 1.0)
-            stableness = param_dict.get('stableness', 0.0)
-            text_str = (f"lifespan={lifespan} | "
+        param_dict = self.best_params[self.current_config_index]
+        lifespan = param_dict.get('lifespan', 0)
+        max_alive = param_dict.get('max_alive_cells_count', 0)
+        growth = param_dict.get('alive_growth', 1.0)
+        stableness = param_dict.get('stableness', 0.0)
+        text_str = (f"lifespan={lifespan} | "
                         f"max_alive={max_alive} | "
                         f"growth={growth:.2f} | "
                         f"stableness={stableness:.2f}")
-            self.grid_ax.text(
-                -0.15, -0.15,
-                text_str,
-                transform=self.grid_ax.transAxes,
-                fontsize=10,
-                color="blue",
-                va='top'
-            )
+        self.grid_ax.set_xlabel(text_str)
+        
+
 
         self.grid_fig.canvas.draw_idle()
  
@@ -339,17 +335,15 @@ class InteractiveSimulation:
         Show both windows at once.  plt.show() blocks until user closes them.
         """
 
-        self.grid_fig.tight_layout()
-        self.stats_fig.tight_layout()
+
+        # self.grid_fig.tight_layout(pad=1.0, h_pad=3.0, w_pad=1.0)
+        # self.stats_fig.tight_layout(pad=1.0, h_pad=3.0, w_pad=1.0)
+
+        logging.info("Running interactive simulation with separate Grid and Stats windows.")
+        plt.show()
+        
         self.grid_fig.canvas.manager.window.activateWindow()
         self.grid_fig.canvas.manager.window.raise_()
 
-        self.update_grid()
-        self.render_statistics()
-        # self.stats_fig.canvas.manager.window.showMaximized()
-        self.grid_fig.canvas.manager.window.showMaximized()
-        # Adjust layout with padding
-        self.grid_fig.tight_layout(pad=1.0, h_pad=1.0, w_pad=1.0)
-        self.stats_fig.tight_layout(pad=1.0, h_pad=1.0, w_pad=1.0)
-        logging.info("Running interactive simulation with separate Grid and Stats windows.")
-        plt.show()
+
+
