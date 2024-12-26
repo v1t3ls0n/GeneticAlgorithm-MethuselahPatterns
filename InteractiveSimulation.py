@@ -48,7 +48,7 @@ class InteractiveSimulation:
 
         # 2) Create the "Stats Window"
         self.stats_fig = plt.figure(figsize=(18, 6))
-        self.stats_fig.suptitle("Stats Window")
+        # self.stats_fig.suptitle("Stats Window")
 
         # We'll use a 3-row × 3-column GridSpec:
         #   Row 0:    params_plot,  lifespan_plot,   growth_plot
@@ -348,6 +348,8 @@ class InteractiveSimulation:
         self.render_statistics()
         # self.stats_fig.canvas.manager.window.showMaximized()
         self.grid_fig.canvas.manager.window.showMaximized()
-
+        # Adjust layout with padding
+        self.grid_fig.tight_layout(pad=1.0, h_pad=1.0, w_pad=1.0)
+        self.stats_fig.tight_layout(pad=1.0, h_pad=1.0, w_pad=1.0)
         logging.info("Running interactive simulation with separate Grid and Stats windows.")
         plt.show()
