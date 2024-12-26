@@ -106,7 +106,6 @@ def main(
                                        grid_size=grid_size,
                                        generations_cache=algorithm.generations_cache,
                                        mutation_rate_history=algorithm.mutation_rate_history,
-                                       initial_living_cells_count_weight = initial_living_cells_count_weight,
                                        run_params=run_params
                                        )
     simulation.run()
@@ -148,7 +147,7 @@ def run_main_interactively():
         stableness_weight = float(get_user_param("Enter stableness_weight", "0.01"))
         alive_cells_per_block = int(get_user_param("Enter alive_cells_per_block", "5"))
         alive_blocks = int(get_user_param("Enter alive_blocks", "3"))
-        initial_living_cells_count_weight = int(get_user_param("Enter initial_living_cells_count_weight", "0.6"))
+        initial_living_cells_count_weight = float(get_user_param("Enter initial_living_cells_count_weight", "0.6"))
 
 
         main(grid_size=grid_size,
