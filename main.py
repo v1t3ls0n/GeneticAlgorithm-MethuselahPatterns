@@ -39,7 +39,7 @@ def main(grid_size, population_size, generations, initial_mutation_rate, alive_c
     simulation.run()
 
 # Example call to main function
-main(grid_size=5, population_size=50, generations=200, initial_mutation_rate=1,mutation_rate_lower_limit = 0.25,
+main(grid_size=10, population_size=50, generations=200, initial_mutation_rate=1,mutation_rate_lower_limit = 0.2,
      alive_cells_weight=0.12, lifespan_weight=200, alive_growth_weight=0.03, stableness_weight = 0.01,
 
      alive_cells_per_block=5, alive_blocks=1)
