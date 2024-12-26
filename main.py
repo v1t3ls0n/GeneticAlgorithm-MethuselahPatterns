@@ -29,7 +29,7 @@ def main(
                  stableness_weight=0.01,
                  alive_cells_per_block=5, 
                  alive_blocks=3, 
-                 initial_living_cells_count_weight = 0.5,
+                 initial_living_cells_count_weight = 0.7,
                  predefined_configurations=None
 
 ):
@@ -147,7 +147,7 @@ def run_main_interactively():
         stableness_weight = float(get_user_param("Enter stableness_weight", "0.01"))
         alive_cells_per_block = int(get_user_param("Enter alive_cells_per_block", "5"))
         alive_blocks = int(get_user_param("Enter alive_blocks", "3"))
-        initial_living_cells_count_weight = float(get_user_param("Enter initial_living_cells_count_weight", "0.6"))
+        initial_living_cells_count_weight = float(get_user_param("Enter initial_living_cells_count_weight", "0.7"))
 
 
         main(grid_size=grid_size,
