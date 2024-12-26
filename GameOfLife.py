@@ -13,6 +13,7 @@ Classes:
 import random
 import logging
 
+
 class GameOfLife:
     """
     The GameOfLife class simulates Conway's Game of Life for a given initial state.
@@ -48,7 +49,8 @@ class GameOfLife:
                 If None, a zero-initialized grid is created.
         """
         self.grid_size = grid_size
-        self.grid = [0]*(grid_size*grid_size) if initial_state is None else list(initial_state)
+        self.grid = [
+            0]*(grid_size*grid_size) if initial_state is None else list(initial_state)
 
         # Store the initial state of the grid
         self.initial_state = tuple(self.grid)
@@ -130,7 +132,8 @@ class GameOfLife:
 
         self.lifespan = len(set(self.history))
         self.max_alive_cells_count = max(self.alive_history)
-        self.alive_growth = max(self.alive_history) / max(1, min(self.alive_history)) if self.alive_history else 1
+        self.alive_growth = max(self.alive_history) / max(1,
+                                                          min(self.alive_history)) if self.alive_history else 1
         self.stableness = self.stable_count / self.max_stable_generations
 
     def count_alive_neighbors(self, x, y):

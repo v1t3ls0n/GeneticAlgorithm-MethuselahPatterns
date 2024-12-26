@@ -1,12 +1,12 @@
+import numpy as np
+from PyQt5.QtWidgets import QPushButton
+from matplotlib.widgets import Button
+from matplotlib.gridspec import GridSpec
+import matplotlib.pyplot as plt
 import logging
 import matplotlib
 matplotlib.use("Qt5Agg")  # Ensure Qt5Agg is available
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
-from matplotlib.widgets import Button
-from PyQt5.QtWidgets import QPushButton
 
-import numpy as np
 
 class InteractiveSimulation:
     """
@@ -49,12 +49,6 @@ class InteractiveSimulation:
 
         # 2) Create the "Stats Window"
         self.stats_fig = plt.figure(figsize=(18, 6))
-        # self.stats_fig.suptitle("Stats Window")
-
-        # We'll use a 3-row × 3-column GridSpec:
-        #   Row 0:    params_plot,  lifespan_plot,   growth_plot
-        #   Row 1:    alive_plot,   mutation_plot,   fitness_plot
-        #   Row 2:    entire row for the "Focus Grid Window" button
         gs = GridSpec(2, 3, figure=self.stats_fig)
 
         # Connect close event => kill entire app if user closes stats
@@ -63,25 +57,18 @@ class InteractiveSimulation:
         # Create subplots in row 0
         self.params_plot = self.stats_fig.add_subplot(gs[0, 0])
         self.standardized_lifespan_plot = self.stats_fig.add_subplot(gs[0, 1])
-        self.standardized_growth_rate_plot = self.stats_fig.add_subplot(gs[0, 2])
+        self.standardized_growth_rate_plot = self.stats_fig.add_subplot(
+            gs[0, 2])
 
         # Create subplots in row 1
-        self.standardized_alive_cells_plot = self.stats_fig.add_subplot(gs[1, 0])
+        self.standardized_alive_cells_plot = self.stats_fig.add_subplot(
+            gs[1, 0])
         self.mutation_rate_plot = self.stats_fig.add_subplot(gs[1, 1])
         self.standardized_fitness_plot = self.stats_fig.add_subplot(gs[1, 2])
-
-        # Row 2 for the button: single Axes spanning all 3 columns
-        # self.button_ax = self.stats_fig.add_subplot(gs[2, :])
-        # Turn off the spines, ticks, etc. so we see only the button
-        # self.button_ax.axis("off")
-
-        # self.focus_button = Button(self.button_ax, "Focus Grid Window")
-        # self.focus_button.on_clicked(self.bring_grid_to_front)
 
         # Also connect arrow-key events in the stats figure
         self.grid_fig.canvas.mpl_connect('key_press_event', self.on_key)
         self.stats_fig.canvas.mpl_connect('key_press_event', self.on_key)
-
 
         self.add_focus_button_to_toolbar(
             figure=self.stats_fig,
@@ -97,9 +84,6 @@ class InteractiveSimulation:
         self.update_grid()
         self.render_statistics()
 
-
-
-
     def on_close(self, event):
         """
         Called when EITHER window is closed. Closes all plots and exits.
@@ -107,7 +91,7 @@ class InteractiveSimulation:
         logging.info("A window was closed. Exiting program.")
         plt.close('all')
         exit()
-    
+
     def add_focus_button_to_toolbar(self, figure, button_text, on_click):
         """
         Insert a custom button in the given figure's Qt toolbar.
@@ -128,7 +112,8 @@ class InteractiveSimulation:
             toolbar.addWidget(button)
             button.clicked.connect(on_click)
         except Exception as e:
-            logging.warning(f"Could not add custom button to {button_text} in toolbar: {e}")
+            logging.warning(f"""Could not add custom button to {
+                            button_text} in toolbar: {e}""")
 
     def bring_grid_to_front(self, e=None):
         """
@@ -143,8 +128,8 @@ class InteractiveSimulation:
             self.grid_fig.canvas.manager.window.showMaximized()
 
         except Exception as e:
-            logging.warning(f"Could not bring the Grid window to the front: {e}")
-
+            logging.warning(
+                f"Could not bring the Grid window to the front: {e}")
 
     def bring_metrics_to_front(self, e=None):
         """
@@ -161,9 +146,8 @@ class InteractiveSimulation:
             # self.grid_fig.canvas.manager.window.showMinimized()
 
         except Exception as e:
-            logging.warning(f"Could not bring the Stats window to the front: {e}")
-
-
+            logging.warning(
+                f"Could not bring the Stats window to the front: {e}")
 
     def on_key(self, event):
         """
@@ -183,12 +167,14 @@ class InteractiveSimulation:
             self.previous_generation()
 
     def next_configuration(self):
-        self.current_config_index = (self.current_config_index + 1) % len(self.configurations)
+        self.current_config_index = (
+            self.current_config_index + 1) % len(self.configurations)
         self.current_generation = 0
         self.update_grid()
 
     def previous_configuration(self):
-        self.current_config_index = (self.current_config_index - 1) % len(self.configurations)
+        self.current_config_index = (
+            self.current_config_index - 1) % len(self.configurations)
         self.current_generation = 0
         self.update_grid()
 
@@ -222,7 +208,8 @@ class InteractiveSimulation:
         self.grid_ax.clear()
         self.grid_ax.imshow(grid_2d, cmap="binary")
         self.grid_ax.set_title(
-            f"Best Initial Config #{self.current_config_index + 1}, Day {self.current_generation}"
+            f"""Best Initial Config #{
+                self.current_config_index + 1}, Day {self.current_generation}"""
         )
         self.grid_ax.set_ylabel("ARROWS: UP/DOWN=configs, LEFT/RIGHT=gens")
 
@@ -231,17 +218,18 @@ class InteractiveSimulation:
         max_alive = param_dict.get('max_alive_cells_count', 0)
         growth = param_dict.get('alive_growth', 1.0)
         stableness = param_dict.get('stableness', 0.0)
-        initial_living_cells_count = param_dict.get('initial_living_cells_count', 0.0)
+        initial_living_cells_count = param_dict.get(
+            'initial_living_cells_count', 0.0)
         text_str = (
-            f"""lifespan={lifespan} | initial_size = {initial_living_cells_count} | """
-            f"""max_alive = {max_alive} | growth = {growth:.2f} | stableness = {stableness:.2f}"""
-            )
+            f"""lifespan={lifespan} | initial_size = {
+                initial_living_cells_count} | """
+            f"""max_alive = {max_alive} | growth = {
+                growth:.2f} | stableness = {stableness:.2f}"""
+        )
         self.grid_ax.set_xlabel(text_str)
-        
-
 
         self.grid_fig.canvas.draw_idle()
- 
+
     def render_statistics(self):
         """
         Fill in each subplot with the relevant data, including the run_params in self.params_plot.
@@ -252,7 +240,8 @@ class InteractiveSimulation:
         avg_fitness = [self.generations_cache[g]['avg_fitness'] for g in gens]
         std_fitness = [self.generations_cache[g]['std_fitness'] for g in gens]
         self.standardized_fitness_plot.clear()
-        self.standardized_fitness_plot.plot(gens, avg_fitness, label='Standardized Fitness', color='blue')
+        self.standardized_fitness_plot.plot(
+            gens, avg_fitness, label='Standardized Fitness', color='blue')
         self.standardized_fitness_plot.fill_between(
             gens,
             np.subtract(avg_fitness, std_fitness),
@@ -263,10 +252,13 @@ class InteractiveSimulation:
         self.standardized_fitness_plot.legend()
 
         # ---------------- Lifespan ----------------
-        avg_lifespan = [self.generations_cache[g]['avg_lifespan'] for g in gens]
-        std_lifespan = [self.generations_cache[g]['std_lifespan'] for g in gens]
+        avg_lifespan = [self.generations_cache[g]['avg_lifespan']
+                        for g in gens]
+        std_lifespan = [self.generations_cache[g]['std_lifespan']
+                        for g in gens]
         self.standardized_lifespan_plot.clear()
-        self.standardized_lifespan_plot.plot(gens, avg_lifespan, label='Standardized Lifespan', color='green')
+        self.standardized_lifespan_plot.plot(
+            gens, avg_lifespan, label='Standardized Lifespan', color='green')
         self.standardized_lifespan_plot.fill_between(
             gens,
             np.subtract(avg_lifespan, std_lifespan),
@@ -277,36 +269,45 @@ class InteractiveSimulation:
         self.standardized_lifespan_plot.legend()
 
         # ---------------- Growth Rate ----------------
-        avg_growth = [self.generations_cache[g]['avg_alive_growth_rate'] for g in gens]
-        std_growth = [self.generations_cache[g]['std_alive_growth_rate'] for g in gens]
+        avg_growth = [self.generations_cache[g]
+                      ['avg_alive_growth_rate'] for g in gens]
+        std_growth = [self.generations_cache[g]
+                      ['std_alive_growth_rate'] for g in gens]
         self.standardized_growth_rate_plot.clear()
-        self.standardized_growth_rate_plot.plot(gens, avg_growth, label='Std Growth', color='red')
+        self.standardized_growth_rate_plot.plot(
+            gens, avg_growth, label='Std Growth', color='red')
         self.standardized_growth_rate_plot.fill_between(
             gens,
             np.subtract(avg_growth, std_growth),
             np.add(avg_growth, std_growth),
             color='red', alpha=0.2, label='Std Dev'
         )
-        self.standardized_growth_rate_plot.set_title("Standardized Growth Rate")
+        self.standardized_growth_rate_plot.set_title(
+            "Standardized Growth Rate")
         self.standardized_growth_rate_plot.legend()
 
         # ---------------- Alive Cells ----------------
-        avg_alive_cells = [self.generations_cache[g]['avg_max_alive_cells_count'] for g in gens]
-        std_alive_cells = [self.generations_cache[g]['std_max_alive_cells_count'] for g in gens]
+        avg_alive_cells = [self.generations_cache[g]
+                           ['avg_max_alive_cells_count'] for g in gens]
+        std_alive_cells = [self.generations_cache[g]
+                           ['std_max_alive_cells_count'] for g in gens]
         self.standardized_alive_cells_plot.clear()
-        self.standardized_alive_cells_plot.plot(gens, avg_alive_cells, label='Std Alive', color='purple')
+        self.standardized_alive_cells_plot.plot(
+            gens, avg_alive_cells, label='Std Alive', color='purple')
         self.standardized_alive_cells_plot.fill_between(
             gens,
             np.subtract(avg_alive_cells, std_alive_cells),
             np.add(avg_alive_cells, std_alive_cells),
             color='purple', alpha=0.2, label='Std Dev'
         )
-        self.standardized_alive_cells_plot.set_title("Standardized Alive Cells")
+        self.standardized_alive_cells_plot.set_title(
+            "Standardized Alive Cells")
         self.standardized_alive_cells_plot.legend()
 
         # ---------------- Mutation Rate ----------------
         self.mutation_rate_plot.clear()
-        self.mutation_rate_plot.plot(gens, self.mutation_rate_history, label='Mutation Rate', color='orange')
+        self.mutation_rate_plot.plot(
+            gens, self.mutation_rate_history, label='Mutation Rate', color='orange')
         self.mutation_rate_plot.set_title("Mutation Rate")
         self.mutation_rate_plot.legend()
 
@@ -321,10 +322,10 @@ class InteractiveSimulation:
         text_str = "\n".join(lines)
 
         self.params_plot.text(
-            0.0, 1.0, 
-            text_str, 
+            0.0, 1.0,
+            text_str,
             transform=self.params_plot.transAxes,
-            fontsize=10, 
+            fontsize=10,
             va='top'
         )
 
@@ -336,15 +337,12 @@ class InteractiveSimulation:
         Show both windows at once.  plt.show() blocks until user closes them.
         """
 
-
         # self.grid_fig.tight_layout(pad=1.0, h_pad=3.0, w_pad=1.0)
         # self.stats_fig.tight_layout(pad=1.0, h_pad=3.0, w_pad=1.0)
 
-        logging.info("Running interactive simulation with separate Grid and Stats windows.")
+        logging.info(
+            "Running interactive simulation with separate Grid and Stats windows.")
         plt.show()
-        
+
         self.grid_fig.canvas.manager.window.activateWindow()
         self.grid_fig.canvas.manager.window.raise_()
-
-
-

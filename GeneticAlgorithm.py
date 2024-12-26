@@ -42,7 +42,7 @@ class GeneticAlgorithm:
     """
 
     def __init__(self, grid_size, population_size, generations, initial_mutation_rate, mutation_rate_lower_limit,
-                 alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight,initial_living_cells_count_weight,
+                 alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight, initial_living_cells_count_weight,
                  alive_cells_per_block, alive_blocks, predefined_configurations=None):
         """
         Initialize the genetic algorithm.
@@ -85,7 +85,7 @@ class GeneticAlgorithm:
         self.population = set()
         self.mutation_rate_history = [initial_mutation_rate]
 
-    def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, stableness,initial_living_cells_count):
+    def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, stableness, initial_living_cells_count):
         """
         Combine multiple factors (lifespan, alive cell count, growth, and stableness)
         into one final fitness score based on their respective weights.
@@ -94,7 +94,8 @@ class GeneticAlgorithm:
         alive_cells_score = max_alive_cells_count * self.alive_cells_weight
         growth_score = alive_growth * self.alive_growth_weight
         stableness_score = stableness * self.stableness_weight
-        small_configuration_score = self.initial_living_cells_count_weight * (1 / max(1,initial_living_cells_count))
+        small_configuration_score = self.initial_living_cells_count_weight * \
+            (1 / max(1, initial_living_cells_count))
         return (lifespan_score + alive_cells_score + growth_score + stableness_score) * small_configuration_score
 
     def evaluate(self, configuration):
@@ -135,7 +136,7 @@ class GeneticAlgorithm:
             max_alive_cells_count=game.max_alive_cells_count,
             alive_growth=game.alive_growth,
             stableness=game.stableness,
-            initial_living_cells_count = initial_living_cells_count
+            initial_living_cells_count=initial_living_cells_count
         )
 
         self.configuration_cache[configuration_tuple] = {
@@ -147,7 +148,7 @@ class GeneticAlgorithm:
             'is_static': game.is_static,
             'is periodic': game.is_periodic,
             'stableness': game.stableness,
-            'initial_living_cells_count':initial_living_cells_count
+            'initial_living_cells_count': initial_living_cells_count
         }
         return self.configuration_cache[configuration_tuple]
 
@@ -376,15 +377,17 @@ class GeneticAlgorithm:
         configuration = [0]*N
 
         partition_size = self.grid_size
-        alive_blocks_indices = random.sample(range(self.alive_blocks), k=self.alive_blocks)
+        alive_blocks_indices = random.sample(
+            range(self.alive_blocks), k=self.alive_blocks)
         total_taken_cells = self.alive_blocks * self.alive_cells_per_block
         for part_index in alive_blocks_indices:
             start_idx = part_index*partition_size
             end_idx = start_idx + partition_size
-            chosen_cells = random.sample(range(start_idx, end_idx), k = self.alive_cells_per_block)
+            chosen_cells = random.sample(
+                range(start_idx, end_idx), k=self.alive_cells_per_block)
             for cell in chosen_cells:
                 configuration[cell] = 1
-                total_taken_cells-=1
+                total_taken_cells -= 1
         return tuple(configuration)
 
     def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, stableness, max_alive_cells_count):
@@ -495,7 +498,7 @@ class GeneticAlgorithm:
                 'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
                 'alive_growth': self.configuration_cache[config]['alive_growth'],
                 'stableness': self.configuration_cache[config]['stableness'],
-                'initial_living_cells_count' : self.configuration_cache[config]['initial_living_cells_count']
+                'initial_living_cells_count': self.configuration_cache[config]['initial_living_cells_count']
             }
             best_params.append(params_dict)
         self.best_params = best_params
