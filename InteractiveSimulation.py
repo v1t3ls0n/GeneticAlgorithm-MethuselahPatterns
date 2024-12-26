@@ -27,7 +27,7 @@ class InteractiveSimulation:
         current_generation (int): Which generation in that config's history is shown.
     """
 
-    def __init__(self, configurations, histories, grid_size, generations_cache, mutation_rate_history):
+    def __init__(self, configurations, histories, grid_size, generations_cache, mutation_rate_history,run_params):
         """
         Initialize figures for grid visualization and for the statistic plots.
         Set up keyboard callbacks for user interaction.
@@ -48,6 +48,7 @@ class InteractiveSimulation:
         self.mutation_rate_history = mutation_rate_history
         self.current_config_index = 0
         self.current_generation = 0
+        self.run_params = run_params if run_params else {}  
 
         # Figure for the grid
         self.grid_fig, self.grid_ax = plt.subplots(figsize=(5, 5))
@@ -85,6 +86,10 @@ class InteractiveSimulation:
         self.mutation_rate_plot.set_title('Mutation Rate')
         self.mutation_rate_plot.set_xlabel('Generation')
         self.mutation_rate_plot.set_ylabel('Mutation Rate')
+
+        self.params_plot = self.stats_fig.add_subplot(gs[1, 2:])
+        self.params_plot.set_title("Run Parameters")
+        self.params_plot.axis('off')  # כדי שלא יוצגו צירים מיותרים
 
         # Keyboard and close events
         self.grid_fig.canvas.mpl_connect('key_press_event', self.on_key)
@@ -243,6 +248,26 @@ class InteractiveSimulation:
         self.mutation_rate_plot.set_xlabel("Generation")
         self.mutation_rate_plot.set_ylabel("Mutation Rate")
         self.mutation_rate_plot.legend()
+
+
+        # Params Plot
+        self.params_plot.clear()
+        self.params_plot.set_title("Run Parameters")
+        self.params_plot.axis('off')
+
+        # Genetic Algorithm Custom Parameters
+        params_text = "Genetic Algorithm Custom Parameters used in this run:\n"
+        for key, val in self.run_params.items():
+            params_text += f"• {key} = {val}\n"
+
+        self.params_plot.text(
+            0.01, 0.95, 
+            params_text,
+            transform=self.params_plot.transAxes,
+            fontsize=10,
+            va='top'     # vertical alignment
+        )
+
 
         self.stats_fig.tight_layout()
 

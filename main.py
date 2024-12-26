@@ -76,13 +76,29 @@ def main(grid_size=10,
                                  predefined_configurations=predefined_configurations)
 
     best_configs = algorithm.run()
+    run_params = {
+        "grid_size": grid_size,
+        "population_size": population_size,
+        "generations": generations,
+        "initial_mutation_rate": initial_mutation_rate,
+        "mutation_rate_lower_limit": mutation_rate_lower_limit,
+        "alive_cells_weight": alive_cells_weight,
+        "lifespan_weight": lifespan_weight,
+        "alive_growth_weight": alive_growth_weight,
+        "stableness_weight": stableness_weight,
+        "alive_cells_per_block": alive_cells_per_block,
+        "alive_blocks": alive_blocks,
+        "predefined_configurations": predefined_configurations
+    }
 
     # Launch interactive simulation with the best configurations
     simulation = InteractiveSimulation(best_configs,
                                        algorithm.best_histories,
                                        grid_size,
                                        generations_cache=algorithm.generations_cache,
-                                       mutation_rate_history=algorithm.mutation_rate_history)
+                                       mutation_rate_history=algorithm.mutation_rate_history,
+                                       run_params=run_params
+                                       )
     simulation.run()
 
 
