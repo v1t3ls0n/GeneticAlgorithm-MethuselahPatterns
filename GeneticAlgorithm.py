@@ -18,6 +18,7 @@ class GeneticAlgorithm:
         self.mutation_rate = mutation_rate
         self.alive_cells_weight = alive_cells_weight
         self.lifespan_weight = lifespan_weight
+        self.lifespan_threshold = grid_size * grid_size
         self.alive_growth_weight = alive_growth_weight
         self.configuration_cache = collections.defaultdict(
             collections.defaultdict)
@@ -30,8 +31,8 @@ class GeneticAlgorithm:
         self.best_histories = []
         self.population = set()
 
-    def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, is_stable):
-        return (lifespan * self.lifespan_weight + max_alive_cells_count * self.alive_cells_weight + alive_growth * self.alive_growth_weight) if is_stable else 0
+    def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, stableness):
+        return (lifespan * self.lifespan_weight + max_alive_cells_count * self.alive_cells_weight + alive_growth * self.alive_growth_weight) * stableness
 
     def evaluate(self, configuration):
         configuration_tuple = tuple(configuration)
@@ -49,7 +50,7 @@ class GeneticAlgorithm:
         game = GameOfLife(self.grid_size, configuration_tuple)
         game.run()  # Run the simulation
         fitness_score = self.calc_fitness(
-            lifespan=game.lifespan, max_alive_cells_count=game.max_alive_cells_count, alive_growth=game.alive_growth, is_stable=game.is_stable)
+            lifespan=game.lifespan, max_alive_cells_count=game.max_alive_cells_count, alive_growth=game.alive_growth, stableness=game.stableness)
         # logging.info(f"""configuration is static?{game.is_static}\n""")
         # logging.info(f"""configuration is peridioc?{game.is_periodic}\n""")
 
@@ -59,6 +60,7 @@ class GeneticAlgorithm:
             'max_alive_cells_count': game.max_alive_cells_count,
             'is_static': game.is_static,
             'is periodic': game.is_periodic,
+            'stableness': game.stableness
         }
 
         return self.configuration_cache[configuration_tuple]
@@ -88,7 +90,6 @@ class GeneticAlgorithm:
 
         # הפיכת ה-population ל-set כדי לשמור על הייחודיות (למנוע כפילויות)
         self.population = set(self.population)
-
 
     def mutate(self, configuration):
         N = self.grid_size
@@ -137,8 +138,6 @@ class GeneticAlgorithm:
                         new_configuration.append(0)
 
         return tuple(new_configuration)
-
-
 
     def select_parents(self):
         # Calculate fitness scores for the entire population
@@ -310,6 +309,7 @@ class GeneticAlgorithm:
         lifespans = []
         alive_growth_rates = []
         max_alive_cells_count = []
+        stableness = []
         for configuration in self.population:
             self.evaluate(configuration)
             scores.append(
@@ -320,6 +320,11 @@ class GeneticAlgorithm:
                 self.configuration_cache[configuration]['alive_growth'])
             max_alive_cells_count.append(
                 self.configuration_cache[configuration]['max_alive_cells_count'])
+            stableness.append(
+                self.configuration_cache[configuration]['stableness'])
+
+        self.calc_statistics(generation=generation, scores=scores, lifespans=lifespans,
+                             alive_growth_rates=alive_growth_rates, max_alive_cells_count=max_alive_cells_count, stableness=stableness)
 
         self.generations_cache[generation]['avg_fitness'] = np.average(scores)
         self.generations_cache[generation]['avg_lifespan'] = np.average(
@@ -377,16 +382,38 @@ class GeneticAlgorithm:
 
         return tuple(configuration)
 
+    def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, stableness, max_alive_cells_count):
+
+        self.generations_cache[generation]['avg_fitness'] = np.average(
+            scores)
+        self.generations_cache[generation]['avg_lifespan'] = np.average(
+            lifespans)
+        self.generations_cache[generation]['avg_alive_growth_rate'] = np.average(
+            alive_growth_rates)
+        self.generations_cache[generation]['avg_max_alive_cells_count'] = np.average(
+            max_alive_cells_count)
+        self.generations_cache[generation]['avg_stableness'] = np.avg(
+            stableness)
+        # Calculate the standard deviations for each metric
+        self.generations_cache[generation]['std_fitness'] = np.std(scores)
+        self.generations_cache[generation]['std_lifespan'] = np.std(
+            lifespans)
+        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(
+            alive_growth_rates)
+        self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
+            max_alive_cells_count)
+
     def run(self):
         self.initialize()
         for generation in range(1, self.generations):
             logging.info(f"""Generation {generation + 1} started.""")
+
             self.populate()
             scores = []
             lifespans = []
             alive_growth_rates = []
             max_alive_cells_count = []
-
+            stableness = []
             for configuration in self.population:
                 self.evaluate(configuration)
                 scores.append(
@@ -397,24 +424,19 @@ class GeneticAlgorithm:
                     self.configuration_cache[configuration]['alive_growth'])
                 max_alive_cells_count.append(
                     self.configuration_cache[configuration]['max_alive_cells_count'])
+                stableness.append(
+                    self.configuration_cache[configuration]['stableness'])
 
-            self.generations_cache[generation]['avg_fitness'] = np.average(
-                scores)
-            self.generations_cache[generation]['avg_lifespan'] = np.average(
-                lifespans)
-            self.generations_cache[generation]['avg_alive_growth_rate'] = np.average(
-                alive_growth_rates)
-            self.generations_cache[generation]['avg_max_alive_cells_count'] = np.average(
-                max_alive_cells_count)
+            self.calc_statistics(generation=generation, scores=scores, lifespans=lifespans,
+                                 alive_growth_rates=alive_growth_rates, max_alive_cells_count=max_alive_cells_count, stableness=stableness)
+            prev_fitness = self.generations_cache[generation - 1]['avg_fitness']
+            curr_fitness = self.generations_cache[generation]['avg_fitness']
+            fitness_improvement_rate = curr_fitness / prev_fitness if prev_fitness != 0 else 1
+            self.mutation_rate = fitness_improvement_rate * max(
+                0.05, self.mutation_rate / (1 + generation + self.generations_cache[generation - 1]['avg_fitness'])) 
 
-            # Calculate the standard deviations for each metric
-            self.generations_cache[generation]['std_fitness'] = np.std(scores)
-            self.generations_cache[generation]['std_lifespan'] = np.std(
-                lifespans)
-            self.generations_cache[generation]['std_alive_growth_rate'] = np.std(
-                alive_growth_rates)
-            self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
-                max_alive_cells_count)
+            if self.generations_cache[generation]['std_fitness'] < self.lifespan_threshold:  # low fitness standard deviation
+                self.mutation_rate = self.mutation_rate / 1.5  # Reduce mutation rate significantly
 
         logging.info(f"""population size = {len(set(self.population))}""")
         fitness_scores = [(config, self.configuration_cache[config]['fitness_score'])
