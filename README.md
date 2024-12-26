@@ -197,6 +197,6 @@ If you use this code in your research, please cite:
   author = Guy Vitelson,
   title = Game of Life Genetic Algorithm,
   year = 2024,
-  url = https://github.com/v1t3ls0n/Game-of-Life-Genetic-Algorithm
+  url = https://github.com/v1t3ls0n/Methuselah-Pattern-Finder-for-Conway-s-Game-of-Life
 }
 ```
