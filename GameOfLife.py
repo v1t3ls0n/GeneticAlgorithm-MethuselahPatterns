@@ -19,9 +19,10 @@ class GameOfLife:
         self.max_stable_generations = 10
         self.lifespan = 0  # Total lifespan (should start at 0)
         # Tracks if the grid has become static (tied to the state)
-        self._is_static = False
+        self.is_static = False
         # Tracks if the grid is repeating a cycle (tied to the state)
-        self._is_periodic = False
+        self.is_periodic = False
+        self.is_stable = False
         self.max_alive_cells_count = 0
         self.alive_growth = 0
         # Starting with the number of alive cells in initial state
@@ -48,10 +49,10 @@ class GameOfLife:
 
         # Check for static state (no change between current and previous grid)
         if newState == curState:
-            self._is_static = True
+            self.is_static = True
         # Check for periodicity (if the new state has appeared before)
         elif newState in self.history[:-1]:
-            self._is_periodic = True
+            self.is_periodic = True
         else:
             self.grid = new_grid
 
@@ -59,13 +60,13 @@ class GameOfLife:
         """ Run the Game of Life until static or periodic state is reached, and calculate fitness. """
         limiter = self.game_iteration_limit
 
-        while limiter and ((not self._is_static and not self._is_periodic) or self.stable_count < self.max_stable_generations):
+        while limiter and ((not self.is_static and not self.is_periodic) or self.stable_count < self.max_stable_generations):
             alive_cell_count = self.get_alive_cells_count()
             if not alive_cell_count:
-                self._is_static = True
+                self.is_static = True
             self.alive_history.append(alive_cell_count)
             self.history.append(tuple(self.grid[:]))
-            if self._is_periodic or self._is_static:
+            if self.is_periodic or self.is_static:
                 self.stable_count += 1
             self.lifespan += 1  # Increment lifespan on each step
             self.step()  # Run one step of the game
@@ -76,7 +77,7 @@ class GameOfLife:
         self.max_alive_cells_count = max(self.alive_history)
         self.alive_growth = max(
             self.alive_history)/max(1, min(self.alive_history)) if self.alive_history else 1
-
+        self.is_stable = self.is_static or self.is_periodic
         # Log the final result
         # logging.info(f"""Inside Game Of Life Instance:
         #                 Total Alive Cells: {self.max_alive_cells_count}, Lifespan: {self.lifespan}, Alive Growth: {self.alive_growth},
@@ -107,21 +108,13 @@ class GameOfLife:
         """ Return the history of the number of alive cells for each generation """
         return self.alive_history
 
-    def is_static(self):
-        """ Return if the grid is static """
-        return self._is_static
-
-    def check_periodicity(self):
-        """ Return if the grid is periodic (repeating) """
-        return self._is_periodic
-
     def reset(self):
         """ Reset the grid to its initial state """
         logging.debug("""Resetting the grid to initial state.""")
         self.grid = list(self.initial_state)
         self.history = [self.initial_state]
-        self._is_static = False
-        self._is_periodic = False
+        self.is_static = False
+        self.is_periodic = False
         self.lifespan = 0
         self.stable_count = 0
         self.alive_history = [sum(self.grid)]

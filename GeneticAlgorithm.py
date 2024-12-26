@@ -30,11 +30,8 @@ class GeneticAlgorithm:
         self.best_histories = []
         self.population = set()
 
-    def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth):
-        return (lifespan * self.lifespan_weight +
-                +max_alive_cells_count * self.alive_cells_weight
-
-                + alive_growth * self.alive_growth_weight)
+    def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, is_stable):
+        return (lifespan * self.lifespan_weight + max_alive_cells_count * self.alive_cells_weight + alive_growth * self.alive_growth_weight) if is_stable else 0
 
     def evaluate(self, configuration):
         configuration_tuple = tuple(configuration)
@@ -52,16 +49,16 @@ class GeneticAlgorithm:
         game = GameOfLife(self.grid_size, configuration_tuple)
         game.run()  # Run the simulation
         fitness_score = self.calc_fitness(
-            lifespan=game.lifespan, max_alive_cells_count=game.max_alive_cells_count, alive_growth=game.alive_growth)
-        # logging.info(f"""configuration is static?{game._is_static}\n""")
-        # logging.info(f"""configuration is peridioc?{game._is_periodic}\n""")
+            lifespan=game.lifespan, max_alive_cells_count=game.max_alive_cells_count, alive_growth=game.alive_growth, is_stable=game.is_stable)
+        # logging.info(f"""configuration is static?{game.is_static}\n""")
+        # logging.info(f"""configuration is peridioc?{game.is_periodic}\n""")
 
         self.configuration_cache[configuration_tuple] = {
             'fitness_score': fitness_score, 'history': tuple(game.history),
             'lifespan': game.lifespan, 'alive_growth': game.alive_growth,
             'max_alive_cells_count': game.max_alive_cells_count,
             'is_static': game.is_static,
-            'is periodic': game._is_periodic,
+            'is periodic': game.is_periodic,
         }
 
         return self.configuration_cache[configuration_tuple]
@@ -93,61 +90,53 @@ class GeneticAlgorithm:
         self.population = set(self.population)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def mutate(self, configuration):
         N = self.grid_size
         total_cells = N * N
-        
-        # Split the vector into a matrix
+
+        # Split the vector into a matrix (NxN grid)
         matrix = [configuration[i * N:(i + 1) * N] for i in range(N)]
 
-        # Shuffle columns to create mutations
+        # Create blocks from the matrix
         blocks = []
         for i in range(N):
             # Create block from N cells in column
             block = [matrix[j][i] for j in range(N)]
             blocks.append(block)
 
-        # Shuffle the blocks
-        random.shuffle(blocks)
+        # Calculate the number of living cells in each block
+        block_alive_counts = [sum(block) for block in blocks]
 
+        # Create a list of tuples with each block and its corresponding count of living cells
+        blocks_with_alive_counts = list(zip(blocks, block_alive_counts))
 
-        # Initialize probabilities for each block
-        blocks_new_life_probabilities = [0] * N
+        # Sort the blocks by the number of living cells (ascending order)
+        blocks_with_alive_counts.sort(key=lambda x: x[1])
 
-        for i in range(N):
-            # Update the probability for each block, prefer blocks with more living cells
-            blocks_new_life_probabilities[i] = max(1, sum(blocks[i])) / N
+        # Create a list of blocks sorted by their living cell count
+        sorted_blocks = [block for block, _ in blocks_with_alive_counts]
 
-        # Create the new configuration from the shuffled blocks
+        # Shuffle the sorted blocks to create a new configuration
+        random.shuffle(sorted_blocks)
+
+        # Now, create the new configuration based on shuffled blocks
         new_configuration = []
 
-        for i in range(N):
-            for cell in blocks[i]:
-                if cell == 1:
-                    # If the cell is alive, it stays alive
+        # Modify the blocks based on the shuffled order
+        for block in sorted_blocks:
+            for j in range(N):
+                # For each cell in the block, decide if it should remain the same or mutate
+                if block[j] == 1:
+                    # If the cell is alive, it remains alive
                     new_configuration.append(1)
                 else:
-                    # If the cell is dead, decide if it will become alive based on the probability
-                    # new_configuration.append(1 if random.uniform(0,1) < blocks_new_life_probabilities[i] else 0)
-                    new_configuration.append(random.choices([0,1], weights=[0.5, 0.5], k=1)[0])
-                    
+                    # If the cell is dead, mutate based on the block's life probability
+                    if random.uniform(0, 1) < sum(block) / N:
+                        new_configuration.append(1)
+                    else:
+                        new_configuration.append(0)
 
         return tuple(new_configuration)
-
 
 
 
@@ -172,36 +161,6 @@ class GeneticAlgorithm:
         probabilities = [score / total_fitness for score in fitness_scores]
         parents = random.choices(population, weights=probabilities, k=2)
         return parents
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     def crossover_old_basic(self, parent1, parent2):
         N = self.grid_size
@@ -239,14 +198,6 @@ class GeneticAlgorithm:
 
         return tuple(child_blocks)
 
-
-
-
-
-
-
-
-
     def crossover(self, parent1, parent2):
         """
         Performs crossover between two parent configurations to create a child configuration.
@@ -271,13 +222,17 @@ class GeneticAlgorithm:
 
         # Ensure that the parent configurations are of the correct size
         if len(parent1) != total_cells or len(parent2) != total_cells:
-            logging.info(f"""Parent configurations must be {total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
-            raise ValueError(f"""Parent configurations must be {total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
+            logging.info(f"""Parent configurations must be {total_cells}, but got sizes: {
+                         len(parent1)} and {len(parent2)}""")
+            raise ValueError(f"""Parent configurations must be {
+                             total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
 
         # Divide the configurations into N blocks
         block_size = total_cells // N
-        blocks_parent1 = [parent1[i * block_size:(i + 1) * block_size] for i in range(N)]
-        blocks_parent2 = [parent2[i * block_size:(i + 1) * block_size] for i in range(N)]
+        blocks_parent1 = [
+            parent1[i * block_size:(i + 1) * block_size] for i in range(N)]
+        blocks_parent2 = [
+            parent2[i * block_size:(i + 1) * block_size] for i in range(N)]
 
         # Count the number of alive cells in each block
         block_alive_counts_parent1 = [sum(block) for block in blocks_parent1]
@@ -293,7 +248,8 @@ class GeneticAlgorithm:
                 (alive_count / total_alive_cells_parent1) if alive_count > 0 else (1 / total_cells) for alive_count in block_alive_counts_parent1
             ]
         else:
-            probabilities_parent1 = [1 / total_cells] * N  # If no alive cells, assign equal probability to all blocks
+            # If no alive cells, assign equal probability to all blocks
+            probabilities_parent1 = [1 / total_cells] * N
 
         # Assign probabilities for block selection for parent2
         if total_alive_cells_parent2 > 0:
@@ -301,16 +257,20 @@ class GeneticAlgorithm:
                 (alive_count / total_alive_cells_parent2) if alive_count > 0 else (1 / total_cells) for alive_count in block_alive_counts_parent2
             ]
         else:
-            probabilities_parent2 = [1 / total_cells] * N  # If no alive cells, assign equal probability to all blocks
+            # If no alive cells, assign equal probability to all blocks
+            probabilities_parent2 = [1 / total_cells] * N
 
         # Select blocks from the parent with more living cells based on calculated probabilities
-        selected_blocks_parent1 = random.choices(range(N), weights=probabilities_parent1, k=(N // 2) + reminder)
-        
+        selected_blocks_parent1 = random.choices(
+            range(N), weights=probabilities_parent1, k=(N // 2) + reminder)
+
         # Now, select blocks from parent2 excluding the already selected blocks from parent1
-        remaining_blocks_parent2 = [i for i in range(N) if i not in selected_blocks_parent1]
+        remaining_blocks_parent2 = [i for i in range(
+            N) if i not in selected_blocks_parent1]
         selected_blocks_parent2 = random.choices(
-            remaining_blocks_parent2, 
-            weights=[probabilities_parent2[i] for i in remaining_blocks_parent2], 
+            remaining_blocks_parent2,
+            weights=[probabilities_parent2[i]
+                     for i in remaining_blocks_parent2],
             k=N // 2
         )
 
@@ -323,7 +283,8 @@ class GeneticAlgorithm:
                 child_blocks.extend(blocks_parent2[i])
             else:
                 # If the block is not selected from either parent, choose randomly between them
-                selected_parent = random.choices([1, 2], weights=[0.5, 0.5], k=1)[0]
+                selected_parent = random.choices(
+                    [1, 2], weights=[0.5, 0.5], k=1)[0]
                 if selected_parent == 1:
                     child_blocks.extend(blocks_parent1[i])
                 else:
@@ -331,16 +292,13 @@ class GeneticAlgorithm:
 
         # Ensure the child configuration has the correct number of cells (in case of rounding issues)
         if len(child_blocks) != total_cells:
-            logging.info(f"""Child size mismatch, expected {total_cells}, got {len(child_blocks)}""")
+            logging.info(f"""Child size mismatch, expected {
+                         total_cells}, got {len(child_blocks)}""")
             # Ensure that we pad or adjust the final size to match the expected number of cells
-            child_blocks = child_blocks + [0] * (total_cells - len(child_blocks))  # Padding if necessary
+            child_blocks = child_blocks + \
+                [0] * (total_cells - len(child_blocks))  # Padding if necessary
 
         return tuple(child_blocks)
-
-
-
-
-
 
     def initialize(self):
         logging.info(f"""Generation {1} started.""")
