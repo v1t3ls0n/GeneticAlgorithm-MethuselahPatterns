@@ -12,10 +12,10 @@ set ROOT_DIR=%cd%
 REM Run PyInstaller with options
 pyinstaller --onefile ^
     --distpath "%ROOT_DIR%" ^
-    --add-data "config/*.py;config" ^
-    --add-data "core/*.py;core" ^
-    --add-data "display/*.py;display" ^
-    --add-data "utils/*.py;utils" ^
+    --add-data "GameOfLife.py;GameOfLife" ^
+    --add-data "GeneticAlgorithm.py;GeneticAlgorithm.py" ^
+    --add-data "InteractiveSimulation.py;InteractiveSimulation" ^
+    --add-data "main.py" ^
     main.py
 
 REM Notify the user
