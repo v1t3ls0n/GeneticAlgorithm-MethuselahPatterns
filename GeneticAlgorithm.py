@@ -8,14 +8,14 @@ import collections
 
 
 class GeneticAlgorithm:
-    def __init__(self, grid_size, population_size, generations, mutation_rate,
+    def __init__(self, grid_size, population_size, generations, initial_mutation_rate,
                  alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight,
                  alive_cells_per_block, alive_blocks, predefined_configurations=None, min_fitness_score=1):
         logging.info("Initializing GeneticAlgorithm.")
         self.grid_size = grid_size
         self.population_size = population_size
         self.generations = generations
-        self.mutation_rate = mutation_rate
+        self.mutation_rate = initial_mutation_rate
         self.alive_cells_weight = alive_cells_weight
         self.lifespan_weight = lifespan_weight
         self.lifespan_threshold = (grid_size * grid_size) * 3
