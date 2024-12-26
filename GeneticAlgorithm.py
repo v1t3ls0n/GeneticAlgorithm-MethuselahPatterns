@@ -437,6 +437,7 @@ class GeneticAlgorithm:
             history = list(self.configuration_cache[config]['history'])
             self.best_histories.append(history)
             logging.info("Top Configuration:")
+            logging.info(f"  Configuration: {config}")
             logging.info(f"  Fitness Score: {self.configuration_cache[config]['fitness_score']}")
             logging.info(f"  Lifespan: {self.configuration_cache[config]['lifespan']}")
             logging.info(f"  Total Alive Cells: {self.configuration_cache[config]['max_alive_cells_count']}")
