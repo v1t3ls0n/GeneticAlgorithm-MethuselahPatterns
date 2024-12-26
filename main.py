@@ -124,7 +124,7 @@ def run_main_interactively():
     to input custom values for each parameter individually.
     """
     use_defaults = input("Use default values for ALL parameters? (y/N): ").lower()
-    if use_defaults.startswith('y'):
+    if use_defaults.startswith('y') or use_defaults == "":
         main()
     else:
         grid_size = int(get_user_param("Enter grid_size", "10"))
