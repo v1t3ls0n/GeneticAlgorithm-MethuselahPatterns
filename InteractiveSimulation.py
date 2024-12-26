@@ -151,24 +151,25 @@ class InteractiveSimulation:
         self.stats_ax[3].legend()
         self.stats_ax[3].grid(True)
 
-        # Create a plot for the mutation rate and its standard deviation
-        self.stats_ax[4].clear()
-        self.stats_ax[4].plot(generations, self.mutation_rate_history, label='Mutation Rate', color='orange')
-
 
         # Mutation Rate Plot with Standard Deviation Area
-        # Assuming self.mutation_rate_history contains the mutation rate history
-        # and self.mutation_rate_std_history contains the standard deviation of mutation rate.
-
         self.stats_ax[4].clear()
+
+        # Plot the mutation rate history
         self.stats_ax[4].plot(generations, self.mutation_rate_history, label='Mutation Rate', color='orange')
 
-        # Calculate upper and lower bounds for standard deviation
-        std_mutation_rate_upper = np.average(self.mutation_rate_history)
-        std_mutation_rate_lower = np.std(self.mutation_rate_history)
+        # Check if the history is large enough to calculate stable stats
+        if len(self.mutation_rate_history) > 1:
+            # Calculate the average and standard deviation of mutation rate for each generation
+            avg_mutation_rate = np.average(self.mutation_rate_history)
+            std_mutation_rate = np.std(self.mutation_rate_history)
 
-        # Fill the area between the upper and lower bounds to represent the standard deviation
-        self.stats_ax[4].fill_between(generations, std_mutation_rate_lower, std_mutation_rate_upper, color='orange', alpha=0.2, label='Mutation Rate Standard Deviation')
+            # Calculate upper and lower bounds for standard deviation
+            std_mutation_rate_upper = np.add(self.mutation_rate_history, std_mutation_rate)
+            std_mutation_rate_lower = np.subtract(self.mutation_rate_history, std_mutation_rate)
+
+            # Fill the area between the upper and lower bounds to represent the standard deviation
+            self.stats_ax[4].fill_between(generations, std_mutation_rate_lower, std_mutation_rate_upper, color='orange', alpha=0.2, label='Mutation Rate Standard Deviation')
 
         # Set labels, title, and grid
         self.stats_ax[4].set_xlabel("Generation")
@@ -176,6 +177,7 @@ class InteractiveSimulation:
         self.stats_ax[4].set_title("Mutation Rate over Generations")
         self.stats_ax[4].legend()
         self.stats_ax[4].grid(True)
+
 
 
 

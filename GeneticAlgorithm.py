@@ -354,7 +354,6 @@ class GeneticAlgorithm:
         self.initialize()
         for generation in range(1, self.generations):
             # logging.info(f"""Generation {generation + 1} started.""")
-            self.mutation_rate_history.append(self.mutation_rate)
 
             self.populate()
             scores = []
@@ -376,6 +375,7 @@ class GeneticAlgorithm:
                 stableness.append(
                     self.configuration_cache[configuration]['stableness'])
 
+            self.mutation_rate_history.append(self.mutation_rate)
             self.calc_statistics(generation=generation, scores=scores, lifespans=lifespans,
                                  alive_growth_rates=alive_growth_rates, max_alive_cells_count=max_alive_cells_count, stableness=stableness)
             self.check_for_stagnation(last_generation=generation)
@@ -384,9 +384,10 @@ class GeneticAlgorithm:
             # # low fitness standard deviation
             # if self.generations_cache[generation]['std_fitness'] < self.lifespan_threshold:
             #     self.mutation_rate = self.mutation_rate / 1.5  # Reduce mutation rate significantly
+        # logging.info(f"""population size = {len(set(self.population))}""")
+        # logging.info(f"""population size = {len(set(self.population))}""")
 
-        logging.info(f"""population size = {len(set(self.population))}""")
-        logging.info(f"""population size = {len(set(self.population))}""")
+        
         fitness_scores = [(config, self.configuration_cache[config]['fitness_score'])
                           for config in self.population]
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
