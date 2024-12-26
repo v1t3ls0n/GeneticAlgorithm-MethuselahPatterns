@@ -181,22 +181,22 @@ class GeneticAlgorithm:
         block_alive_counts_parent2 = [sum(block) for block in blocks_parent2]
 
         # Calculate the total number of alive cells in both parents
-        total_alive_cells_parent1 = sum(block_alive_counts_parent1)
-        total_alive_cells_parent2 = sum(block_alive_counts_parent2)
+        max_alive_cells_parent1 = sum(block_alive_counts_parent1)
+        max_alive_cells_parent2 = sum(block_alive_counts_parent2)
 
         # Assign probabilities for block selection for parent1
-        if total_alive_cells_parent1 > 0:
+        if max_alive_cells_parent1 > 0:
             probabilities_parent1 = [
-                (alive_count / total_alive_cells_parent1) if alive_count > 0 else (1 / total_cells) for alive_count in block_alive_counts_parent1
+                (alive_count / max_alive_cells_parent1) if alive_count > 0 else (1 / total_cells) for alive_count in block_alive_counts_parent1
             ]
         else:
             # If no alive cells, assign equal probability to all blocks
             probabilities_parent1 = [1 / total_cells] * N
 
         # Assign probabilities for block selection for parent2
-        if total_alive_cells_parent2 > 0:
+        if max_alive_cells_parent2 > 0:
             probabilities_parent2 = [
-                (alive_count / total_alive_cells_parent2) if alive_count > 0 else (1 / total_cells) for alive_count in block_alive_counts_parent2
+                (alive_count / max_alive_cells_parent2) if alive_count > 0 else (1 / total_cells) for alive_count in block_alive_counts_parent2
             ]
         else:
             # If no alive cells, assign equal probability to all blocks
