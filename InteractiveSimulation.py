@@ -19,7 +19,11 @@ class InteractiveSimulation:
 
         # Create a root figure for the grid
         self.grid_fig, self.grid_ax = plt.subplots(figsize=(5, 5))  # Single plot for the grid
-        self.grid_ax.set_title(f"Configuration {self.current_config_index + 1}, Generation {self.current_generation}")
+        self.grid_ax.set_title(f"Best Initial Configuration No {self.current_config_index + 1},  State No {self.current_generation}")
+        self.grid_ax.set_xlabel(
+            "Use arrow keys:\n←/→ to move between states (days)\n↑/↓ to move between best initial configurations"
+        )
+
         self.update_grid()
 
         # Create a second figure for the statistics graphs using GridSpec
@@ -70,13 +74,13 @@ class InteractiveSimulation:
         exit()  # Terminate the program when the window is closed
 
     def on_key(self, event):
-        if event.key == 'right':
+        if event.key == 'up':
             self.next_configuration()
-        elif event.key == 'left':
-            self.previous_configuration()
-        elif event.key == 'up':
-            self.next_generation()
         elif event.key == 'down':
+            self.previous_configuration()
+        elif event.key == 'right':
+            self.next_generation()
+        elif event.key == 'left':
             self.previous_generation()
 
     def next_configuration(self):
@@ -111,6 +115,9 @@ class InteractiveSimulation:
         self.grid_ax.clear()  # Clear the current axis to update the grid
         self.grid_ax.imshow(grid, cmap="binary")
         self.grid_ax.set_title(f"Configuration {self.current_config_index + 1}, Generation {self.current_generation}")
+        self.grid_ax.set_xlabel(
+        "Use arrow keys:\n←/→ to move between states (days)\n↑/↓ to move between best initial configurations"
+        )
         self.grid_fig.canvas.draw()
 
     def render_statistics(self):
