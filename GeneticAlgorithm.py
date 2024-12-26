@@ -127,13 +127,13 @@ class GeneticAlgorithm:
         # Create and run a GameOfLife instance
         game = GameOfLife(self.grid_size, configuration_tuple)
         game.run()
-
+        initial_living_cells_count = sum(configuration)
         fitness_score = self.calc_fitness(
             lifespan=game.lifespan,
             max_alive_cells_count=game.max_alive_cells_count,
             alive_growth=game.alive_growth,
             stableness=game.stableness,
-            initial_living_cells_count = sum(configuration)
+            initial_living_cells_count = initial_living_cells_count
         )
 
         self.configuration_cache[configuration_tuple] = {
@@ -144,7 +144,8 @@ class GeneticAlgorithm:
             'max_alive_cells_count': game.max_alive_cells_count,
             'is_static': game.is_static,
             'is periodic': game.is_periodic,
-            'stableness': game.stableness
+            'stableness': game.stableness,
+            'initial_living_cells_count':initial_living_cells_count
         }
         return self.configuration_cache[configuration_tuple]
 
@@ -483,7 +484,8 @@ class GeneticAlgorithm:
                          self.configuration_cache[config]['max_alive_cells_count']}""")
             logging.info(f"""Alive Growth: {
                          self.configuration_cache[config]['alive_growth']}""")
-            
+            logging.info(f"""Initial Configuration Living Cells Count: {
+                         self.configuration_cache[config]['initial_living_cells_count']}""")
             logging
         best_params = []
         for config, _ in best_configs:
