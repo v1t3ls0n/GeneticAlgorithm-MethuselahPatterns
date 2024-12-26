@@ -137,8 +137,8 @@ class InteractiveSimulation:
             # self.stats_fig.canvas.manager.window.lower()
             self.grid_fig.canvas.manager.window.activateWindow()
             self.grid_fig.canvas.manager.window.raise_()
-            self.grid_fig.canvas.manager.window.showNormal()
-            # self.grid_fig.canvas.manager.window.showMaximized()
+            # self.grid_fig.canvas.manager.window.showNormal()
+            self.grid_fig.canvas.manager.window.showMaximized()
 
         except Exception as e:
             logging.warning(f"Could not bring the Grid window to the front: {e}")
@@ -151,10 +151,10 @@ class InteractiveSimulation:
         """
         try:
             # self.grid_fig.canvas.manager.window.lower()
-            # self.stats_fig.canvas.manager.window.showNormal()
+            self.stats_fig.canvas.manager.window.showNormal()
             self.stats_fig.canvas.manager.window.activateWindow()
             self.stats_fig.canvas.manager.window.raise_()
-            self.stats_fig.canvas.manager.window.showNormal()
+            # self.stats_fig.canvas.manager.window.showMaximized()
 
             # self.grid_fig.canvas.manager.window.showMinimized()
 
