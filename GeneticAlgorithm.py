@@ -175,7 +175,7 @@ class GeneticAlgorithm:
 
 
 
-    def crossover(self, parent1, parent2):
+    def crossover_old_basic(self, parent1, parent2):
         N = self.grid_size
         total_cells = N * N
 
@@ -211,7 +211,7 @@ class GeneticAlgorithm:
 
         return tuple(child_blocks)
 
-    def crossover2(self, parent1, parent2):
+    def crossover(self, parent1, parent2):
         """
         Performs crossover between two parent configurations to create a child configuration.
         
