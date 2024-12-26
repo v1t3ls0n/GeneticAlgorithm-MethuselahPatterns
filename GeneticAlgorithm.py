@@ -352,7 +352,7 @@ class GeneticAlgorithm:
     def run(self):
         self.initialize()
         for generation in range(1, self.generations):
-            logging.info(f"""Generation {generation + 1} started.""")
+            # logging.info(f"""Generation {generation + 1} started.""")
 
             self.populate()
             scores = []
