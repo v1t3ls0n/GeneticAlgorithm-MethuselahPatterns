@@ -79,7 +79,7 @@ def main(
                                  stableness_weight,
                                  alive_cells_per_block=alive_cells_per_block,
                                  alive_blocks=alive_blocks,
-                                 initial_living_cells_count_weight,
+                                 initial_living_cells_count_weight=initial_living_cells_count_weight,
                                  predefined_configurations=predefined_configurations)
 
     best_configs,best_params = algorithm.run()
