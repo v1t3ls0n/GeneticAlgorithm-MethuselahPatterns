@@ -419,7 +419,7 @@ class GeneticAlgorithm:
             self.mutation_rate = max(0.01, self.mutation_rate * 0.9)  # הקטנת שיעור המוטציה אם יש שיפור יציב
 
     def check_for_stagnation(self, last_generation):
-        avg_fitness = [self.generations_cache[g]['avg_fitness']
+        avg_fitness = [int(self.generations_cache[g]['avg_fitness'])
                        for g in range(last_generation)]
         if len(set(avg_fitness[-10:])) == 1:  # אם אין שינוי ב-10 הדורות האחרונים
             logging.warning("Stagnation detected in the last 10 generations!")
