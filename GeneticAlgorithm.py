@@ -13,6 +13,7 @@ import math
 import numpy as np
 import collections
 
+
 class GeneticAlgorithm:
     """
     The GeneticAlgorithm class handles population-based evolution of GameOfLife configurations.
@@ -41,7 +42,7 @@ class GeneticAlgorithm:
     """
 
     def __init__(self, grid_size, population_size, generations, initial_mutation_rate, mutation_rate_lower_limit,
-                 alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight, 
+                 alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight,
                  alive_cells_per_block, alive_blocks, predefined_configurations=None):
         """
         Initialize the genetic algorithm.
@@ -71,13 +72,15 @@ class GeneticAlgorithm:
         self.lifespan_threshold = (grid_size * grid_size) * 3
         self.alive_growth_weight = alive_growth_weight
         self.stableness_weight = stableness_weight
-        self.configuration_cache = collections.defaultdict(collections.defaultdict)
-        self.generations_cache = collections.defaultdict(collections.defaultdict)
+        self.configuration_cache = collections.defaultdict(
+            collections.defaultdict)
+        self.generations_cache = collections.defaultdict(
+            collections.defaultdict)
         self.predefined_configurations = predefined_configurations
         self.alive_cells_per_block = alive_cells_per_block
         self.alive_blocks = alive_blocks
         self.best_histories = []
-        self.best_params=[]
+        self.best_params = []
         self.population = set()
         self.mutation_rate_history = [initial_mutation_rate]
 
@@ -115,7 +118,8 @@ class GeneticAlgorithm:
         configuration_tuple = tuple(configuration)
         expected_size = self.grid_size * self.grid_size
         if len(configuration_tuple) != expected_size:
-            raise ValueError(f"Configuration size must be {expected_size}, but got {len(configuration_tuple)}")
+            raise ValueError(f"Configuration size must be {
+                             expected_size}, but got {len(configuration_tuple)}")
 
         if configuration_tuple in self.configuration_cache:
             return self.configuration_cache[configuration_tuple]
@@ -166,7 +170,8 @@ class GeneticAlgorithm:
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
 
         # Keep only the best population_size
-        self.population = [config for config, _ in fitness_scores[:self.population_size]]
+        self.population = [config for config,
+                           _ in fitness_scores[:self.population_size]]
         # Convert back to set for uniqueness
         self.population = set(self.population)
 
@@ -187,7 +192,7 @@ class GeneticAlgorithm:
         for row in matrix:
             for cell in row:
                 # If cell is dead, there's a chance we flip it to alive
-                if cell == 0 and random.uniform(0,1) < self.mutation_rate:
+                if cell == 0 and random.uniform(0, 1) < self.mutation_rate:
                     new_configuration.append(1)
                 else:
                     new_configuration.append(cell)
@@ -220,7 +225,8 @@ class GeneticAlgorithm:
             return random.choices(population, k=2)
 
         # This probability model is somewhat ad-hoc and can be refined
-        probabilities = [(1+avg_fitness)*(1 + fitness_variance) for _score in fitness_scores]
+        probabilities = [(1+avg_fitness)*(1 + fitness_variance)
+                         for _score in fitness_scores]
         parents = random.choices(population, weights=probabilities, k=2)
         return parents
 
@@ -241,12 +247,16 @@ class GeneticAlgorithm:
         reminder = N % 2
 
         if len(parent1) != total_cells or len(parent2) != total_cells:
-            logging.info(f"Parent configurations must be {total_cells}, but got sizes: {len(parent1)} and {len(parent2)}")
-            raise ValueError(f"Parent configurations must be {total_cells}, but got sizes: {len(parent1)} and {len(parent2)}")
+            logging.info(f"Parent configurations must be {total_cells}, but got sizes: {
+                         len(parent1)} and {len(parent2)}")
+            raise ValueError(f"Parent configurations must be {
+                             total_cells}, but got sizes: {len(parent1)} and {len(parent2)}")
 
         block_size = total_cells // N
-        blocks_parent1 = [parent1[i*block_size:(i+1)*block_size] for i in range(N)]
-        blocks_parent2 = [parent2[i*block_size:(i+1)*block_size] for i in range(N)]
+        blocks_parent1 = [
+            parent1[i*block_size:(i+1)*block_size] for i in range(N)]
+        blocks_parent2 = [
+            parent2[i*block_size:(i+1)*block_size] for i in range(N)]
 
         block_alive_counts_parent1 = [sum(block) for block in blocks_parent1]
         block_alive_counts_parent2 = [sum(block) for block in blocks_parent2]
@@ -266,11 +276,14 @@ class GeneticAlgorithm:
         else:
             probabilities_parent2 = [1/total_cells]*N
 
-        selected_blocks_parent1 = random.choices(range(N), weights=probabilities_parent1, k=(N//2)+reminder)
-        remaining_blocks_parent2 = [i for i in range(N) if i not in selected_blocks_parent1]
+        selected_blocks_parent1 = random.choices(
+            range(N), weights=probabilities_parent1, k=(N//2)+reminder)
+        remaining_blocks_parent2 = [i for i in range(
+            N) if i not in selected_blocks_parent1]
         selected_blocks_parent2 = random.choices(
             remaining_blocks_parent2,
-            weights=[probabilities_parent2[i] for i in remaining_blocks_parent2],
+            weights=[probabilities_parent2[i]
+                     for i in remaining_blocks_parent2],
             k=N//2
         )
 
@@ -282,7 +295,8 @@ class GeneticAlgorithm:
                 child_blocks.extend(blocks_parent2[i])
             else:
                 # If not chosen from either, pick randomly
-                selected_parent = random.choices([1, 2], weights=[0.5, 0.5], k=1)[0]
+                selected_parent = random.choices(
+                    [1, 2], weights=[0.5, 0.5], k=1)[0]
                 if selected_parent == 1:
                     child_blocks.extend(blocks_parent1[i])
                 else:
@@ -290,7 +304,8 @@ class GeneticAlgorithm:
 
         # Fix length if needed
         if len(child_blocks) != total_cells:
-            logging.info(f"Child size mismatch, expected {total_cells}, got {len(child_blocks)}")
+            logging.info(f"Child size mismatch, expected {
+                         total_cells}, got {len(child_blocks)}")
             child_blocks = child_blocks + [0]*(total_cells - len(child_blocks))
         return tuple(child_blocks)
 
@@ -300,7 +315,8 @@ class GeneticAlgorithm:
         and record basic statistics for generation 0.
         """
         print(f"Generation 1 started.")
-        self.population = [self.random_configuration() for _ in range(self.population_size)]
+        self.population = [self.random_configuration()
+                           for _ in range(self.population_size)]
 
         generation = 0
         scores = []
@@ -310,11 +326,16 @@ class GeneticAlgorithm:
         stableness = []
         for configuration in self.population:
             self.evaluate(configuration)
-            scores.append(self.configuration_cache[configuration]['fitness_score'])
-            lifespans.append(self.configuration_cache[configuration]['lifespan'])
-            alive_growth_rates.append(self.configuration_cache[configuration]['alive_growth'])
-            max_alive_cells_count.append(self.configuration_cache[configuration]['max_alive_cells_count'])
-            stableness.append(self.configuration_cache[configuration]['stableness'])
+            scores.append(
+                self.configuration_cache[configuration]['fitness_score'])
+            lifespans.append(
+                self.configuration_cache[configuration]['lifespan'])
+            alive_growth_rates.append(
+                self.configuration_cache[configuration]['alive_growth'])
+            max_alive_cells_count.append(
+                self.configuration_cache[configuration]['max_alive_cells_count'])
+            stableness.append(
+                self.configuration_cache[configuration]['stableness'])
 
         self.calc_statistics(generation=generation,
                              scores=scores,
@@ -324,13 +345,18 @@ class GeneticAlgorithm:
                              stableness=stableness)
 
         self.generations_cache[generation]['avg_fitness'] = np.average(scores)
-        self.generations_cache[generation]['avg_lifespan'] = np.average(lifespans)
-        self.generations_cache[generation]['avg_alive_growth_rate'] = np.average(alive_growth_rates)
-        self.generations_cache[generation]['avg_max_alive_cells_count'] = np.average(max_alive_cells_count)
+        self.generations_cache[generation]['avg_lifespan'] = np.average(
+            lifespans)
+        self.generations_cache[generation]['avg_alive_growth_rate'] = np.average(
+            alive_growth_rates)
+        self.generations_cache[generation]['avg_max_alive_cells_count'] = np.average(
+            max_alive_cells_count)
         self.generations_cache[generation]['std_fitness'] = np.std(scores)
         self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
-        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(alive_growth_rates)
-        self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(max_alive_cells_count)
+        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(
+            alive_growth_rates)
+        self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
+            max_alive_cells_count)
 
     def random_configuration(self):
         """
@@ -347,8 +373,9 @@ class GeneticAlgorithm:
 
         num_parts = self.grid_size
         part_size = self.grid_size
-        alive_blocks_indices = random.sample(range(self.grid_size), self.alive_blocks)
-
+        alive_blocks_indices = random.choices(range(self.grid_size), weights=[
+                                              1 / self.grid_size for _ in range(self.grid_size)], k=self.alive_blocks)
+        logging.info(f"""alive_blocks_indices : {alive_blocks_indices}""")
         for part_index in alive_blocks_indices:
             start_idx = part_index*part_size
             end_idx = start_idx + part_size
@@ -378,14 +405,19 @@ class GeneticAlgorithm:
 
         self.generations_cache[generation]['avg_fitness'] = np.mean(scores)
         self.generations_cache[generation]['avg_lifespan'] = np.mean(lifespans)
-        self.generations_cache[generation]['avg_alive_growth_rate'] = np.mean(alive_growth_rates)
-        self.generations_cache[generation]['avg_max_alive_cells_count'] = np.mean(max_alive_cells_count)
-        self.generations_cache[generation]['avg_stableness'] = np.mean(stableness)
+        self.generations_cache[generation]['avg_alive_growth_rate'] = np.mean(
+            alive_growth_rates)
+        self.generations_cache[generation]['avg_max_alive_cells_count'] = np.mean(
+            max_alive_cells_count)
+        self.generations_cache[generation]['avg_stableness'] = np.mean(
+            stableness)
 
         self.generations_cache[generation]['std_fitness'] = np.std(scores)
         self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
-        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(alive_growth_rates)
-        self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(max_alive_cells_count)
+        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(
+            alive_growth_rates)
+        self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
+            max_alive_cells_count)
 
     def run(self):
         """
@@ -410,11 +442,16 @@ class GeneticAlgorithm:
 
             for configuration in self.population:
                 self.evaluate(configuration)
-                scores.append(self.configuration_cache[configuration]['fitness_score'])
-                lifespans.append(self.configuration_cache[configuration]['lifespan'])
-                alive_growth_rates.append(self.configuration_cache[configuration]['alive_growth'])
-                max_alive_cells_count.append(self.configuration_cache[configuration]['max_alive_cells_count'])
-                stableness.append(self.configuration_cache[configuration]['stableness'])
+                scores.append(
+                    self.configuration_cache[configuration]['fitness_score'])
+                lifespans.append(
+                    self.configuration_cache[configuration]['lifespan'])
+                alive_growth_rates.append(
+                    self.configuration_cache[configuration]['alive_growth'])
+                max_alive_cells_count.append(
+                    self.configuration_cache[configuration]['max_alive_cells_count'])
+                stableness.append(
+                    self.configuration_cache[configuration]['stableness'])
 
             self.mutation_rate_history.append(self.mutation_rate)
             self.calc_statistics(generation=generation,
@@ -438,11 +475,14 @@ class GeneticAlgorithm:
             self.best_histories.append(history)
             logging.info("Top Configuration:")
             logging.info(f"  Configuration: {config}")
-            logging.info(f"  Fitness Score: {self.configuration_cache[config]['fitness_score']}")
-            logging.info(f"  Lifespan: {self.configuration_cache[config]['lifespan']}")
-            logging.info(f"  Total Alive Cells: {self.configuration_cache[config]['max_alive_cells_count']}")
-            logging.info(f"  Alive Growth: {self.configuration_cache[config]['alive_growth']}")
-
+            logging.info(f"  Fitness Score: {
+                         self.configuration_cache[config]['fitness_score']}")
+            logging.info(f"  Lifespan: {
+                         self.configuration_cache[config]['lifespan']}")
+            logging.info(f"  Total Alive Cells: {
+                         self.configuration_cache[config]['max_alive_cells_count']}")
+            logging.info(f"  Alive Growth: {
+                         self.configuration_cache[config]['alive_growth']}")
 
         best_params = []
         for config, _ in best_configs:
@@ -464,9 +504,11 @@ class GeneticAlgorithm:
         """
         if generation > 10 and self.generations_cache[generation]['avg_fitness'] == self.generations_cache[generation - 1]['avg_fitness']:
             logging.info("Mutation rate increased due to stagnation.")
-            self.mutation_rate = min(self.mutation_rate_lower_limit, self.mutation_rate * 1.2)
+            self.mutation_rate = min(
+                self.mutation_rate_lower_limit, self.mutation_rate * 1.2)
         elif self.generations_cache[generation]['avg_fitness'] > self.generations_cache[generation - 1]['avg_fitness']:
-            self.mutation_rate = max(self.mutation_rate_lower_limit, self.mutation_rate * 0.9)
+            self.mutation_rate = max(
+                self.mutation_rate_lower_limit, self.mutation_rate * 0.9)
 
     def check_for_stagnation(self, last_generation):
         """
@@ -476,7 +518,9 @@ class GeneticAlgorithm:
         Args:
             last_generation (int): Index of the current generation in the loop.
         """
-        avg_fitness = [int(self.generations_cache[g]['avg_fitness']) for g in range(last_generation)]
+        avg_fitness = [int(self.generations_cache[g]['avg_fitness'])
+                       for g in range(last_generation)]
         if len(avg_fitness) >= 10 and len(set(avg_fitness[-10:])) == 1:
             logging.warning("Stagnation detected in the last 10 generations!")
-            self.mutation_rate = min(self.mutation_rate_lower_limit, self.mutation_rate)*1.5
+            self.mutation_rate = min(
+                self.mutation_rate_lower_limit, self.mutation_rate)*1.5
