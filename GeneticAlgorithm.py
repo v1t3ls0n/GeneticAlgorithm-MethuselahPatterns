@@ -118,8 +118,8 @@ class GeneticAlgorithm:
         configuration_tuple = tuple(configuration)
         expected_size = self.grid_size * self.grid_size
         if len(configuration_tuple) != expected_size:
-            raise ValueError(f"Configuration size must be {
-                             expected_size}, but got {len(configuration_tuple)}")
+            raise ValueError(f"""Configuration size must be {
+                             expected_size}, but got {len(configuration_tuple)}""")
 
         if configuration_tuple in self.configuration_cache:
             return self.configuration_cache[configuration_tuple]
@@ -247,10 +247,10 @@ class GeneticAlgorithm:
         reminder = N % 2
 
         if len(parent1) != total_cells or len(parent2) != total_cells:
-            logging.info(f"Parent configurations must be {total_cells}, but got sizes: {
-                         len(parent1)} and {len(parent2)}")
-            raise ValueError(f"Parent configurations must be {
-                             total_cells}, but got sizes: {len(parent1)} and {len(parent2)}")
+            logging.info(f"""Parent configurations must be {total_cells}, but got sizes: {
+                         len(parent1)} and {len(parent2)}""")
+            raise ValueError(f"""Parent configurations must be {
+                             total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
 
         block_size = total_cells // N
         blocks_parent1 = [
@@ -304,8 +304,8 @@ class GeneticAlgorithm:
 
         # Fix length if needed
         if len(child_blocks) != total_cells:
-            logging.info(f"Child size mismatch, expected {
-                         total_cells}, got {len(child_blocks)}")
+            logging.info(f"""Child size mismatch, expected {
+                         total_cells}, got {len(child_blocks)}""")
             child_blocks = child_blocks + [0]*(total_cells - len(child_blocks))
         return tuple(child_blocks)
 
@@ -371,18 +371,18 @@ class GeneticAlgorithm:
         N = self.grid_size * self.grid_size
         configuration = [0]*N
 
-        num_parts = self.grid_size
-        part_size = self.grid_size
-        alive_blocks_indices = random.choices(range(self.grid_size), weights=[
-                                              1 / self.grid_size for _ in range(self.grid_size)], k=self.alive_blocks)
+        partition_size = self.grid_size
+        alive_blocks_indices = random.sample(range(self.alive_blocks), k=self.alive_blocks)
+        total_taken_cells = self.alive_blocks * self.alive_cells_per_block
         logging.info(f"""alive_blocks_indices : {alive_blocks_indices}""")
         for part_index in alive_blocks_indices:
-            start_idx = part_index*part_size
-            end_idx = start_idx + part_size
-            chosen_cells = random.sample(range(start_idx, end_idx),
-                                         min(self.alive_cells_per_block, end_idx-start_idx))
+            start_idx = part_index*partition_size
+            end_idx = start_idx + partition_size
+            chosen_cells = random.sample(range(start_idx, end_idx), k = self.alive_cells_per_block)
             for cell in chosen_cells:
                 configuration[cell] = 1
+                total_taken_cells-=1
+        logging.info(f"""initial configuration cells count: {sum(configuration)}""")
         return tuple(configuration)
 
     def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, stableness, max_alive_cells_count):
@@ -431,7 +431,7 @@ class GeneticAlgorithm:
         """
         self.initialize()
         for generation in range(1, self.generations):
-            print(f"Computing Generation {generation+1} started.")
+            print(f"""Computing Generation {generation+1} started.""")
             self.populate()
 
             scores = []
@@ -475,14 +475,14 @@ class GeneticAlgorithm:
             self.best_histories.append(history)
             logging.info("Top Configuration:")
             logging.info(f"  Configuration: {config}")
-            logging.info(f"  Fitness Score: {
-                         self.configuration_cache[config]['fitness_score']}")
-            logging.info(f"  Lifespan: {
-                         self.configuration_cache[config]['lifespan']}")
-            logging.info(f"  Total Alive Cells: {
-                         self.configuration_cache[config]['max_alive_cells_count']}")
-            logging.info(f"  Alive Growth: {
-                         self.configuration_cache[config]['alive_growth']}")
+            logging.info(f"""Fitness Score: {
+                         self.configuration_cache[config]['fitness_score']}""")
+            logging.info(f"""Lifespan: {
+                         self.configuration_cache[config]['lifespan']}""")
+            logging.info(f"""Total Alive Cells: {
+                         self.configuration_cache[config]['max_alive_cells_count']}""")
+            logging.info(f"""Alive Growth: {
+                         self.configuration_cache[config]['alive_growth']}""")
 
         best_params = []
         for config, _ in best_configs:
