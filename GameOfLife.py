@@ -57,7 +57,7 @@ class GameOfLife:
 
         # Store the immutable initial state
         self.initial_state = tuple(self.grid)
-        self.history = [self.initial_state]
+        self.history = []
 
         self.game_iteration_limit = 15000
         self.stable_count = 0
