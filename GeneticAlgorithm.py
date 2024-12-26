@@ -124,14 +124,13 @@ class GeneticAlgorithm:
         # Shuffle the blocks
         random.shuffle(blocks)
 
-        total_living_cells = sum(configuration)
 
         # Initialize probabilities for each block
-        blocks_new_life_probabilities = [1 / total_cells] * N
+        blocks_new_life_probabilities = [0] * N
 
         for i in range(N):
             # Update the probability for each block, prefer blocks with more living cells
-            blocks_new_life_probabilities[i] = max(blocks_new_life_probabilities[i], sum(block) / total_living_cells)
+            blocks_new_life_probabilities[i] = max(1, sum(blocks[i])) / N
 
         # Create the new configuration from the shuffled blocks
         new_configuration = []
@@ -143,7 +142,9 @@ class GeneticAlgorithm:
                     new_configuration.append(1)
                 else:
                     # If the cell is dead, decide if it will become alive based on the probability
-                    new_configuration.append(1 if random.uniform(0,1) < blocks_new_life_probabilities[i] else 0)
+                    # new_configuration.append(1 if random.uniform(0,1) < blocks_new_life_probabilities[i] else 0)
+                    new_configuration.append(random.choices([0,1], weights=[0.5, 0.5], k=1)[0])
+                    
 
         return tuple(new_configuration)
 
