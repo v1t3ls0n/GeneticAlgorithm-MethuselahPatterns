@@ -77,6 +77,7 @@ class GeneticAlgorithm:
         self.alive_cells_per_block = alive_cells_per_block
         self.alive_blocks = alive_blocks
         self.best_histories = []
+        self.best_params=[]
         self.population = set()
         self.mutation_rate_history = [initial_mutation_rate]
 
@@ -441,7 +442,18 @@ class GeneticAlgorithm:
             logging.info(f"  Total Alive Cells: {self.configuration_cache[config]['max_alive_cells_count']}")
             logging.info(f"  Alive Growth: {self.configuration_cache[config]['alive_growth']}")
 
-        return best_configs
+
+        best_params = []
+        for config, _ in best_configs:
+            params_dict = {
+                'lifespan': self.configuration_cache[config]['lifespan'],
+                'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
+                'alive_growth': self.configuration_cache[config]['alive_growth'],
+                'stableness': self.configuration_cache[config]['stableness']
+            }
+            best_params.append(params_dict)
+        self.best_params = best_params
+        return best_configs, best_params
 
     def adjust_mutation_rate(self, generation):
         """

@@ -23,6 +23,7 @@ class InteractiveSimulation:
         grid_size,
         generations_cache,
         mutation_rate_history,
+        best_params,
         run_params=None
     ):
         print("Initializing InteractiveSimulation with TWO windows.")
@@ -32,13 +33,14 @@ class InteractiveSimulation:
         self.generations_cache = generations_cache
         self.mutation_rate_history = mutation_rate_history
         self.run_params = run_params or {}
+        self.best_params = best_params or []
 
         # Navigation state
         self.current_config_index = 0
         self.current_generation = 0
 
         # 1) Create the separate "Grid Window"
-        self.grid_fig = plt.figure(figsize=(5, 5))
+        self.grid_fig = plt.figure(figsize=(7, 7))
         self.grid_ax = self.grid_fig.add_subplot(111)
         self.grid_ax.set_title("Grid Window")
         # If user closes the grid window => close everything
@@ -127,7 +129,7 @@ class InteractiveSimulation:
         except Exception as e:
             logging.warning(f"Could not add custom button to {button_text} in toolbar: {e}")
 
-    def bring_grid_to_front(self, e):
+    def bring_grid_to_front(self, e=None):
         """
         Attempt to bring the 'Grid Window' to the front (Qt-based).
         Some OS/WM can block focus-stealing, so this may not always succeed.
@@ -143,7 +145,7 @@ class InteractiveSimulation:
             logging.warning(f"Could not bring the Grid window to the front: {e}")
 
 
-    def bring_metrics_to_front(self, e):
+    def bring_metrics_to_front(self, e=None):
         """
         Attempt to bring the 'Metrics Window' to the front (Qt-based).
         Some OS/WM can block focus-stealing, so this may not always succeed.
@@ -153,7 +155,7 @@ class InteractiveSimulation:
             # self.stats_fig.canvas.manager.window.showNormal()
             self.stats_fig.canvas.manager.window.activateWindow()
             self.stats_fig.canvas.manager.window.raise_()
-            self.stats_fig.canvas.manager.window.showMaximized()
+            self.stats_fig.canvas.manager.window.showNormal()
 
             # self.grid_fig.canvas.manager.window.showMinimized()
 
@@ -222,7 +224,28 @@ class InteractiveSimulation:
             f"Config #{self.current_config_index + 1}, Generation {self.current_generation}"
         )
         self.grid_ax.set_xlabel("ARROWS: UP/DOWN=configs, LEFT/RIGHT=gens")
+
+        if self.current_config_index < len(self.best_params):
+            param_dict = self.best_params[self.current_config_index]
+            lifespan = param_dict.get('lifespan', 0)
+            max_alive = param_dict.get('max_alive_cells_count', 0)
+            growth = param_dict.get('alive_growth', 1.0)
+            stableness = param_dict.get('stableness', 0.0)
+            text_str = (f"lifespan={lifespan} | "
+                        f"max_alive={max_alive} | "
+                        f"growth={growth:.2f} | "
+                        f"stableness={stableness:.2f}")
+            self.grid_ax.text(
+                0.0, -0.15,
+                text_str,
+                transform=self.grid_ax.transAxes,
+                fontsize=10,
+                color="blue",
+                va='top'
+            )
+
         self.grid_fig.canvas.draw_idle()
+ 
     def render_statistics(self):
         """
         Fill in each subplot with the relevant data, including the run_params in self.params_plot.
@@ -316,7 +339,7 @@ class InteractiveSimulation:
         """
         Show both windows at once.  plt.show() blocks until user closes them.
         """
-        self.stats_fig.canvas.manager.window.showMaximized()
-        self.grid_fig.canvas.manager.window.showNormal()
+        # self.stats_fig.canvas.manager.window.showMaximized()
+        self.bring_grid_to_front()
         logging.info("Running interactive simulation with separate Grid and Stats windows.")
         plt.show()
