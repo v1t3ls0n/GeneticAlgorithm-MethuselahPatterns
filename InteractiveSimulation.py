@@ -40,7 +40,7 @@ class InteractiveSimulation:
         self.current_generation = 0
 
         # 1) Create the separate "Grid Window"
-        self.grid_fig = plt.figure(figsize=(7, 7))
+        self.grid_fig = plt.figure(figsize=(6, 8))
         self.grid_ax = self.grid_fig.add_subplot(111)
         self.grid_ax.set_title("Grid Window")
         # If user closes the grid window => close everything
@@ -94,8 +94,7 @@ class InteractiveSimulation:
             on_click=self.bring_metrics_to_front
         )
 
-        self.render_statistics()
-        self.update_grid()
+
 
 
 
@@ -236,7 +235,7 @@ class InteractiveSimulation:
                         f"growth={growth:.2f} | "
                         f"stableness={stableness:.2f}")
             self.grid_ax.text(
-                0.0, -0.15,
+                0.0, 0.0,
                 text_str,
                 transform=self.grid_ax.transAxes,
                 fontsize=10,
@@ -339,7 +338,16 @@ class InteractiveSimulation:
         """
         Show both windows at once.  plt.show() blocks until user closes them.
         """
+
+        self.grid_fig.tight_layout()
+        self.stats_fig.tight_layout()
+        self.grid_fig.canvas.manager.window.activateWindow()
+        self.grid_fig.canvas.manager.window.raise_()
+
+        self.update_grid()
+        self.render_statistics()
         # self.stats_fig.canvas.manager.window.showMaximized()
-        self.bring_grid_to_front()
+        # self.grid_fig.canvas.manager.window.showMaximized()
+
         logging.info("Running interactive simulation with separate Grid and Stats windows.")
         plt.show()
