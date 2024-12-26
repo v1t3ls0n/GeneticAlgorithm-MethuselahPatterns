@@ -375,12 +375,13 @@ class GeneticAlgorithm:
 
             self.calc_statistics(generation=generation, scores=scores, lifespans=lifespans,
                                  alive_growth_rates=alive_growth_rates, max_alive_cells_count=max_alive_cells_count, stableness=stableness)
-            self.adjust_mutation_rate(generation)
+
             self.check_for_stagnation(last_generation=generation)
-            # low fitness standard deviation
-            if self.generations_cache[generation]['std_fitness'] < self.lifespan_threshold:
-                self.mutation_rate = self.mutation_rate / \
-                    1.5  # Reduce mutation rate significantly
+            self.adjust_mutation_rate(generation)
+
+            # # low fitness standard deviation
+            # if self.generations_cache[generation]['std_fitness'] < self.lifespan_threshold:
+            #     self.mutation_rate = self.mutation_rate / 1.5  # Reduce mutation rate significantly
 
         logging.info(f"""population size = {len(set(self.population))}""")
         fitness_scores = [(config, self.configuration_cache[config]['fitness_score'])
@@ -411,10 +412,11 @@ class GeneticAlgorithm:
         return best_configs
 
     def adjust_mutation_rate(self, generation):
-        # Increase mutation rate if no improvement after several generations
         if generation > 10 and self.generations_cache[generation]['avg_fitness'] == self.generations_cache[generation - 1]['avg_fitness']:
             logging.info(f"Mutation rate increased due to stagnation.")
-            self.mutation_rate = min(0.2, self.mutation_rate * 1.2)
+            self.mutation_rate = min(0.2, self.mutation_rate * 1.2)  # הגדלת שיעור המוטציה אם יש סטגנציה
+        elif self.generations_cache[generation]['avg_fitness'] > self.generations_cache[generation - 1]['avg_fitness']:
+            self.mutation_rate = max(0.01, self.mutation_rate * 0.9)  # הקטנת שיעור המוטציה אם יש שיפור יציב
 
     def check_for_stagnation(self, last_generation):
         avg_fitness = [self.generations_cache[g]['avg_fitness']
@@ -426,86 +428,95 @@ class GeneticAlgorithm:
 
    
 
-    def crossover_old_basic(self, parent1, parent2):  # NOT IN USE
-        N = self.grid_size
-        total_cells = N * N
 
-        # ווידוא שההורים הם בגודל הנכון
-        if len(parent1) != total_cells or len(parent2) != total_cells:
-            logging.info(f"""Parent configurations must be {total_cells}, but got sizes: {
-                len(parent1)} and {len(parent2)}""")
-            raise ValueError(f"""Parent configurations must be {
-                             total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
 
-        # נחלק את הווקטור ל-N בלוקים
-        block_size = total_cells // N
-        blocks_parent1 = [
-            parent1[i * block_size:(i + 1) * block_size] for i in range(N)]
-        blocks_parent2 = [
-            parent2[i * block_size:(i + 1) * block_size] for i in range(N)]
 
-        # נבחר את הבלוקים לפי האינדקסים האי זוגיים של האב והזוגיים של האם
-        child_blocks = []
-        for i in range(N):
-            if i % 2 == 0:  # אינדקסים זוגיים (מאמא)
-                child_blocks.extend(blocks_parent2[i])
-            else:  # אינדקסים אי זוגיים (מאבא)
-                child_blocks.extend(blocks_parent1[i])
 
-        # ווידוא שהילד בגודל הנכון
-        if len(child_blocks) != total_cells:
-            logging.info(f"""Child size mismatch, expected {
-                         total_cells}, got {len(child_blocks)}""")
-            # במקרה של שגיאת גודל, נוסיף תאים חיים נוספים
-            child_blocks = child_blocks + [0] * \
-                (total_cells - len(child_blocks))
 
-        return tuple(child_blocks)
 
-    def old_complex_mutate_v2(self, configuration):  # NOT IN USE
-        N = self.grid_size
-        total_cells = N * N
 
-        # Split the vector into a matrix (NxN grid)
-        matrix = [configuration[i * N:(i + 1) * N] for i in range(N)]
 
-        # Create blocks from the matrix
-        blocks = []
-        for i in range(N):
-            # Create block from N cells in column
-            block = [matrix[j][i] for j in range(N)]
-            blocks.append(block)
 
-        # Calculate the number of living cells in each block
-        block_alive_counts = [sum(block) for block in blocks]
+    # def crossover_old_basic(self, parent1, parent2):  # NOT IN USE
+    #     N = self.grid_size
+    #     total_cells = N * N
 
-        # Create a list of tuples with each block and its corresponding count of living cells
-        blocks_with_alive_counts = list(zip(blocks, block_alive_counts))
+    #     # ווידוא שההורים הם בגודל הנכון
+    #     if len(parent1) != total_cells or len(parent2) != total_cells:
+    #         logging.info(f"""Parent configurations must be {total_cells}, but got sizes: {
+    #             len(parent1)} and {len(parent2)}""")
+    #         raise ValueError(f"""Parent configurations must be {
+    #                          total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
 
-        # Sort the blocks by the number of living cells (ascending order)
-        blocks_with_alive_counts.sort(key=lambda x: x[1])
+    #     # נחלק את הווקטור ל-N בלוקים
+    #     block_size = total_cells // N
+    #     blocks_parent1 = [
+    #         parent1[i * block_size:(i + 1) * block_size] for i in range(N)]
+    #     blocks_parent2 = [
+    #         parent2[i * block_size:(i + 1) * block_size] for i in range(N)]
 
-        # Create a list of blocks sorted by their living cell count
-        sorted_blocks = [block for block, _ in blocks_with_alive_counts]
+    #     # נבחר את הבלוקים לפי האינדקסים האי זוגיים של האב והזוגיים של האם
+    #     child_blocks = []
+    #     for i in range(N):
+    #         if i % 2 == 0:  # אינדקסים זוגיים (מאמא)
+    #             child_blocks.extend(blocks_parent2[i])
+    #         else:  # אינדקסים אי זוגיים (מאבא)
+    #             child_blocks.extend(blocks_parent1[i])
 
-        # Shuffle the sorted blocks to create a new configuration
-        random.shuffle(sorted_blocks)
+    #     # ווידוא שהילד בגודל הנכון
+    #     if len(child_blocks) != total_cells:
+    #         logging.info(f"""Child size mismatch, expected {
+    #                      total_cells}, got {len(child_blocks)}""")
+    #         # במקרה של שגיאת גודל, נוסיף תאים חיים נוספים
+    #         child_blocks = child_blocks + [0] * \
+    #             (total_cells - len(child_blocks))
 
-        # Now, create the new configuration based on shuffled blocks
-        new_configuration = []
+    #     return tuple(child_blocks)
 
-        # Modify the blocks based on the shuffled order
-        for block in sorted_blocks:
-            for j in range(N):
-                # For each cell in the block, decide if it should remain the same or mutate
-                if block[j] == 1:
-                    # If the cell is alive, it remains alive
-                    new_configuration.append(1)
-                else:
-                    # If the cell is dead, mutate based on the block's life probability
-                    if random.uniform(0, 1) < sum(block) / N:
-                        new_configuration.append(1)
-                    else:
-                        new_configuration.append(0)
+    # def old_complex_mutate_v2(self, configuration):  # NOT IN USE
+    #     N = self.grid_size
+    #     total_cells = N * N
 
-        return tuple(new_configuration)
+    #     # Split the vector into a matrix (NxN grid)
+    #     matrix = [configuration[i * N:(i + 1) * N] for i in range(N)]
+
+    #     # Create blocks from the matrix
+    #     blocks = []
+    #     for i in range(N):
+    #         # Create block from N cells in column
+    #         block = [matrix[j][i] for j in range(N)]
+    #         blocks.append(block)
+
+    #     # Calculate the number of living cells in each block
+    #     block_alive_counts = [sum(block) for block in blocks]
+
+    #     # Create a list of tuples with each block and its corresponding count of living cells
+    #     blocks_with_alive_counts = list(zip(blocks, block_alive_counts))
+
+    #     # Sort the blocks by the number of living cells (ascending order)
+    #     blocks_with_alive_counts.sort(key=lambda x: x[1])
+
+    #     # Create a list of blocks sorted by their living cell count
+    #     sorted_blocks = [block for block, _ in blocks_with_alive_counts]
+
+    #     # Shuffle the sorted blocks to create a new configuration
+    #     random.shuffle(sorted_blocks)
+
+    #     # Now, create the new configuration based on shuffled blocks
+    #     new_configuration = []
+
+    #     # Modify the blocks based on the shuffled order
+    #     for block in sorted_blocks:
+    #         for j in range(N):
+    #             # For each cell in the block, decide if it should remain the same or mutate
+    #             if block[j] == 1:
+    #                 # If the cell is alive, it remains alive
+    #                 new_configuration.append(1)
+    #             else:
+    #                 # If the cell is dead, mutate based on the block's life probability
+    #                 if random.uniform(0, 1) < sum(block) / N:
+    #                     new_configuration.append(1)
+    #                 else:
+    #                     new_configuration.append(0)
+
+    #     return tuple(new_configuration)
