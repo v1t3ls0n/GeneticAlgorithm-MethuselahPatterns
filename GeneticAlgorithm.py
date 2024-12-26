@@ -10,7 +10,6 @@ class GeneticAlgorithm:
     def __init__(self, grid_size, population_size, generations, initial_mutation_rate, mutation_rate_lower_limit,
                  alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight, 
                  alive_cells_per_block, alive_blocks, predefined_configurations=None):
-        self.mutation_rate_history = [initial_mutation_rate]  
 
         logging.info("Initializing GeneticAlgorithm.")
         self.grid_size = grid_size
@@ -32,7 +31,7 @@ class GeneticAlgorithm:
         self.alive_blocks = alive_blocks
         self.best_histories = []
         self.population = set()
-        self.mutation_rate_history = []  # היסטוריית שיעור המוטציה
+        self.mutation_rate_history = [initial_mutation_rate]  # היסטוריית שיעור המוטציה
 
     def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, stableness):
         lifespan_score = lifespan * self.lifespan_weight
@@ -355,6 +354,7 @@ class GeneticAlgorithm:
         self.initialize()
         for generation in range(1, self.generations):
             # logging.info(f"""Generation {generation + 1} started.""")
+            self.mutation_rate_history.append(self.mutation_rate)
 
             self.populate()
             scores = []
@@ -362,6 +362,7 @@ class GeneticAlgorithm:
             alive_growth_rates = []
             max_alive_cells_count = []
             stableness = []
+
             for configuration in self.population:
                 self.evaluate(configuration)
                 scores.append(
@@ -377,7 +378,6 @@ class GeneticAlgorithm:
 
             self.calc_statistics(generation=generation, scores=scores, lifespans=lifespans,
                                  alive_growth_rates=alive_growth_rates, max_alive_cells_count=max_alive_cells_count, stableness=stableness)
-
             self.check_for_stagnation(last_generation=generation)
             self.adjust_mutation_rate(generation)
 
@@ -385,6 +385,7 @@ class GeneticAlgorithm:
             # if self.generations_cache[generation]['std_fitness'] < self.lifespan_threshold:
             #     self.mutation_rate = self.mutation_rate / 1.5  # Reduce mutation rate significantly
 
+        logging.info(f"""population size = {len(set(self.population))}""")
         logging.info(f"""population size = {len(set(self.population))}""")
         fitness_scores = [(config, self.configuration_cache[config]['fitness_score'])
                           for config in self.population]
@@ -419,7 +420,6 @@ class GeneticAlgorithm:
             self.mutation_rate = min(self.mutation_rate_lower_limit, self.mutation_rate * 1.2)  # הגדלת שיעור המוטציה אם יש סטגנציה
         elif self.generations_cache[generation]['avg_fitness'] > self.generations_cache[generation - 1]['avg_fitness']:
             self.mutation_rate = max(self.mutation_rate_lower_limit, self.mutation_rate * 0.9)  # הקטנת שיעור המוטציה אם יש שיפור יציב
-        self.mutation_rate_history.append(self.mutation_rate)
 
     def check_for_stagnation(self, last_generation):
         avg_fitness = [int(self.generations_cache[g]['avg_fitness'])

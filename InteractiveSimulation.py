@@ -5,6 +5,7 @@ import numpy as np
 class InteractiveSimulation:
     def __init__(self, configurations, histories, grid_size, generations_cache, mutation_rate_history):
         logging.info("Initializing InteractiveSimulation.")
+        logging.info(f"{mutation_rate_history}")
         self.configurations = configurations
         self.histories = histories
         self.grid_size = grid_size
@@ -19,7 +20,7 @@ class InteractiveSimulation:
         self.update_grid()
 
         # Create a second figure for the statistics graphs
-        self.stats_fig, self.stats_ax = plt.subplots(2, 2, figsize=(12, 10))  # 2x2 grid for the subplots
+        self.stats_fig, self.stats_ax = plt.subplots(3, 2, figsize=(12, 10))  # 2x2 grid for the subplots
         self.stats_ax = self.stats_ax.flatten()  # Flatten to iterate easily
 
         # Set up standardized plot references for metrics
@@ -27,7 +28,7 @@ class InteractiveSimulation:
         self.standardized_lifespan_plot, = self.stats_ax[1].plot([], [], label='Standardized Lifespan', color='green')
         self.standardized_growth_rate_plot, = self.stats_ax[2].plot([], [], label='Standardized Growth Rate', color='red')
         self.standardized_alive_cells_plot, = self.stats_ax[3].plot([], [], label='Standardized Alive Cells', color='purple')
-        self.mutation_rate_plot, = self.stats_ax[4].plot([], [], label='Mutation Rate', color='orange')  # גרף mutation rate
+        self.mutation_rate_plot, = self.stats_ax[4].plot([], [], label='Mutation Rate', color='orange')  
 
         # Attach key press events to control grid navigation
         self.grid_fig.canvas.mpl_connect('key_press_event', self.on_key)
@@ -151,16 +152,17 @@ class InteractiveSimulation:
         self.stats_ax[3].grid(True)
 
         # Mutation Rate Plot
-        self.mutation_rate_plot.set_data(generations, self.mutation_rate_history)  # מציג את היסטוריית mutation rate
-        self.stats_ax[4].set_xlim(min(generations), max(generations))
-        self.stats_ax[4].set_ylim(min(self.mutation_rate_history), max(self.mutation_rate_history))
+        avg_mutation_rate = self.mutation_rate_history
+        self.stats_ax[4].clear()
+        self.stats_ax[4].plot(generations, avg_mutation_rate, label='Mutation Rate', color='orange')
         self.stats_ax[4].set_xlabel("Generation")
         self.stats_ax[4].set_ylabel("Mutation Rate")
         self.stats_ax[4].set_title("Mutation Rate over Generations")
         self.stats_ax[4].legend()
         self.stats_ax[4].grid(True)
-        self.stats_fig.tight_layout()
 
+        self.stats_fig.tight_layout()
+        
     def run(self):
         logging.info("Running interactive simulation.")
         plt.show()
