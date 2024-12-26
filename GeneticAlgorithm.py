@@ -509,7 +509,7 @@ class GeneticAlgorithm:
         Otherwise, if there's improvement, gently reduce it, but never below mutation_rate_lower_limit.
         """
         if generation > 10 and self.generations_cache[generation]['avg_fitness'] == self.generations_cache[generation - 1]['avg_fitness']:
-            logging.info("Mutation rate increased due to stagnation.")
+            # logging.info("Mutation rate increased due to stagnation.")
             self.mutation_rate = min(
                 self.mutation_rate_lower_limit, self.mutation_rate * 1.2)
         elif self.generations_cache[generation]['avg_fitness'] > self.generations_cache[generation - 1]['avg_fitness']:
