@@ -114,54 +114,67 @@ class InteractiveSimulation:
         self.grid_fig.canvas.draw()
 
     def render_statistics(self):
-            generations = list(self.generations_cache.keys())
+        generations = list(self.generations_cache.keys())
 
-            # Average fitness over generations
-            avg_fitness = [self.generations_cache[generation]['avg_fitness'] for generation in generations]
-            std_fitness = [self.generations_cache[generation]['std_fitness'] for generation in generations]
+        # Average fitness over generations
+        avg_fitness = [self.generations_cache[generation]['avg_fitness'] for generation in generations]
+        std_fitness = [self.generations_cache[generation]['std_fitness'] for generation in generations]
+        
+        # Plot the graphs for Standardized Fitness
+        self.standardized_fitness_plot.clear()
+        self.standardized_fitness_plot.plot(generations, avg_fitness, label='Standardized Fitness', color='blue')
+        self.standardized_fitness_plot.fill_between(generations, np.subtract(avg_fitness, std_fitness), np.add(avg_fitness, std_fitness), color='blue', alpha=0.2, label='Standard Deviation')
+        self.standardized_fitness_plot.set_xlabel("Generation")
+        self.standardized_fitness_plot.set_ylabel("Standardized Fitness")
+        self.standardized_fitness_plot.set_title("Standardized Fitness over Generations")
+        self.standardized_fitness_plot.legend()
 
-            # Plot the graphs
-            self.standardized_fitness_plot.clear()
-            self.standardized_fitness_plot.plot(generations, avg_fitness, label='Standardized Fitness', color='blue')
-            self.standardized_fitness_plot.fill_between(generations, np.subtract(avg_fitness, std_fitness), np.add(avg_fitness, std_fitness), color='blue', alpha=0.2, label='Standard Deviation')
-            self.standardized_fitness_plot.legend()
+        # Standardized Lifespan
+        avg_lifespan = [self.generations_cache[generation]['avg_lifespan'] for generation in generations]
+        std_lifespan = [self.generations_cache[generation]['std_lifespan'] for generation in generations]
 
-            # Standardized Lifespan
-            avg_lifespan = [self.generations_cache[generation]['avg_lifespan'] for generation in generations]
-            std_lifespan = [self.generations_cache[generation]['std_lifespan'] for generation in generations]
+        self.standardized_lifespan_plot.clear()
+        self.standardized_lifespan_plot.plot(generations, avg_lifespan, label='Standardized Lifespan', color='green')
+        self.standardized_lifespan_plot.fill_between(generations, np.subtract(avg_lifespan, std_lifespan), np.add(avg_lifespan, std_lifespan), color='green', alpha=0.2, label='Standard Deviation')
+        self.standardized_lifespan_plot.set_xlabel("Generation")
+        self.standardized_lifespan_plot.set_ylabel("Standardized Lifespan")
+        self.standardized_lifespan_plot.set_title("Standardized Lifespan over Generations")
+        self.standardized_lifespan_plot.legend()
 
-            self.standardized_lifespan_plot.clear()
-            self.standardized_lifespan_plot.plot(generations, avg_lifespan, label='Standardized Lifespan', color='green')
-            self.standardized_lifespan_plot.fill_between(generations, np.subtract(avg_lifespan, std_lifespan), np.add(avg_lifespan, std_lifespan), color='green', alpha=0.2, label='Standard Deviation')
-            self.standardized_lifespan_plot.legend()
+        # Standardized Growth Rate
+        avg_alive_growth_rate = [self.generations_cache[generation]['avg_alive_growth_rate'] for generation in generations]
+        std_alive_growth_rate = [self.generations_cache[generation]['std_alive_growth_rate'] for generation in generations]
 
-            # Standardized Growth Rate
-            avg_alive_growth_rate = [self.generations_cache[generation]['avg_alive_growth_rate'] for generation in generations]
-            std_alive_growth_rate = [self.generations_cache[generation]['std_alive_growth_rate'] for generation in generations]
+        self.standardized_growth_rate_plot.clear()
+        self.standardized_growth_rate_plot.plot(generations, avg_alive_growth_rate, label='Standardized Growth Rate', color='red')
+        self.standardized_growth_rate_plot.fill_between(generations, np.subtract(avg_alive_growth_rate, std_alive_growth_rate), np.add(avg_alive_growth_rate, std_alive_growth_rate), color='red', alpha=0.2, label='Standard Deviation')
+        self.standardized_growth_rate_plot.set_xlabel("Generation")
+        self.standardized_growth_rate_plot.set_ylabel("Standardized Growth Rate")
+        self.standardized_growth_rate_plot.set_title("Standardized Growth Rate over Generations")
+        self.standardized_growth_rate_plot.legend()
 
-            self.standardized_growth_rate_plot.clear()
-            self.standardized_growth_rate_plot.plot(generations, avg_alive_growth_rate, label='Standardized Growth Rate', color='red')
-            self.standardized_growth_rate_plot.fill_between(generations, np.subtract(avg_alive_growth_rate, std_alive_growth_rate), np.add(avg_alive_growth_rate, std_alive_growth_rate), color='red', alpha=0.2, label='Standard Deviation')
-            self.standardized_growth_rate_plot.legend()
+        # Standardized Alive Cells
+        avg_max_alive_cells_count = [self.generations_cache[generation]['avg_max_alive_cells_count'] for generation in generations]
+        std_max_alive_cells_count = [self.generations_cache[generation]['std_max_alive_cells_count'] for generation in generations]
 
-            # Standardized Alive Cells
-            avg_max_alive_cells_count = [self.generations_cache[generation]['avg_max_alive_cells_count'] for generation in generations]
-            std_max_alive_cells_count = [self.generations_cache[generation]['std_max_alive_cells_count'] for generation in generations]
+        self.standardized_alive_cells_plot.clear()
+        self.standardized_alive_cells_plot.plot(generations, avg_max_alive_cells_count, label='Standardized Alive Cells', color='purple')
+        self.standardized_alive_cells_plot.fill_between(generations, np.subtract(avg_max_alive_cells_count, std_max_alive_cells_count), np.add(avg_max_alive_cells_count, std_max_alive_cells_count), color='purple', alpha=0.2, label='Standard Deviation')
+        self.standardized_alive_cells_plot.set_xlabel("Generation")
+        self.standardized_alive_cells_plot.set_ylabel("Standardized Alive Cells")
+        self.standardized_alive_cells_plot.set_title("Standardized Alive Cells over Generations")
+        self.standardized_alive_cells_plot.legend()
 
-            self.standardized_alive_cells_plot.clear()
-            self.standardized_alive_cells_plot.plot(generations, avg_max_alive_cells_count, label='Standardized Alive Cells', color='purple')
-            self.standardized_alive_cells_plot.fill_between(generations, np.subtract(avg_max_alive_cells_count, std_max_alive_cells_count), np.add(avg_max_alive_cells_count, std_max_alive_cells_count), color='purple', alpha=0.2, label='Standard Deviation')
-            self.standardized_alive_cells_plot.legend()
+        # Mutation Rate Plot (standardized)
+        self.mutation_rate_plot.clear()
+        self.mutation_rate_plot.plot(generations, self.mutation_rate_history, label='Mutation Rate', color='orange')
+        self.mutation_rate_plot.set_xlabel("Generation")
+        self.mutation_rate_plot.set_ylabel("Mutation Rate")
+        self.mutation_rate_plot.set_title("Mutation Rate over Generations")
+        self.mutation_rate_plot.legend()
 
-            
-            
-            self.mutation_rate_plot.clear()
-            self.mutation_rate_plot.plot(generations, self.mutation_rate_history, label='Mutation Rate', color='orange')
+        self.stats_fig.tight_layout()
 
-            self.mutation_rate_plot.legend()
-
-
-            self.stats_fig.tight_layout()
 
     def run(self):
         logging.info("Running interactive simulation.")
