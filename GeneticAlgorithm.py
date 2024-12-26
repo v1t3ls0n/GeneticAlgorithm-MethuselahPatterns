@@ -378,7 +378,6 @@ class GeneticAlgorithm:
         partition_size = self.grid_size
         alive_blocks_indices = random.sample(range(self.alive_blocks), k=self.alive_blocks)
         total_taken_cells = self.alive_blocks * self.alive_cells_per_block
-        logging.info(f"""alive_blocks_indices : {alive_blocks_indices}""")
         for part_index in alive_blocks_indices:
             start_idx = part_index*partition_size
             end_idx = start_idx + partition_size
