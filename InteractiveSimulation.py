@@ -10,6 +10,7 @@ Provides an interactive visualization of:
 import logging
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+from matplotlib.widgets import Button
 import numpy as np
 
 class InteractiveSimulation:
@@ -49,20 +50,25 @@ class InteractiveSimulation:
         self.current_config_index = 0
         self.current_generation = 0
         self.run_params = run_params if run_params else {}  
+        self.current_config_index = 0
+        self.current_generation = 0
 
         # Figure for the grid
         self.grid_fig, self.grid_ax = plt.subplots(figsize=(5, 5))
         self.grid_ax.set_title(f"Best Initial Configuration No {self.current_config_index + 1},  State No {self.current_generation}")
         self.grid_ax.set_xlabel("Use arrow keys:\n←/→ to move between states (days)\n↑/↓ to move between best initial configurations")
 
-        self.update_grid()
 
         # Another figure for the metrics
         self.stats_fig = plt.figure(figsize=(15, 10))
         gs = GridSpec(2, 3, figure=self.stats_fig)
 
+        self.params_plot = self.stats_fig.add_subplot(gs[0, 0])
+        self.params_plot.set_title("Run Parameters")
+        self.params_plot.axis('off')  # כדי שלא יוצגו צירים מיותרים
+
         # Subplots for average fitness, lifespan, growth rate, alive cells, mutation rate
-        self.standardized_fitness_plot = self.stats_fig.add_subplot(gs[0, 0])
+        self.standardized_fitness_plot = self.stats_fig.add_subplot(gs[1, 2])
         self.standardized_fitness_plot.set_title('Standardized Fitness')
         self.standardized_fitness_plot.set_xlabel('Generation')
         self.standardized_fitness_plot.set_ylabel('Standardized Fitness')
@@ -82,33 +88,69 @@ class InteractiveSimulation:
         self.standardized_alive_cells_plot.set_xlabel('Generation')
         self.standardized_alive_cells_plot.set_ylabel('Standardized Alive Cells')
 
-        self.mutation_rate_plot = self.stats_fig.add_subplot(gs[1, 1:])
+        self.mutation_rate_plot = self.stats_fig.add_subplot(gs[1, 1])
         self.mutation_rate_plot.set_title('Mutation Rate')
         self.mutation_rate_plot.set_xlabel('Generation')
         self.mutation_rate_plot.set_ylabel('Mutation Rate')
 
-        self.params_plot = self.stats_fig.add_subplot(gs[1, 2:])
-        self.params_plot.set_title("Run Parameters")
-        self.params_plot.axis('off')  # כדי שלא יוצגו צירים מיותרים
 
         # Keyboard and close events
         self.grid_fig.canvas.mpl_connect('key_press_event', self.on_key)
         self.grid_fig.canvas.mpl_connect('close_event', self.on_close)
-        self.stats_fig.canvas.mpl_connect('close_event', self.on_close)
 
-        self.grid_fig.tight_layout()
-        self.stats_fig.tight_layout()
+        # Initial layout adjustment
+        self.fig.tight_layout()
+
+        # Render the GA statistics (plots)
         self.render_statistics()
+        # Render the initial grid display
+        self.update_grid()
+
+        # Create the focus button inside the "params_plot" area
+        self.add_focus_button()
+
+
+
+
+    def add_focus_button(self):
+        """
+        Creates a small button in the params subplot that attempts
+        to bring the figure window to the front when clicked.
+        """
+        # Retrieve bounding box for the 'params_plot' Axes
+        left, bottom, width, height = self.params_plot.get_position().bounds
+
+        # Define a rectangle for placing the button
+        button_width = 0.2 * width
+        button_height = 0.1 * height
+        button_left = left + 0.75 * width
+        button_bottom = bottom + 0.0 * height
+
+        # Add a new Axes area on the main figure for the button
+        self.button_ax = self.fig.add_axes([button_left, button_bottom, button_width, button_height])
+        self.focus_button = Button(self.button_ax, "Focus Grid Window")
+
+        # Connect the callback
+        self.focus_button.on_clicked(self.bring_window_to_front)
+
+    def bring_window_to_front(self, event):
+        """
+        Attempts to bring the current figure window to the top of the Z-order,
+        typically works on the Qt backend (Qt5Agg).
+        """
+        try:
+            self.fig.canvas.manager.window.activateWindow()
+            self.fig.canvas.manager.window.raise_()
+        except Exception as e:
+            logging.warning(f"Could not bring window to front: {e}")
 
     def on_close(self, event):
         """
         Called when the user closes the window. Closes all plots and exits the program.
         """
         logging.info("Window closed. Exiting program.")
-        plt.close(self.grid_fig)
-        plt.close(self.stats_fig)
-        exit()
-
+        plt.close('all')  # <--- This line closes *all* Matplotlib windows
+        exit()            #       and then we exit the program.
     def on_key(self, event):
         """
         Handles keyboard events:
@@ -128,8 +170,8 @@ class InteractiveSimulation:
 
     def next_configuration(self):
         """
-        Cycle forward among the top 5 best configurations.
-        Resets the generation index to 0 upon changing configuration.
+        Moves to the next configuration in self.configurations, wrapping around if needed,
+        and resets generation index to 0.
         """
         self.current_config_index = (self.current_config_index + 1) % len(self.configurations)
         self.current_generation = 0
@@ -137,8 +179,8 @@ class InteractiveSimulation:
 
     def previous_configuration(self):
         """
-        Cycle backward among the top 5 best configurations.
-        Resets the generation index to 0 upon changing configuration.
+        Moves to the previous configuration in self.configurations, wrapping around if needed,
+        and resets generation index to 0.
         """
         self.current_config_index = (self.current_config_index - 1) % len(self.configurations)
         self.current_generation = 0
@@ -146,7 +188,7 @@ class InteractiveSimulation:
 
     def next_generation(self):
         """
-        Move to the next generation (if any) within the current configuration's evolution history.
+        Moves forward one generation in the current config's history, if available.
         """
         if self.current_generation + 1 < len(self.histories[self.current_config_index]):
             self.current_generation += 1
@@ -154,7 +196,7 @@ class InteractiveSimulation:
 
     def previous_generation(self):
         """
-        Move to the previous generation (if any) within the current configuration's evolution history.
+        Moves backward one generation in the current config's history, if available.
         """
         if self.current_generation > 0:
             self.current_generation -= 1
@@ -171,7 +213,7 @@ class InteractiveSimulation:
         self.grid_ax.clear()
         self.grid_ax.imshow(grid, cmap="binary")
         self.grid_ax.set_title(f"Configuration {self.current_config_index + 1}, Generation {self.current_generation}")
-        self.grid_ax.set_xlabel("Use arrow keys:\n←/→ to move between states (days)\n↑/↓ to move between best initial configurations")
+        self.config_ax.set_xlabel("Arrow keys: UP/DOWN = configs, LEFT/RIGHT = gens")
         self.grid_fig.canvas.draw()
 
     def render_statistics(self):
@@ -255,18 +297,20 @@ class InteractiveSimulation:
         self.params_plot.set_title("Run Parameters")
         self.params_plot.axis('off')
 
-        # Genetic Algorithm Custom Parameters
-        params_text = "Genetic Algorithm Custom Parameters used in this run:\n"
-        for key, val in self.run_params.items():
-            params_text += f"• {key} = {val}\n"
+        text_lines = []
+        text_lines.append("Genetic Algorithm Custom Parameters used in this run:")
+        for k, v in self.run_params.items():
+            text_lines.append(f"• {k} = {v}")
 
+        display_text = "\n".join(text_lines)
         self.params_plot.text(
-            0.01, 0.95, 
-            params_text,
+            0.0, 1.0,
+            display_text,
             transform=self.params_plot.transAxes,
             fontsize=10,
-            va='top'     # vertical alignment
+            va='top'
         )
+
 
 
         self.stats_fig.tight_layout()
