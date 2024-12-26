@@ -108,7 +108,7 @@ class GeneticAlgorithm:
         for row in matrix:
             for cell in row:
                 # If cell is dead, possibly mutate based on surrounding cells
-                if cell == 0 and random.uniform() < self.mutation_rate:  # Chance for mutation
+                if cell == 0 and random.uniform(0,1) < self.mutation_rate:  # Chance for mutation
                     new_configuration.append(1)
                 else:
                     new_configuration.append(cell)
