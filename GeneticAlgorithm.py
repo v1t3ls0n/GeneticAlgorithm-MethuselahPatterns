@@ -15,6 +15,7 @@ class GeneticAlgorithm:
         self.grid_size = grid_size
         self.population_size = population_size
         self.generations = generations
+        self.initial_mutation_rate = initial_mutation_rate
         self.mutation_rate = initial_mutation_rate
         self.alive_cells_weight = alive_cells_weight
         self.lifespan_weight = lifespan_weight
@@ -414,7 +415,7 @@ class GeneticAlgorithm:
     def adjust_mutation_rate(self, generation):
         if generation > 10 and self.generations_cache[generation]['avg_fitness'] == self.generations_cache[generation - 1]['avg_fitness']:
             logging.info(f"Mutation rate increased due to stagnation.")
-            self.mutation_rate = min(0.2, self.mutation_rate * 1.2)  # הגדלת שיעור המוטציה אם יש סטגנציה
+            self.mutation_rate = min(self.initial_mutation_rate, self.mutation_rate * 1.2)  # הגדלת שיעור המוטציה אם יש סטגנציה
         elif self.generations_cache[generation]['avg_fitness'] > self.generations_cache[generation - 1]['avg_fitness']:
             self.mutation_rate = max(0.01, self.mutation_rate * 0.9)  # הקטנת שיעור המוטציה אם יש שיפור יציב
 
@@ -424,7 +425,7 @@ class GeneticAlgorithm:
         if len(set(avg_fitness[-10:])) == 1:  # אם אין שינוי ב-10 הדורות האחרונים
             logging.warning("Stagnation detected in the last 10 generations!")
             # Increase mutation rate
-            self.mutation_rate = min(0.25, self.mutation_rate * 1.5)
+            self.mutation_rate = min(self.initial_mutation_rate, self.mutation_rate * 1.5)
 
    
 
