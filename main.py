@@ -3,7 +3,7 @@ from InteractiveSimulation import InteractiveSimulation
 from GeneticAlgorithm import GeneticAlgorithm
 # Set up logging to append to the same file for each run of the program
 logging.basicConfig(filename="simulation.log",
-                    filemode='w',  # Use 'a' to append to the file
+                    filemode='a',  # Use 'a' to append to the file
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 

@@ -146,7 +146,72 @@ class GeneticAlgorithm:
         return parents
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     def crossover(self, parent1, parent2):
+        N = self.grid_size
+        total_cells = N * N
+
+        # ווידוא שההורים הם בגודל הנכון
+        if len(parent1) != total_cells or len(parent2) != total_cells:
+            logging.info(f"""Parent configurations must be {total_cells}, but got sizes: {
+                len(parent1)} and {len(parent2)}""")
+            raise ValueError(f"""Parent configurations must be {
+                             total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
+
+        # נחלק את הווקטור ל-N בלוקים
+        block_size = total_cells // N
+        blocks_parent1 = [
+            parent1[i * block_size:(i + 1) * block_size] for i in range(N)]
+        blocks_parent2 = [
+            parent2[i * block_size:(i + 1) * block_size] for i in range(N)]
+
+        # נבחר את הבלוקים לפי האינדקסים האי זוגיים של האב והזוגיים של האם
+        child_blocks = []
+        for i in range(N):
+            if i % 2 == 0:  # אינדקסים זוגיים (מאמא)
+                child_blocks.extend(blocks_parent2[i])
+            else:  # אינדקסים אי זוגיים (מאבא)
+                child_blocks.extend(blocks_parent1[i])
+
+        # ווידוא שהילד בגודל הנכון
+        if len(child_blocks) != total_cells:
+            logging.info(f"""Child size mismatch, expected {
+                         total_cells}, got {len(child_blocks)}""")
+            # במקרה של שגיאת גודל, נוסיף תאים חיים נוספים
+            child_blocks = child_blocks + [0] * \
+                (total_cells - len(child_blocks))
+
+        return tuple(child_blocks)
+
+    def crossover2(self, parent1, parent2):
         """
         Performs crossover between two parent configurations to create a child configuration.
         
@@ -165,6 +230,7 @@ class GeneticAlgorithm:
             ValueError: If the sizes of parent1 or parent2 do not match the expected grid size.
         """
         N = self.grid_size
+        reminder = N%2
         total_cells = N * N
 
         # Ensure that the parent configurations are of the correct size
@@ -179,46 +245,45 @@ class GeneticAlgorithm:
             parent1[i * block_size:(i + 1) * block_size] for i in range(N)]
         blocks_parent2 = [
             parent2[i * block_size:(i + 1) * block_size] for i in range(N)]
-        
+
         # Count the number of alive cells in each block
         block_alive_counts_parent1 = [sum(block) for block in blocks_parent1]
         block_alive_counts_parent2 = [sum(block) for block in blocks_parent2]
+
         # Calculate the total number of alive cells in both parents
-        # total_alive_cells_parent1 = sum(block_alive_counts_parent1)
-        # total_alive_cells_parent2 = sum(block_alive_counts_parent2)
+        total_alive_cells_parent1 = sum(block_alive_counts_parent1)
+        total_alive_cells_parent2 = sum(block_alive_counts_parent2)
+
+        # Decide which parent has more living cells and calculate probabilities for that parent
+        probabilities_parent1 = [alive_count / total_alive_cells_parent1 if total_alive_cells_parent1 else 1 / N for alive_count in block_alive_counts_parent1]
+        probabilities_parent2 = [alive_count / total_alive_cells_parent2 if total_alive_cells_parent2 else 1 / N for alive_count in block_alive_counts_parent2]
+
+        # Select blocks from the parent with more living cells based on calculated probabilities
+        selected_blocks_parent1 = random.choices(range(N), weights=probabilities_parent1, k=(N // 2) + reminder)
+        selected_blocks_parent2 = random.choices(range(N), weights=probabilities_parent2, k=N // 2)
+
+        
+        # Remove selected blocks from parent1 to avoid duplicates
+        selected_blocks_parent2 = [i for i in range(N) if i not in selected_blocks_parent1]
+        
+        # Create the child configuration by combining selected blocks from both parents
         child_blocks = []
         for i in range(N):
-            if block_alive_counts_parent1[i] > block_alive_counts_parent2[i]:
-                child_blocks.extend(blocks_parent1[i])
+            dominant_parent = 1
+            if i in selected_blocks_parent1 and i in selected_blocks_parent2:
+                if probabilities_parent1[i] > probabilities_parent2[i]:
+                    dominant_parent = 1
+                else:
+                    dominant_parent = 2
+            elif i in selected_blocks_parent1:
+                dominant_parent = 1
+            elif i in selected_blocks_parent2:
+                dominant_parent = 2
             else:
-                child_blocks.extend(blocks_parent2[i])
+                dominant_parent = random.choices([1,2],[0.5,0.5], k=1)
 
+            child_blocks.extend(blocks_parent1[i] if dominant_parent == 1 else blocks_parent2[i])
 
-
-
-
-
-
-        # # Decide which parent has more living cells and calculate probabilities for that parent
-        # if total_alive_cells_parent1 > total_alive_cells_parent2:
-        #     dominant_parent_probabilities = [alive_count / total_alive_cells_parent1 if total_alive_cells_parent1 else 1 / N for alive_count in block_alive_counts_parent1]
-        #     probabilities_parent2 = [0] * N  # Don't select blocks from parent2
-        # else:
-        #     dominant_parent_probabilities = [alive_count / total_alive_cells_parent2 if total_alive_cells_parent2 else 1 / N for alive_count in block_alive_counts_parent2]
-        #     probabilities_parent1 = [0] * N  # Don't select blocks from parent1
-
-        # # Select blocks from the parent with more living cells based on calculated probabilities
-        # selected_blocks_parent1 = random.choices(range(N), weights=probabilities_parent1, k=N // 2)
-
-        # # Remove selected blocks from parent1 to avoid duplicates
-        # selected_blocks_parent2 = [i for i in range(N) if i not in selected_blocks_parent1]
-        
-        # # Create the child configuration by combining selected blocks from both parents
-        # for i in range(N):
-        #     if i in selected_blocks_parent1:  # If the block is selected from parent1
-        #         child_blocks.extend(blocks_parent1[i])
-        #     elif i in selected_blocks_parent2:  # If the block is selected from parent2
-        #         child_blocks.extend(blocks_parent2[i])
 
         return tuple(child_blocks)
 
