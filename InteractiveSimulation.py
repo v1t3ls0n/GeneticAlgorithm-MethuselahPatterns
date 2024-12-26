@@ -6,8 +6,8 @@ import numpy as np
 
 class InteractiveSimulation:
     def __init__(self, configurations, histories, grid_size, generations_cache, mutation_rate_history):
-        logging.info("Initializing InteractiveSimulation.")
-        logging.info(f"{mutation_rate_history}")
+        print("Initializing Interactive Simulation and Metrics.")
+
         
         self.configurations = configurations
         self.histories = histories

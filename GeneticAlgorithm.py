@@ -11,7 +11,7 @@ class GeneticAlgorithm:
                  alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight, 
                  alive_cells_per_block, alive_blocks, predefined_configurations=None):
 
-        logging.info("Initializing GeneticAlgorithm.")
+        print("Initializing GeneticAlgorithm.")
         self.grid_size = grid_size
         self.population_size = population_size
         self.generations = generations
@@ -244,7 +244,7 @@ class GeneticAlgorithm:
         return tuple(child_blocks)
 
     def initialize(self):
-        logging.info(f"""Generation {1} started.""")
+        print(f"""Generation {1} started.""")
 
         self.population = [self.random_configuration()
                            for _ in range(self.population_size)]
@@ -353,7 +353,7 @@ class GeneticAlgorithm:
     def run(self):
         self.initialize()
         for generation in range(1, self.generations):
-            logging.info(f"""Computing Generation {generation + 1} started.""")
+            print(f"""Computing Generation {generation + 1} started.""")
 
             self.populate()
             scores = []
