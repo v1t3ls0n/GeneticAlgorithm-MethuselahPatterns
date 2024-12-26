@@ -235,7 +235,7 @@ class InteractiveSimulation:
                         f"growth={growth:.2f} | "
                         f"stableness={stableness:.2f}")
             self.grid_ax.text(
-                0.0, 0.0,
+                -0.15, -0.15,
                 text_str,
                 transform=self.grid_ax.transAxes,
                 fontsize=10,
@@ -347,7 +347,7 @@ class InteractiveSimulation:
         self.update_grid()
         self.render_statistics()
         # self.stats_fig.canvas.manager.window.showMaximized()
-        # self.grid_fig.canvas.manager.window.showMaximized()
+        self.grid_fig.canvas.manager.window.showMaximized()
 
         logging.info("Running interactive simulation with separate Grid and Stats windows.")
         plt.show()
