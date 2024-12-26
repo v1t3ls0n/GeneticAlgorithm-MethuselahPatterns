@@ -393,17 +393,14 @@ class GeneticAlgorithm:
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
 
         best_configs = fitness_scores[:5]
-        logging.info(f"""fitness score length : {len(fitness_scores)}""")
-        logging.info(f"""best configs length : {len(best_configs)}""")
-        logging.info(f"""best configs: {best_configs}""")
-        logging.info(f"""all current population: {self.population}""")
+
 
         for config, _ in best_configs:
             # Use history from the cache
             history = list(self.configuration_cache[config]['history'])
             self.best_histories.append(history)
 
-            logging.info(f"""Top {config} Configuration:""")
+            logging.info(f"""Top Configuration:""")
             logging.info(f"""  Fitness Score: {
                          self.configuration_cache[config]['fitness_score']}""")
             logging.info(f"""  Lifespan: {
