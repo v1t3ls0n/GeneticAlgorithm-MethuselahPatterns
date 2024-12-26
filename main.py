@@ -8,7 +8,7 @@ logging.basicConfig(filename="simulation.log",
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 def main(grid_size, population_size, generations, mutation_rate, alive_cells_weight,
-         lifespan_weight, alive_growth_weight, alive_cells_per_block, alive_blocks, predefined_configurations=None):
+         lifespan_weight, alive_growth_weight,stableness_weight, alive_cells_per_block, alive_blocks, predefined_configurations=None):
     logging.info(f"""Starting run with parameters: grid_size={grid_size}, population_size={population_size}, generations={generations}, mutation_rate={mutation_rate}, alive_cells_weight={
                  alive_cells_weight}, lifespan_weight={lifespan_weight}, alive_growth_weight={alive_growth_weight}, alive_cells_per_block={alive_cells_per_block}, alive_blocks={alive_blocks}""")
 
