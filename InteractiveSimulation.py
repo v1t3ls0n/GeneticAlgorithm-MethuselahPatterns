@@ -3,12 +3,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class InteractiveSimulation:
-    def __init__(self, configurations, histories, grid_size, generations_cache):
+    def __init__(self, configurations, histories, grid_size, generations_cache, mutation_rate_history):
         logging.info("Initializing InteractiveSimulation.")
         self.configurations = configurations
         self.histories = histories
         self.grid_size = grid_size
         self.generations_cache = generations_cache
+        self.mutation_rate_history = mutation_rate_history  # נוסיף היסטוריית mutation_rate
         self.current_config_index = 0
         self.current_generation = 0
 
@@ -26,6 +27,7 @@ class InteractiveSimulation:
         self.standardized_lifespan_plot, = self.stats_ax[1].plot([], [], label='Standardized Lifespan', color='green')
         self.standardized_growth_rate_plot, = self.stats_ax[2].plot([], [], label='Standardized Growth Rate', color='red')
         self.standardized_alive_cells_plot, = self.stats_ax[3].plot([], [], label='Standardized Alive Cells', color='purple')
+        self.mutation_rate_plot, = self.stats_ax[4].plot([], [], label='Mutation Rate', color='orange')  # גרף mutation rate
 
         # Attach key press events to control grid navigation
         self.grid_fig.canvas.mpl_connect('key_press_event', self.on_key)
@@ -148,6 +150,15 @@ class InteractiveSimulation:
         self.stats_ax[3].legend()
         self.stats_ax[3].grid(True)
 
+        # Mutation Rate Plot
+        self.mutation_rate_plot.set_data(generations, self.mutation_rate_history)  # מציג את היסטוריית mutation rate
+        self.stats_ax[4].set_xlim(min(generations), max(generations))
+        self.stats_ax[4].set_ylim(min(self.mutation_rate_history), max(self.mutation_rate_history))
+        self.stats_ax[4].set_xlabel("Generation")
+        self.stats_ax[4].set_ylabel("Mutation Rate")
+        self.stats_ax[4].set_title("Mutation Rate over Generations")
+        self.stats_ax[4].legend()
+        self.stats_ax[4].grid(True)
         self.stats_fig.tight_layout()
 
     def run(self):
