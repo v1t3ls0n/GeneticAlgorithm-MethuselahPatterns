@@ -40,7 +40,7 @@ class InteractiveSimulation:
         self.current_generation = 0
 
         # 1) Create the separate "Grid Window"
-        self.grid_fig = plt.figure(figsize=(6, 8))
+        self.grid_fig = plt.figure(figsize=(7, 8))
         self.grid_ax = self.grid_fig.add_subplot(111)
         self.grid_ax.set_title("Grid Window")
 

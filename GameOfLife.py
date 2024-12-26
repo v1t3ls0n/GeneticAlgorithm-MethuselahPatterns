@@ -2,12 +2,14 @@
 GameOfLife.py
 -------------
 
-Implements Conway's Game of Life logic. Given an initial configuration (a 1D list
-representing a 2D grid), this class simulates each generation until the system
-reaches a static or periodic state, or until a maximum number of iterations is reached.
+This module implements Conway's Game of Life, a cellular automaton, using a simulation class.
+The simulation starts with an initial configuration represented as a 1D list (mapped to a 2D grid)
+and evolves based on predefined rules. The simulation stops when the grid reaches a static or
+periodic state, or when a maximum iteration limit is exceeded.
 
 Classes:
-    GameOfLife
+    GameOfLife: Handles the simulation of the Game of Life logic, including state transitions,
+    detecting static/periodic behavior, and tracking relevant statistics.
 """
 
 import random
@@ -16,43 +18,44 @@ import logging
 
 class GameOfLife:
     """
-    The GameOfLife class simulates Conway's Game of Life for a given initial state.
-    It tracks the evolution of the grid through multiple generations and determines
-    whether the pattern becomes static (unchanged) or periodic (repeats a previously
-    seen state).
+    The GameOfLife class simulates Conway's Game of Life on a 2D grid, given an initial state.
+    It tracks the evolution of the grid through multiple generations, stopping when the grid
+    becomes static (unchanging) or periodic (repeats a previously encountered state), or when
+    the simulation reaches a maximum number of iterations.
 
     Attributes:
         grid_size (int): The dimension N of the NxN grid.
-        grid (list[int]): A flat list of length N*N, containing 0s and 1s (dead or alive cells).
-        initial_state (tuple[int]): A tuple storing the initial configuration (immutable).
-        history (list[tuple[int]]): A record of all the grid states encountered so far.
-        game_iteration_limit (int): A hard limit on the total number of generations to simulate.
-        stable_count (int): Counts how many consecutive generations remained static or periodic.
-        max_stable_generations (int): Once stable_count reaches this limit, the simulation stops.
-        lifespan (int): The total number of unique states the grid has passed through before stopping.
-        is_static (int): A flag (0 or 1) indicating if the grid has become static.
-        is_periodic (int): A flag (0 or 1) indicating if the grid has become periodic.
-        max_alive_cells_count (int): The maximum number of living cells observed in any generation.
-        alive_growth (float): The ratio between max and min living cells during the simulation.
-        alive_history (list[int]): Number of living cells for each generation (for analysis).
-        stableness (float): A ratio indicating how many times the grid was detected stable
-                            compared to max_stable_generations.
+        grid (list[int]): A flat list of length N*N, representing the grid's cells (0=dead, 1=alive).
+        initial_state (tuple[int]): The initial configuration of the grid (immutable).
+        history (list[tuple[int]]): A record of all states encountered during the simulation.
+        game_iteration_limit (int): Maximum number of generations to simulate.
+        stable_count (int): Tracks consecutive generations where the state is static or periodic.
+        max_stable_generations (int): Threshold for terminating the simulation if stable_count is reached.
+        lifespan (int): Number of unique states the grid has passed through before stopping.
+        is_static (int): Indicates whether the grid has become static (1=true, 0=false).
+        is_periodic (int): Indicates whether the grid has entered a periodic cycle (1=true, 0=false).
+        max_alive_cells_count (int): Maximum number of alive cells observed during the simulation.
+        alive_growth (float): Ratio between the maximum and minimum alive cell counts across generations.
+        alive_history (list[int]): History of alive cell counts for each generation.
+        stableness (float): Ratio indicating how often the grid reached stable behavior (static or periodic).
     """
 
     def __init__(self, grid_size, initial_state=None):
         """
-        Initialize the Game of Life simulation.
+        Initializes the GameOfLife simulation with a given grid size and optional initial state.
 
         Args:
-            grid_size (int): The dimension N of the NxN grid.
-            initial_state (Iterable[int], optional): A starting configuration.
-                If None, a zero-initialized grid is created.
+            grid_size (int): Size of the NxN grid.
+            initial_state (Iterable[int], optional): Flat list of the grid's initial configuration.
+                If None, the grid is initialized to all zeros (dead cells).
+
+        The initial state is stored as an immutable tuple, and the simulation starts with
+        an empty history except for the initial configuration.
         """
         self.grid_size = grid_size
-        self.grid = [
-            0]*(grid_size*grid_size) if initial_state is None else list(initial_state)
+        self.grid = [0] * (grid_size * grid_size) if initial_state is None else list(initial_state)
 
-        # Store the initial state of the grid
+        # Store the immutable initial state
         self.initial_state = tuple(self.grid)
         self.history = [self.initial_state]
 
@@ -69,13 +72,15 @@ class GameOfLife:
 
     def step(self):
         """
-        Perform a single step (one generation) in the Game of Life.
-        Applies the classic rules:
-            - A living cell (1) with 2 or 3 neighbors stays alive.
+        Executes one generation step in the Game of Life.
+        Each cell's state in the next generation is determined by its neighbors:
+            - A living cell (1) with 2 or 3 neighbors survives.
             - A dead cell (0) with exactly 3 neighbors becomes alive.
-            - Otherwise, the cell dies (or remains dead).
-        Checks if the new grid is identical to the current grid (static),
-        or matches any previous state (periodic).
+            - All other cells either die or remain dead.
+
+        After computing the new grid, the method checks if the state is static
+        (unchanged from the previous state) or periodic (matches a previous state
+        in the simulation history, excluding the immediately prior state).
         """
         cur_grid = self.grid[:]
         new_grid = [0] * (self.grid_size * self.grid_size)
@@ -93,30 +98,37 @@ class GameOfLife:
                     if alive_neighbors == 3:
                         new_grid[index] = 1
 
-        newState = tuple(new_grid)
-        curState = tuple(cur_grid)
+        new_state = tuple(new_grid)
+        cur_state = tuple(cur_grid)
 
-        # Static check: No change from previous generation
-        if newState == curState:
+        # Static check: No change from the previous generation
+        if new_state == cur_state:
             self.is_static = 1
-        # Periodic check: If newState appeared before (excluding the immediate last)
-        elif newState in self.history[:-1]:
+        # Periodic check: If the new state matches any previous state (excluding the immediate last)
+        elif new_state in self.history[:-1]:
             self.is_periodic = 1
         else:
             self.grid = new_grid
 
     def run(self):
         """
-        Run the simulation until a static or periodic state is reached,
-        or until we exceed game_iteration_limit. Also tracks the number
-        of living cells each generation, maximum living cells, and alive growth.
-        Finally, computes a 'stableness' score based on stable_count and max_stable_generations.
+        Runs the Game of Life simulation until one of the following conditions is met:
+            1. The grid becomes static.
+            2. The grid enters a periodic cycle.
+            3. The maximum number of iterations is exceeded.
+            4. The stable_count exceeds max_stable_generations.
+
+        During the simulation, the method tracks:
+            - Alive cells in each generation.
+            - Maximum alive cells observed.
+            - Alive growth (max/min alive cells ratio).
+            - Stableness (ratio of stable states to max_stable_generations).
         """
         limiter = self.game_iteration_limit
 
         while limiter and ((not self.is_static and not self.is_periodic) or self.stable_count < self.max_stable_generations):
-            alive_cell_count = self.get_alive_cells_count()
-            # If no cells alive, mark as static
+            alive_cell_count = sum(self.grid)
+            # If no cells are alive, mark as static
             if not alive_cell_count:
                 self.is_static = 1
 
@@ -132,20 +144,19 @@ class GameOfLife:
 
         self.lifespan = len(set(self.history))
         self.max_alive_cells_count = max(self.alive_history)
-        self.alive_growth = max(self.alive_history) / max(1,
-                                                          min(self.alive_history)) if self.alive_history else 1
+        self.alive_growth = max(self.alive_history) / max(1, min(self.alive_history)) if self.alive_history else 1
         self.stableness = self.stable_count / self.max_stable_generations
 
     def count_alive_neighbors(self, x, y):
         """
-        Count how many neighbors of cell (x, y) are alive.
+        Counts the number of alive neighbors for a cell at position (x, y).
 
         Args:
-            x (int): Row index.
-            y (int): Column index.
+            x (int): The row index of the cell.
+            y (int): The column index of the cell.
 
         Returns:
-            int: Number of living neighbors around (x, y).
+            int: The total number of alive neighbors surrounding the cell.
         """
         alive = 0
         for i in range(-1, 2):
@@ -158,33 +169,3 @@ class GameOfLife:
                     alive += self.grid[index]
         return alive
 
-    def get_alive_cells_count(self):
-        """
-        Returns the total number of living cells in the grid.
-        """
-        return sum(self.grid)
-
-    def get_lifespan(self):
-        """
-        Return the total number of unique states the grid went through before stopping.
-        """
-        return self.lifespan
-
-    def get_alive_history(self):
-        """
-        Return the list that tracks how many cells were alive at each generation.
-        """
-        return self.alive_history
-
-    def reset(self):
-        """
-        Reset the grid to its initial state (useful for repeated experiments).
-        """
-        logging.debug("Resetting the grid to initial state.")
-        self.grid = list(self.initial_state)
-        self.history = [self.initial_state]
-        self.is_static = False
-        self.is_periodic = False
-        self.lifespan = 0
-        self.stable_count = 0
-        self.alive_history = [sum(self.grid)]
