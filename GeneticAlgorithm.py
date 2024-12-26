@@ -84,7 +84,7 @@ class GeneticAlgorithm:
         self.population = set()
         self.mutation_rate_history = [initial_mutation_rate]
 
-    def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, stableness):
+    def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, stableness,initial_living_cells_count):
         """
         Combine multiple factors (lifespan, alive cell count, growth, and stableness)
         into one final fitness score based on their respective weights.
@@ -93,7 +93,7 @@ class GeneticAlgorithm:
         alive_cells_score = max_alive_cells_count * self.alive_cells_weight
         growth_score = alive_growth * self.alive_growth_weight
         stableness_score = stableness * self.stableness_weight
-        return lifespan_score + alive_cells_score + growth_score + stableness_score
+        return (lifespan_score + alive_cells_score + growth_score + stableness_score) * 1 / max(1,initial_living_cells_count)
 
     def evaluate(self, configuration):
         """
@@ -132,7 +132,8 @@ class GeneticAlgorithm:
             lifespan=game.lifespan,
             max_alive_cells_count=game.max_alive_cells_count,
             alive_growth=game.alive_growth,
-            stableness=game.stableness
+            stableness=game.stableness,
+            initial_living_cells_count = sum(configuration)
         )
 
         self.configuration_cache[configuration_tuple] = {
@@ -382,7 +383,6 @@ class GeneticAlgorithm:
             for cell in chosen_cells:
                 configuration[cell] = 1
                 total_taken_cells-=1
-        logging.info(f"""initial configuration cells count: {sum(configuration)}""")
         return tuple(configuration)
 
     def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, stableness, max_alive_cells_count):
@@ -483,14 +483,16 @@ class GeneticAlgorithm:
                          self.configuration_cache[config]['max_alive_cells_count']}""")
             logging.info(f"""Alive Growth: {
                          self.configuration_cache[config]['alive_growth']}""")
-
+            
+            logging
         best_params = []
         for config, _ in best_configs:
             params_dict = {
                 'lifespan': self.configuration_cache[config]['lifespan'],
                 'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
                 'alive_growth': self.configuration_cache[config]['alive_growth'],
-                'stableness': self.configuration_cache[config]['stableness']
+                'stableness': self.configuration_cache[config]['stableness'],
+                'initial_living_cells_count' : self.configuration_cache[config]['initial_living_cells_count']
             }
             best_params.append(params_dict)
         self.best_params = best_params
