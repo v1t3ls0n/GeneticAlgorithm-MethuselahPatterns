@@ -92,8 +92,9 @@ class InteractiveSimulation:
             on_click=self.bring_metrics_to_front
         )
 
-        self.update_grid()
         self.render_statistics()
+        self.update_grid()
+
 
 
     def on_close(self, event):
@@ -316,6 +317,6 @@ class InteractiveSimulation:
         Show both windows at once.  plt.show() blocks until user closes them.
         """
         self.stats_fig.canvas.manager.window.showMaximized()
-        self.grid_fig.canvas.manager.window.showMaximized()
+        self.grid_fig.canvas.manager.window.showNormal()
         logging.info("Running interactive simulation with separate Grid and Stats windows.")
         plt.show()
