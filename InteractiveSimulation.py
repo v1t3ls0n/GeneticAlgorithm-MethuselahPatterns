@@ -232,11 +232,10 @@ class InteractiveSimulation:
         growth = param_dict.get('alive_growth', 1.0)
         stableness = param_dict.get('stableness', 0.0)
         initial_living_cells_count = param_dict.get('initial_living_cells_count', 0.0)
-        text_str = (f"""lifespan={lifespan} | "
-                        f"initial_living_cells_count"{initial_living_cells_count},
-                        f"max_alive={max_alive} | "
-                        f"growth={growth:.2f} | "
-                        f"stableness={stableness:.2f}""")
+        text_str = (
+            f"""lifespan={lifespan} | initial_size = {initial_living_cells_count} | """
+            f"""max_alive = {max_alive} | growth = {growth:.2f} | stableness = {stableness:.2f}"""
+            )
         self.grid_ax.set_xlabel(text_str)
         
 

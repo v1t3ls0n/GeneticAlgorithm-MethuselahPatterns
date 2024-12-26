@@ -42,7 +42,7 @@ class GeneticAlgorithm:
     """
 
     def __init__(self, grid_size, population_size, generations, initial_mutation_rate, mutation_rate_lower_limit,
-                 alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight,
+                 alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight,initial_living_cells_count_weight,
                  alive_cells_per_block, alive_blocks, predefined_configurations=None):
         """
         Initialize the genetic algorithm.
@@ -69,6 +69,7 @@ class GeneticAlgorithm:
         self.mutation_rate = initial_mutation_rate
         self.alive_cells_weight = alive_cells_weight
         self.lifespan_weight = lifespan_weight
+        self.initial_living_cells_count_weight = initial_living_cells_count_weight
         self.lifespan_threshold = (grid_size * grid_size) * 3
         self.alive_growth_weight = alive_growth_weight
         self.stableness_weight = stableness_weight
@@ -93,7 +94,8 @@ class GeneticAlgorithm:
         alive_cells_score = max_alive_cells_count * self.alive_cells_weight
         growth_score = alive_growth * self.alive_growth_weight
         stableness_score = stableness * self.stableness_weight
-        return (lifespan_score + alive_cells_score + growth_score + stableness_score) * 1 / max(1,initial_living_cells_count)
+        small_configuration_score = self.initial_living_cells_count_weight * (1 / max(1,initial_living_cells_count))
+        return (lifespan_score + alive_cells_score + growth_score + stableness_score) * small_configuration_score
 
     def evaluate(self, configuration):
         """

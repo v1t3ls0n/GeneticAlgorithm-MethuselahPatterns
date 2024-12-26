@@ -29,6 +29,7 @@ def main(
                  stableness_weight=0.01,
                  alive_cells_per_block=5, 
                  alive_blocks=3, 
+                 initial_living_cells_count_weight = 0.5,
                  predefined_configurations=None
 
 ):
@@ -64,6 +65,7 @@ def main(
                  f"stableness_weight={stableness_weight}, "
                  f"alive_cells_per_block={alive_cells_per_block}, "
                  f"alive_blocks={alive_blocks}, "
+                 f"initial_living_cells_count_weight={initial_living_cells_count_weight}"
                  f"predefined_configurations={predefined_configurations}")
 
     algorithm = GeneticAlgorithm(grid_size,
@@ -77,6 +79,7 @@ def main(
                                  stableness_weight,
                                  alive_cells_per_block=alive_cells_per_block,
                                  alive_blocks=alive_blocks,
+                                 initial_living_cells_count_weight,
                                  predefined_configurations=predefined_configurations)
 
     best_configs,best_params = algorithm.run()
@@ -92,6 +95,7 @@ def main(
         "stableness_weight": stableness_weight,
         "alive_cells_per_block": alive_cells_per_block,
         "alive_blocks": alive_blocks,
+        "initial_living_cells_count_weight":initial_living_cells_count_weight,
         "predefined_configurations": predefined_configurations
     }
 
@@ -102,6 +106,7 @@ def main(
                                        grid_size=grid_size,
                                        generations_cache=algorithm.generations_cache,
                                        mutation_rate_history=algorithm.mutation_rate_history,
+                                       initial_living_cells_count_weight = initial_living_cells_count_weight,
                                        run_params=run_params
                                        )
     simulation.run()
@@ -143,6 +148,8 @@ def run_main_interactively():
         stableness_weight = float(get_user_param("Enter stableness_weight", "0.01"))
         alive_cells_per_block = int(get_user_param("Enter alive_cells_per_block", "5"))
         alive_blocks = int(get_user_param("Enter alive_blocks", "3"))
+        initial_living_cells_count_weight = int(get_user_param("Enter initial_living_cells_count_weight", "0.6"))
+
 
         main(grid_size=grid_size,
              population_size=population_size,
@@ -155,6 +162,7 @@ def run_main_interactively():
              stableness_weight=stableness_weight,
              alive_cells_per_block=alive_cells_per_block,
              alive_blocks=alive_blocks,
+             initial_living_cells_count_weight = initial_living_cells_count_weight,
              predefined_configurations=None)
 
 
