@@ -111,6 +111,16 @@ class InteractiveSimulation:
         try:
             toolbar = figure.canvas.manager.toolbar
             button = QPushButton(button_text)
+            button.setStyleSheet(
+                """
+                QPushButton {
+                    margin: 8px;        /* space around the button in the toolbar */
+                    padding: 6px 10px;  /* inside spacing around the text */
+                    font-size: 12px;    /* bigger font */
+                    font-weight: bold;  /* make it stand out */
+                }
+                """
+            )
             toolbar.addWidget(button)
             button.clicked.connect(on_click)
         except Exception as e:
@@ -123,9 +133,10 @@ class InteractiveSimulation:
         """
         try:
             # self.stats_fig.canvas.manager.window.lower()
-            self.grid_fig.canvas.manager.window.showNormal()
             self.grid_fig.canvas.manager.window.activateWindow()
             self.grid_fig.canvas.manager.window.raise_()
+            self.grid_fig.canvas.manager.window.showNormal()
+            # self.grid_fig.canvas.manager.window.showMaximized()
 
         except Exception as e:
             logging.warning(f"Could not bring the Grid window to the front: {e}")
@@ -138,9 +149,11 @@ class InteractiveSimulation:
         """
         try:
             # self.grid_fig.canvas.manager.window.lower()
-            self.stats_fig.canvas.manager.window.showNormal()
+            # self.stats_fig.canvas.manager.window.showNormal()
             self.stats_fig.canvas.manager.window.activateWindow()
             self.stats_fig.canvas.manager.window.raise_()
+            self.stats_fig.canvas.manager.window.showMaximized()
+
             # self.grid_fig.canvas.manager.window.showMinimized()
 
         except Exception as e:
@@ -302,5 +315,7 @@ class InteractiveSimulation:
         """
         Show both windows at once.  plt.show() blocks until user closes them.
         """
+        self.stats_fig.canvas.manager.window.showMaximized()
+        self.grid_fig.canvas.manager.window.showMaximized()
         logging.info("Running interactive simulation with separate Grid and Stats windows.")
         plt.show()
