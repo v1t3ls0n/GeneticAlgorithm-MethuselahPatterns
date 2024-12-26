@@ -180,7 +180,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 👥 Authors
 
-- [Guy Vitelson] - Initial work
+- Guy Vitelson - Initial work
 
 ## 🙏 Acknowledgments
 
@@ -194,9 +194,9 @@ If you use this code in your research, please cite:
 
 ```bibtex
 @software{game_of_life_genetic,
-  author = {Guy Vitelson},
-  title = {Game of Life Genetic Algorithm},
-  year = {2024},
-  url = {https://github.com/v1t3ls0n/Game-of-Life-Genetic-Algorithm}
+  author = Guy Vitelson,
+  title = Game of Life Genetic Algorithm,
+  year = 2024,
+  url = https://github.com/v1t3ls0n/Game-of-Life-Genetic-Algorithm
 }
 ```
