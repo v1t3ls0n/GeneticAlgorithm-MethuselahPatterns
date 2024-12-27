@@ -391,21 +391,6 @@ class GeneticAlgorithm:
                              stableness=stableness,
                              initial_living_cells_count = initial_living_cells_count
                              )
-
-        self.generations_cache[generation]['avg_fitness'] = np.average(scores)
-        self.generations_cache[generation]['avg_lifespan'] = np.average(
-            lifespans)
-        self.generations_cache[generation]['avg_alive_growth_rate'] = np.average(
-            alive_growth_rates)
-        self.generations_cache[generation]['avg_max_alive_cells_count'] = np.average(
-            max_alive_cells_count)
-        self.generations_cache[generation]['std_fitness'] = np.std(scores)
-        self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
-        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(
-            alive_growth_rates)
-        self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
-            max_alive_cells_count)
-
     def random_configuration(self):
         """
         Randomly generate an NxN configuration (flattened to length N*N).
@@ -459,7 +444,7 @@ class GeneticAlgorithm:
             max_alive_cells_count)
         self.generations_cache[generation]['avg_stableness'] = np.mean(
             stableness)
-        self.generations_cache[generation]['avg_initial_size'] = np.mean(initial_living_cells_count)
+        self.generations_cache[generation]['avg_initial_living_cells_count'] = np.mean(initial_living_cells_count)
 
         self.generations_cache[generation]['std_fitness'] = np.std(scores)
         self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
@@ -467,7 +452,7 @@ class GeneticAlgorithm:
             alive_growth_rates)
         self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
             max_alive_cells_count)
-        self.generations_cache[generation]['std_initial_size'] = np.std(initial_living_cells_count)
+        self.generations_cache[generation]['std_initial_living_cells_count'] = np.std(initial_living_cells_count)
 
     def run(self):
         """
@@ -520,7 +505,7 @@ class GeneticAlgorithm:
                                  lifespans=lifespans,
                                  alive_growth_rates=alive_growth_rates,
                                  max_alive_cells_count=max_alive_cells_count,
-                                 stableness=stableness
+                                 stableness=stableness,
                                  initial_living_cells_count=initial_living_cells_count
                                  
                                  )
@@ -612,10 +597,10 @@ class GeneticAlgorithm:
         Logs:
             - A warning is logged if stagnation is detected.
         """
-        if last_generation >= 5:
+        if last_generation >= 10:
 
             avg_fitness = [int(self.generations_cache[g]['avg_fitness'])
-                           for g in range(last_generation -5, last_generation)]
+                           for g in range(last_generation -10, last_generation)]
             list_size = len(avg_fitness)
             set_size = len(set(avg_fitness))
             if set_size < list_size:

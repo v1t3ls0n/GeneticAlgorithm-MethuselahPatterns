@@ -39,15 +39,23 @@ class InteractiveSimulation:
         self.current_config_index = 0
         self.current_generation = 0
 
-        # 1) Create the separate "Grid Window"
-        self.grid_fig = plt.figure(figsize=(7, 8))
+        # Create the separate "Grid Window"
+        self.grid_fig = plt.figure(figsize=(5, 5))
         self.grid_ax = self.grid_fig.add_subplot(111)
         self.grid_ax.set_title("Grid Window")
-
         # If user closes the grid window => close everything
         self.grid_fig.canvas.mpl_connect("close_event", self.on_close)
 
-        # 2) Create the "Stats Window"
+        # Create the separate "Run Parameters Window"
+        self.run_params_fig = plt.figure(figsize=(7, 8))
+        gs_run_params = GridSpec(1, 1, figure=self.run_params_fig)
+        self.run_params_plot = self.run_params_fig.add_subplot(
+            gs_run_params[0, 0])
+        self.run_params_plot.set_title("Run Parameters Window")
+        # If user closes the grid window => close everything
+        self.run_params_fig.canvas.mpl_connect("close_event", self.on_close)
+
+        # Create the "Stats Window"
         self.stats_fig = plt.figure(figsize=(18, 6))
         gs = GridSpec(2, 3, figure=self.stats_fig)
 
@@ -55,7 +63,8 @@ class InteractiveSimulation:
         self.stats_fig.canvas.mpl_connect("close_event", self.on_close)
 
         # Create subplots in row 0
-        self.params_plot = self.stats_fig.add_subplot(gs[0, 0])
+        self.standardized_initial_size_plot = self.stats_fig.add_subplot(
+            gs[0, 0])
         self.standardized_lifespan_plot = self.stats_fig.add_subplot(gs[0, 1])
         self.standardized_growth_rate_plot = self.stats_fig.add_subplot(
             gs[0, 2])
@@ -66,9 +75,9 @@ class InteractiveSimulation:
         self.mutation_rate_plot = self.stats_fig.add_subplot(gs[1, 1])
         self.standardized_fitness_plot = self.stats_fig.add_subplot(gs[1, 2])
 
-        # Also connect arrow-key events in the stats figure
+        # Also connect arrow-key events in the grid figure
         self.grid_fig.canvas.mpl_connect('key_press_event', self.on_key)
-        self.stats_fig.canvas.mpl_connect('key_press_event', self.on_key)
+        # self.stats_fig.canvas.mpl_connect('key_press_event', self.on_key)
 
         self.add_focus_button_to_toolbar(
             figure=self.stats_fig,
@@ -77,12 +86,38 @@ class InteractiveSimulation:
         )
 
         self.add_focus_button_to_toolbar(
+            figure=self.stats_fig,
+            button_text="Focus Run Parameters Window",
+            on_click=self.bring_run_parameters_to_front
+        )
+
+        self.add_focus_button_to_toolbar(
             figure=self.grid_fig,
             button_text="Focus Metrics Window",
             on_click=self.bring_metrics_to_front
         )
+
+        self.add_focus_button_to_toolbar(
+            figure=self.grid_fig,
+            button_text="Focus Run Parameters Window",
+            on_click=self.bring_run_parameters_to_front
+        )
+
+        self.add_focus_button_to_toolbar(
+            figure=self.run_params_fig,
+            button_text="Focus Metrics Window",
+            on_click=self.bring_metrics_to_front
+        )
+
+        self.add_focus_button_to_toolbar(
+            figure=self.run_params_fig,
+            button_text="Focus Grid Window",
+            on_click=self.bring_grid_to_front
+        )
+
         self.update_grid()
         self.render_statistics()
+        self.update_run_params_window()
 
     def on_close(self, event):
         """
@@ -148,6 +183,20 @@ class InteractiveSimulation:
         except Exception as e:
             logging.warning(
                 f"Could not bring the Stats window to the front: {e}")
+
+    def bring_run_parameters_to_front(self, e=None):
+        """
+        Attempt to bring the 'Run Parameters Window' to the front (Qt-based).
+        Some OS/WM can block focus-stealing, so this may not always succeed.
+        """
+        try:
+            self.run_params_fig.canvas.manager.window.showNormal()
+            self.run_params_fig.canvas.manager.window.activateWindow()
+            self.run_params_fig.canvas.manager.window.raise_()
+
+        except Exception as e:
+            logging.warning(
+                f"Could not bring the Run Parameters window to the front: {e}")
 
     def on_key(self, event):
         """
@@ -232,7 +281,7 @@ class InteractiveSimulation:
 
     def render_statistics(self):
         """
-        Fill in each subplot with the relevant data, including the run_params in self.params_plot.
+        Fill in each subplot with the relevant data, including the run_params in self.run_params_plot.
         """
         gens = list(self.generations_cache.keys())
 
@@ -251,6 +300,24 @@ class InteractiveSimulation:
         self.standardized_fitness_plot.set_title("Standardized Fitness")
         self.standardized_fitness_plot.legend()
 
+        # ---------------- Initial Size (initial living cells count) ----------------
+        avg_initial_size = [self.generations_cache[g]['avg_initial_living_cells_count']
+                            for g in gens]
+        std_initial_size = [self.generations_cache[g]['std_initial_living_cells_count']
+                            for g in gens]
+
+        self.standardized_initial_size_plot.clear()
+        self.standardized_initial_size_plot.plot(
+            gens, avg_initial_size, label='Standardized Initial Size', color='cyan')
+        self.standardized_initial_size_plot.fill_between(
+            gens,
+            np.subtract(avg_initial_size, std_initial_size),
+            np.add(avg_initial_size, std_initial_size),
+            color='cyan', alpha=0.2, label='Std Dev'
+        )
+        self.standardized_lifespan_plot.set_title("Standardized Lifespan")
+        # self.standardized_lifespan_plot.legend()
+
         # ---------------- Lifespan ----------------
         avg_lifespan = [self.generations_cache[g]['avg_lifespan']
                         for g in gens]
@@ -266,7 +333,7 @@ class InteractiveSimulation:
             color='green', alpha=0.2, label='Std Dev'
         )
         self.standardized_lifespan_plot.set_title("Standardized Lifespan")
-        self.standardized_lifespan_plot.legend()
+        # self.standardized_lifespan_plot.legend()
 
         # ---------------- Growth Rate ----------------
         avg_growth = [self.generations_cache[g]
@@ -284,7 +351,7 @@ class InteractiveSimulation:
         )
         self.standardized_growth_rate_plot.set_title(
             "Standardized Growth Rate")
-        self.standardized_growth_rate_plot.legend()
+        # self.standardized_growth_rate_plot.legend()
 
         # ---------------- Alive Cells ----------------
         avg_alive_cells = [self.generations_cache[g]
@@ -302,35 +369,39 @@ class InteractiveSimulation:
         )
         self.standardized_alive_cells_plot.set_title(
             "Standardized Alive Cells")
-        self.standardized_alive_cells_plot.legend()
+        # self.standardized_alive_cells_plot.legend()
 
         # ---------------- Mutation Rate ----------------
         self.mutation_rate_plot.clear()
         self.mutation_rate_plot.plot(
             gens, self.mutation_rate_history, label='Mutation Rate', color='orange')
         self.mutation_rate_plot.set_title("Mutation Rate")
-        self.mutation_rate_plot.legend()
+        # self.mutation_rate_plot.legend()
 
+        # Optionally adjust spacing:
+        self.stats_fig.tight_layout()
+
+    def update_run_params_window(self):
         # ---------------- Params (text) ----------------
-        self.params_plot.clear()
-        self.params_plot.set_title("Run Parameters")
-        self.params_plot.axis("off")
+        self.run_params_plot.clear()
+        self.run_params_plot.set_title("Run Parameters")
+        self.run_params_plot.axis("off")
 
         lines = ["Genetic Algorithm Custom Parameters used in this run:"]
         for k, v in self.run_params.items():
             lines.append(f"• {k} = {v}")
         text_str = "\n".join(lines)
 
-        self.params_plot.text(
+        self.run_params_plot.text(
             0.0, 1.0,
             text_str,
-            transform=self.params_plot.transAxes,
+            transform=self.run_params_plot.transAxes,
             fontsize=10,
             va='top'
         )
 
         # Optionally adjust spacing:
-        self.stats_fig.tight_layout()
+        self.run_params_fig.tight_layout()
 
     def run(self):
         """
