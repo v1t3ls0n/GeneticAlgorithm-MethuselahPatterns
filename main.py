@@ -33,7 +33,7 @@ def main(grid_size=5,
          stableness_weight=1.0,
          alive_cells_per_block=5,
          alive_blocks=1,
-         initial_living_cells_count_weight=5,
+         initial_living_cells_count_weight=10,
          predefined_configurations=None):
     """
     Main function that drives the process:
@@ -152,7 +152,7 @@ def run_main_interactively():
         lifespan_weight = float(get_user_param("Enter lifespan_weight", "100.0"))
         alive_growth_weight = float(get_user_param("Enter alive_growth_weight", "0.3"))
         stableness_weight = float(get_user_param("Enter stableness_weight", "1.0"))
-        initial_living_cells_count_weight = float(get_user_param("Enter initial_living_cells_count_weight", "1.0"))
+        initial_living_cells_count_weight = float(get_user_param("Enter initial_living_cells_count_weight", "10.0"))
         alive_cells_per_block = int(get_user_param("Enter alive_cells_per_block", "5"))
         alive_blocks = int(get_user_param("Enter alive_blocks", "1"))
 
