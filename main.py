@@ -28,7 +28,7 @@ def main(grid_size=5,
          initial_mutation_rate=1.0,
          alive_cells_weight=0.12,
          mutation_rate_lower_limit=0.2,
-         lifespan_weight=1.0,
+         lifespan_weight=100.0,
          alive_growth_weight=0.3,
          stableness_weight=1.0,
          alive_cells_per_block=5,
@@ -149,7 +149,7 @@ def run_main_interactively():
         initial_mutation_rate = float(get_user_param("Enter initial_mutation_rate", "1.0"))
         mutation_rate_lower_limit = float(get_user_param("Enter mutation_rate_lower_limit", "0.2"))
         alive_cells_weight = float(get_user_param("Enter alive_cells_weight", "0.12"))
-        lifespan_weight = float(get_user_param("Enter lifespan_weight", "1.0"))
+        lifespan_weight = float(get_user_param("Enter lifespan_weight", "100.0"))
         alive_growth_weight = float(get_user_param("Enter alive_growth_weight", "0.3"))
         stableness_weight = float(get_user_param("Enter stableness_weight", "1.0"))
         initial_living_cells_count_weight = float(get_user_param("Enter initial_living_cells_count_weight", "1.0"))
