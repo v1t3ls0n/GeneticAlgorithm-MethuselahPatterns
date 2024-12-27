@@ -201,7 +201,6 @@ class GeneticAlgorithm:
         Perform mutation on a given configuration by flipping some dead cells (0 -> 1).
 
         Mutation Process:
-            - Each cell in the configuration has a chance to flip to 1 (alive) if it is currently 0.
             - The chance of flipping is determined by `self.mutation_rate`.
             - Live cells (1) are not flipped to 0 in this implementation but could be added as an extension.
 
@@ -216,9 +215,8 @@ class GeneticAlgorithm:
         new_configuration = []
         for row in matrix:
             for cell in row:
-                # If cell is dead, there's a chance we flip it to alive
-                if cell == 0 and random.uniform(0, 1) < self.mutation_rate:
-                    new_configuration.append(1)
+                if random.uniform(0, 1) < self.mutation_rate:
+                    new_configuration.append(1 if cell == 0 else 0) # flip
                 else:
                     new_configuration.append(cell)
         return tuple(new_configuration)
