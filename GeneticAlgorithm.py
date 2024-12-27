@@ -112,7 +112,7 @@ class GeneticAlgorithm:
         stableness_score = stableness * self.stableness_weight
         small_configuration_score = self.initial_living_cells_count_weight * \
             (1 / max(1, initial_living_cells_count))
-        return (lifespan_score + alive_cells_score + growth_score + stableness_score) * small_configuration_score
+        return (lifespan_score + alive_cells_score + growth_score + stableness_score +  small_configuration_score) 
 
     def evaluate(self, configuration):
         """
