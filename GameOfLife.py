@@ -143,7 +143,6 @@ class GameOfLife:
             self.step()
             limiter -= 1
 
-        # self.lifespan = len(set(self.history))
         self.max_alive_cells_count = max(self.alive_history)
         self.alive_growth = max(self.alive_history) / max(1, min(self.alive_history)) if self.alive_history else 1
         self.stableness = self.stable_count / self.max_stable_generations
