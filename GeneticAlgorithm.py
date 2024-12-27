@@ -159,7 +159,6 @@ class GeneticAlgorithm:
         }
         return self.configuration_cache[configuration_tuple]
 
-
     def populate(self):
         """
         Generate a new generation of configurations for the population.
@@ -539,7 +538,6 @@ class GeneticAlgorithm:
                          self.configuration_cache[config]['alive_growth']}""")
             logging.info(f"""Initial Configuration Living Cells Count: {
                          self.configuration_cache[config]['initial_living_cells_count']}""")
-            logging
         best_params = []
         for config, _ in best_configs:
             params_dict = {
@@ -552,8 +550,7 @@ class GeneticAlgorithm:
             best_params.append(params_dict)
         self.best_params = best_params
         return best_configs, best_params
-    
-    
+
     def adjust_mutation_rate(self, generation):
         """
         Dynamically adjust the mutation rate based on changes in average fitness between generations.
@@ -604,9 +601,12 @@ class GeneticAlgorithm:
         Logs:
             - A warning is logged if stagnation is detected.
         """
-        avg_fitness = [int(self.generations_cache[g]['avg_fitness'])
-                    for g in range(last_generation)]
-        if len(avg_fitness) >= 10 and len(set(avg_fitness[-10:])) == 1:
-            logging.warning("Stagnation detected in the last 10 generations!")
-            self.mutation_rate = min(
-                self.mutation_rate_lower_limit, self.mutation_rate) * 1.5
+        if last_generation >= 10:
+
+            avg_fitness = [int(self.generations_cache[g]['avg_fitness'])
+                           for g in range(last_generation-10, last_generation)]
+            if len(set(avg_fitness)) < len(avg_fitness):
+                logging.warning(
+                    "Stagnation detected in the last 10 generations!")
+                self.mutation_rate = min(
+                    self.mutation_rate_lower_limit, self.mutation_rate) * 1.5
