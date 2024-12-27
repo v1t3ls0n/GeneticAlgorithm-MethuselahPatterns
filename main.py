@@ -22,7 +22,7 @@ logging.basicConfig(filename="simulation.log",
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
-def main(grid_size=20,
+def main(grid_size=5,
          population_size=20,
          generations=100,
          initial_mutation_rate=1.0,
@@ -32,8 +32,8 @@ def main(grid_size=20,
          alive_growth_weight=0.1,
          stableness_weight=0.01,
          alive_cells_per_block=5,
-         alive_blocks=3,
-         initial_living_cells_count_weight=0.7,
+         alive_blocks=1,
+         initial_living_cells_count_weight=5,
          predefined_configurations=None):
     """
     Main function that drives the process:
@@ -143,7 +143,7 @@ def run_main_interactively():
     if use_defaults.startswith('y') or use_defaults == "":
         main()
     else:
-        grid_size = int(get_user_param("Enter grid_size", "20"))
+        grid_size = int(get_user_param("Enter grid_size", "5"))
         population_size = int(get_user_param("Enter population_size", "20"))
         generations = int(get_user_param("Enter generations", "100"))
         initial_mutation_rate = float(get_user_param("Enter initial_mutation_rate", "1.0"))
@@ -153,8 +153,8 @@ def run_main_interactively():
         alive_growth_weight = float(get_user_param("Enter alive_growth_weight", "0.1"))
         stableness_weight = float(get_user_param("Enter stableness_weight", "0.01"))
         alive_cells_per_block = int(get_user_param("Enter alive_cells_per_block", "5"))
-        alive_blocks = int(get_user_param("Enter alive_blocks", "3"))
-        initial_living_cells_count_weight = float(get_user_param("Enter initial_living_cells_count_weight", "0.7"))
+        alive_blocks = int(get_user_param("Enter alive_blocks", "1"))
+        initial_living_cells_count_weight = float(get_user_param("Enter initial_living_cells_count_weight", "5"))
 
         # Run main with custom parameters
         main(grid_size=grid_size,

@@ -137,7 +137,7 @@ class GeneticAlgorithm:
         # Create and run a GameOfLife instance
         game = GameOfLife(self.grid_size, configuration_tuple)
         game.run()
-        initial_living_cells_count = sum(configuration)
+        initial_living_cells_count = sum(configuration_tuple)
         fitness_score = self.calc_fitness(
             lifespan=game.lifespan,
             max_alive_cells_count=game.max_alive_cells_count,
