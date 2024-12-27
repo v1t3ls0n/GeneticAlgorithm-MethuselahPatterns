@@ -470,7 +470,7 @@ class GeneticAlgorithm:
 
         Returns:
             tuple:
-                - List of top 5 configurations with the highest fitness.
+                - List of top 10 configurations with the highest fitness.
                 - List of dictionaries containing detailed metrics for each top configuration.
         """
         self.initialize()
@@ -516,7 +516,7 @@ class GeneticAlgorithm:
         fitness_scores = [(config, self.configuration_cache[config]['fitness_score'])
                           for config in self.population]
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
-        best_configs = fitness_scores[:5]
+        best_configs = fitness_scores[:min(10,len(fitness_scores))]
 
         # Store their histories for later viewing
         for config, _ in best_configs:

@@ -47,7 +47,7 @@ class InteractiveSimulation:
         self.grid_fig.canvas.mpl_connect("close_event", self.on_close)
 
         # Create the separate "Run Parameters Window"
-        self.run_params_fig = plt.figure(figsize=(7, 8))
+        self.run_params_fig = plt.figure(figsize=(5, 5))
         gs_run_params = GridSpec(1, 1, figure=self.run_params_fig)
         self.run_params_plot = self.run_params_fig.add_subplot(
             gs_run_params[0, 0])
