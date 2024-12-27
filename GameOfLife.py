@@ -59,7 +59,7 @@ class GameOfLife:
         self.initial_state = tuple(self.grid)
         self.history = []
 
-        self.game_iteration_limit = 15000
+        self.game_iteration_limit = 150000
         self.stable_count = 0
         self.max_stable_generations = 10
         self.lifespan = 0
