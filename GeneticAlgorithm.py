@@ -112,7 +112,7 @@ class GeneticAlgorithm:
         stableness_score = stableness * self.stableness_weight
         large_configuration_penalty = (
             1 / max(1, initial_living_cells_count * self.initial_living_cells_count_penalty_weight))
-        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * (large_configuration_penalty ** 2))
+        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * (large_configuration_penalty))
 
     def evaluate(self, configuration):
         """
@@ -424,7 +424,7 @@ class GeneticAlgorithm:
 
         print(f"Generation 1 started.")
         # self.population = [self.random_configuration()
-                        #    for _ in range(self.population_size)]
+        #    for _ in range(self.population_size)]
         self.population = self.initialize_population_with_variety()
 
         generation = 0
@@ -458,9 +458,6 @@ class GeneticAlgorithm:
                              initial_living_cells_count=initial_living_cells_count
                              )
 
-
-
-
     def initialize_population_with_variety(self):
         """
         Initialize the population with equal parts of clusters, scattered cells, and simple random patterns.
@@ -472,7 +469,7 @@ class GeneticAlgorithm:
         Returns:
             list[tuple[int]]: A diverse initial population.
         """
-    
+
         population = []
         total_cells = self.grid_size * self.grid_size
         initial_live_cells = total_cells // 3
@@ -481,8 +478,10 @@ class GeneticAlgorithm:
         cluster_cells = initial_live_cells // 3
         scattered_cells = initial_live_cells // 3
         pattern_cells = initial_live_cells - cluster_cells - scattered_cells
-        max_clusters = max(3, total_cells // 50)  # מספר אשכולות תלוי בגודל הגריד
-        min_clusters = max(1, total_cells // 200)  # מינימום אשכולות לגרידים קטנים
+        # מספר אשכולות תלוי בגודל הגריד
+        max_clusters = max(3, total_cells // 50)
+        # מינימום אשכולות לגרידים קטנים
+        min_clusters = max(1, total_cells // 200)
 
         # חלק ראשון: יצירת אשכולות
         for _ in range(self.population_size // 3):
@@ -507,7 +506,8 @@ class GeneticAlgorithm:
         # חלק שני: פיזור אקראי
         for _ in range(self.population_size // 3):
             configuration = [0] * total_cells
-            scattered_indices = random.sample(range(total_cells), scattered_cells)
+            scattered_indices = random.sample(
+                range(total_cells), scattered_cells)
             for index in scattered_indices:
                 configuration[index] = 1
             population.append(tuple(configuration))
@@ -529,15 +529,13 @@ class GeneticAlgorithm:
             current_live_cells = sum(configuration)
             if current_live_cells < pattern_cells:
                 additional_cells = random.sample([i for i in range(total_cells) if configuration[i] == 0],
-                                                pattern_cells - current_live_cells)
+                                                 pattern_cells - current_live_cells)
                 for index in additional_cells:
                     configuration[index] = 1
 
             population.append(tuple(configuration))
 
         return population
-
-
 
     def random_configuration(self):
         """
@@ -549,8 +547,7 @@ class GeneticAlgorithm:
         Returns:
             tuple[int]: A new random configuration (flattened).
         """
-        
-        
+
         N = self.grid_size * self.grid_size
         configuration = [0]*N
 
