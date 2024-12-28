@@ -387,7 +387,7 @@ class GeneticAlgorithm:
 
     def crossover(self, parent1, parent2):
         crossover_func = random.choices(
-            ['basic', 'simple', 'complex'], [0.2, 0.2, 0.6], k=1)[0]
+            ['basic', 'simple', 'complex'], [0.3,0.3,0.4], k=1)[0]
         match crossover_func:
             case 'basic':
                 return self.crossover_basic(parent1, parent2)
