@@ -112,7 +112,7 @@ class GeneticAlgorithm:
         stableness_score = stableness * self.stableness_weight
         large_configuration_penalty = (
             1 / max(1, initial_living_cells_count * self.initial_living_cells_count_penalty_weight))
-        return (lifespan_score + alive_cells_score + growth_score + stableness_score) * large_configuration_penalty
+        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * large_configuration_penalty)/(self.grid_size*self.grid_size)
 
     def evaluate(self, configuration):
         """
@@ -282,9 +282,9 @@ class GeneticAlgorithm:
                              total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
 
         blocks_parent1 = [
-            parent1[i * N : (i + 1) * N] for i in range(N)]
+            parent1[i * N: (i + 1) * N] for i in range(N)]
         blocks_parent2 = [
-            parent2[i * N : (i + 1) * N] for i in range(N)]
+            parent2[i * N: (i + 1) * N] for i in range(N)]
 
         child_blocks = []
         for i in range(N):
@@ -387,7 +387,7 @@ class GeneticAlgorithm:
 
     def crossover(self, parent1, parent2):
         crossover_func = random.choices(
-            ['basic', 'simple', 'complex'], [0.3,0.3,0.4], k=1)[0]
+            ['basic', 'simple', 'complex'], [0.3, 0.3, 0.4], k=1)[0]
         match crossover_func:
             case 'basic':
                 return self.crossover_basic(parent1, parent2)
