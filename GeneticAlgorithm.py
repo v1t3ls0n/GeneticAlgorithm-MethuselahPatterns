@@ -137,12 +137,10 @@ class GeneticAlgorithm:
         # Create and run a GameOfLife instance
         game = GameOfLife(self.grid_size, configuration_tuple)
         game.run()
-
         max_alive_cells_count = max(game.alive_history)
         initial_living_cells_count = sum(configuration_tuple)
-        alive_growth = self.max_difference_with_distance(game.alive_history)/initial_living_cells_count
+        alive_growth = self.max_difference_with_distance(game.alive_history) / initial_living_cells_count
         stableness = game.stable_count / game.max_stable_generations
-
         fitness_score = self.calc_fitness(
             lifespan=game.lifespan,
             max_alive_cells_count=max_alive_cells_count,
