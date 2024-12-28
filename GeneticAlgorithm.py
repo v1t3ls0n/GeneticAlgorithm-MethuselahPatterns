@@ -110,7 +110,8 @@ class GeneticAlgorithm:
         alive_cells_score = max_alive_cells_count * self.alive_cells_weight
         growth_score = alive_growth * self.alive_growth_weight
         stableness_score = stableness * self.stableness_weight
-        large_configuration_penalty = (1 / max(1, initial_living_cells_count * self.initial_living_cells_count_weight))
+        large_configuration_penalty = (
+            1 / max(1, initial_living_cells_count * self.initial_living_cells_count_weight))
         return (lifespan_score + alive_cells_score + growth_score + stableness_score) * large_configuration_penalty
 
     def evaluate(self, configuration):
@@ -216,7 +217,7 @@ class GeneticAlgorithm:
         for row in matrix:
             for cell in row:
                 if random.uniform(0, 1) < self.mutation_rate:
-                    new_configuration.append(1 if cell == 0 else 0) # flip
+                    new_configuration.append(1 if cell == 0 else 0)  # flip
                 else:
                     new_configuration.append(cell)
         return tuple(new_configuration)
@@ -365,7 +366,7 @@ class GeneticAlgorithm:
         alive_growth_rates = []
         max_alive_cells_count = []
         stableness = []
-        initial_living_cells_count=[]
+        initial_living_cells_count = []
         for configuration in self.population:
             self.evaluate(configuration)
             scores.append(
@@ -378,7 +379,8 @@ class GeneticAlgorithm:
                 self.configuration_cache[configuration]['max_alive_cells_count'])
             stableness.append(
                 self.configuration_cache[configuration]['stableness'])
-            initial_living_cells_count.append(self.configuration_cache[configuration]['initial_living_cells_count'])
+            initial_living_cells_count.append(
+                self.configuration_cache[configuration]['initial_living_cells_count'])
 
         self.calc_statistics(generation=generation,
                              scores=scores,
@@ -386,8 +388,9 @@ class GeneticAlgorithm:
                              alive_growth_rates=alive_growth_rates,
                              max_alive_cells_count=max_alive_cells_count,
                              stableness=stableness,
-                             initial_living_cells_count = initial_living_cells_count
+                             initial_living_cells_count=initial_living_cells_count
                              )
+
     def random_configuration(self):
         """
         Randomly generate an NxN configuration (flattened to length N*N).
@@ -441,7 +444,8 @@ class GeneticAlgorithm:
             max_alive_cells_count)
         self.generations_cache[generation]['avg_stableness'] = np.mean(
             stableness)
-        self.generations_cache[generation]['avg_initial_living_cells_count'] = np.mean(initial_living_cells_count)
+        self.generations_cache[generation]['avg_initial_living_cells_count'] = np.mean(
+            initial_living_cells_count)
 
         self.generations_cache[generation]['std_fitness'] = np.std(scores)
         self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
@@ -449,7 +453,8 @@ class GeneticAlgorithm:
             alive_growth_rates)
         self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
             max_alive_cells_count)
-        self.generations_cache[generation]['std_initial_living_cells_count'] = np.std(initial_living_cells_count)
+        self.generations_cache[generation]['std_initial_living_cells_count'] = np.std(
+            initial_living_cells_count)
 
     def run(self):
         """
@@ -494,7 +499,8 @@ class GeneticAlgorithm:
                     self.configuration_cache[configuration]['max_alive_cells_count'])
                 stableness.append(
                     self.configuration_cache[configuration]['stableness'])
-                initial_living_cells_count.append(self.configuration_cache[configuration]['initial_living_cells_count'])
+                initial_living_cells_count.append(
+                    self.configuration_cache[configuration]['initial_living_cells_count'])
 
             self.mutation_rate_history.append(self.mutation_rate)
             self.calc_statistics(generation=generation,
@@ -504,16 +510,15 @@ class GeneticAlgorithm:
                                  max_alive_cells_count=max_alive_cells_count,
                                  stableness=stableness,
                                  initial_living_cells_count=initial_living_cells_count
-                                 
+
                                  )
-            self.check_for_stagnation(last_generation=generation)
             self.adjust_mutation_rate(generation)
 
         # Final selection of best configurations
         fitness_scores = [(config, self.configuration_cache[config]['fitness_score'])
                           for config in self.population]
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
-        best_configs = fitness_scores[:min(10,len(fitness_scores))]
+        best_configs = fitness_scores[:min(10, len(fitness_scores))]
 
         # Store their histories for later viewing
         for config, _ in best_configs:
@@ -565,42 +570,6 @@ class GeneticAlgorithm:
             - Increase mutation rate: Mutation rate is multiplied by 1.2, but capped at the mutation rate's lower limit.
             - Decrease mutation rate: Mutation rate is multiplied by 0.9, but not reduced below `mutation_rate_lower_limit`.
         """
-        if generation > 10 and self.generations_cache[generation]['avg_fitness'] == self.generations_cache[generation - 1]['avg_fitness']:
-            self.mutation_rate = min(
-                self.mutation_rate_lower_limit, self.mutation_rate * 1.2)
-        elif self.generations_cache[generation]['avg_fitness'] > self.generations_cache[generation - 1]['avg_fitness']:
-            self.mutation_rate = max(
-                self.mutation_rate_lower_limit, self.mutation_rate * 0.9)
+        improvement_ratio = self.generations_cache[generation-1]['avg_fitness'] / max(1,self.generations_cache[generation]['avg_fitness'])
+        self.mutation_rate = max(self.mutation_rate_lower_limit, min(1, improvement_ratio * self.mutation_rate))
 
-    def check_for_stagnation(self, last_generation):
-        """
-        Detect stagnation in the evolution process over the last 10 generations.
-
-        Purpose:
-            - Identify if the population has stopped improving in terms of average fitness.
-            - If stagnation is detected, increase the mutation rate significantly to encourage diversity and escape local optima.
-
-        Process:
-            - Retrieve the average fitness scores for the last 10 generations.
-            - If all 10 generations have identical average fitness, classify it as stagnation.
-            - Increase the mutation rate by 50% to encourage exploration.
-
-        Args:
-            last_generation (int): The index of the most recent generation.
-
-        Adjustments:
-            - Mutation rate: Increased by 50% if stagnation is detected but capped at the mutation rate's lower limit.
-
-        Logs:
-            - A warning is logged if stagnation is detected.
-        """
-        if last_generation >= 10:
-
-            avg_fitness = [int(self.generations_cache[g]['avg_fitness'])
-                           for g in range(last_generation -10, last_generation)]
-            list_size = len(avg_fitness)
-            set_size = len(set(avg_fitness))
-            if set_size < list_size:
-                logging.warning(
-                    "Stagnation detected in the last 10 generations!")
-                self.mutation_rate = min(1,min(self.mutation_rate_lower_limit, self.mutation_rate) * min((list_size/set_size), 1.5))
