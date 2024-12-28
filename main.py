@@ -23,8 +23,8 @@ logging.basicConfig(filename="simulation.log",
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 def main(grid_size=10,
-         population_size=50,
-         generations=50,
+         population_size=20,
+         generations=100,
          initial_mutation_rate=0.5,
          alive_cells_weight=0.12,
          mutation_rate_lower_limit=0.1,
@@ -144,8 +144,8 @@ def run_main_interactively():
         main()
     else:
         grid_size = int(get_user_param("Enter grid_size", "10"))
-        population_size = int(get_user_param("Enter population_size", "50"))
-        generations = int(get_user_param("Enter generations", "50"))
+        population_size = int(get_user_param("Enter population_size", "20"))
+        generations = int(get_user_param("Enter generations", "100"))
         initial_mutation_rate = float(get_user_param("Enter initial_mutation_rate", "0.5"))
         mutation_rate_lower_limit = float(get_user_param("Enter mutation_rate_lower_limit", "0.1"))
         alive_cells_weight = float(get_user_param("Enter alive_cells_weight", "0.12"))
