@@ -281,11 +281,10 @@ class GeneticAlgorithm:
             raise ValueError(f"""Parent configurations must be {
                              total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
 
-        block_size = total_cells // N
         blocks_parent1 = [
-            parent1[i * block_size:(i + 1) * block_size] for i in range(N)]
+            parent1[i * N : (i + 1) * N] for i in range(N)]
         blocks_parent2 = [
-            parent2[i * block_size:(i + 1) * block_size] for i in range(N)]
+            parent2[i * N : (i + 1) * N] for i in range(N)]
 
         child_blocks = []
         for i in range(N):
