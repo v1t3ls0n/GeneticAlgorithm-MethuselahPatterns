@@ -70,7 +70,7 @@ When prompted, you can either:
 - `stableness_weight`: Fitness weight for pattern stability (default: 0.01)
 - `alive_cells_per_block`: Initial cells per active block (default: 5)
 - `alive_blocks`: Number of active blocks in initialization (default: 3)
-- `initial_living_cells_count_weight`: Penalty for large initial patterns (default: 0.7)
+- `initial_living_cells_count_penalty_weight`: Penalty for large initial patterns (default: 0.7)
 
 ## 🖥️ Interactive Visualization
 
@@ -156,7 +156,7 @@ The program provides two windows:
 
 2. **For More Dynamic Patterns**:
    - Increase `alive_growth_weight`
-   - Decrease `initial_living_cells_count_weight`
+   - Decrease `initial_living_cells_count_penalty_weight`
 
 3. **For Stable Oscillators**:
    - Increase `stableness_weight`

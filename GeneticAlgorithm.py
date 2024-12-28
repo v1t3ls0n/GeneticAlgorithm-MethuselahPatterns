@@ -34,7 +34,7 @@ class GeneticAlgorithm:
         lifespan_weight (float): Weight for lifespan in the fitness score.
         alive_growth_weight (float): Weight for alive cell growth ratio in fitness.
         stableness_weight (float): Weight for stability of configurations in fitness.
-        initial_living_cells_count_weight (float): Weight for penalizing large initial configurations.
+        initial_living_cells_count_penalty_weight (float): Weight for penalizing large initial configurations.
         alive_cells_per_block (int): Maximum alive cells allowed per block in random initialization.
         alive_blocks (int): Number of blocks containing alive cells in random initialization.
         predefined_configurations (optional): Allows injecting pre-made Game of Life configurations.
@@ -47,7 +47,7 @@ class GeneticAlgorithm:
     """
 
     def __init__(self, grid_size, population_size, generations, initial_mutation_rate, mutation_rate_lower_limit,
-                 alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight, initial_living_cells_count_weight,
+                 alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight, initial_living_cells_count_penalty_weight,
                  alive_cells_per_block, alive_blocks, predefined_configurations=None):
         """
         Initialize the GeneticAlgorithm class with key parameters.
@@ -62,7 +62,7 @@ class GeneticAlgorithm:
             lifespan_weight (float): Weight factor for lifespan in fitness.
             alive_growth_weight (float): Weight factor for alive cell growth ratio in fitness.
             stableness_weight (float): Weight factor for configuration stability.
-            initial_living_cells_count_weight (float): Penalizes larger initial configurations.
+            initial_living_cells_count_penalty_weight (float): Penalizes larger initial configurations.
             alive_cells_per_block (int): Maximum alive cells per block for random initialization.
             alive_blocks (int): Number of blocks to initialize with alive cells.
             predefined_configurations (optional): Allows using predefined patterns for initialization.
@@ -75,7 +75,7 @@ class GeneticAlgorithm:
         self.mutation_rate = initial_mutation_rate
         self.alive_cells_weight = alive_cells_weight
         self.lifespan_weight = lifespan_weight
-        self.initial_living_cells_count_weight = initial_living_cells_count_weight
+        self.initial_living_cells_count_penalty_weight = initial_living_cells_count_penalty_weight
         self.lifespan_threshold = (grid_size * grid_size) * 3
         self.alive_growth_weight = alive_growth_weight
         self.stableness_weight = stableness_weight
@@ -111,7 +111,7 @@ class GeneticAlgorithm:
         growth_score = alive_growth * self.alive_growth_weight
         stableness_score = stableness * self.stableness_weight
         large_configuration_penalty = (
-            1 / max(1, initial_living_cells_count * self.initial_living_cells_count_weight))
+            1 / max(1, initial_living_cells_count * self.initial_living_cells_count_penalty_weight))
         return (lifespan_score + alive_cells_score + growth_score + stableness_score) * large_configuration_penalty
 
     def evaluate(self, configuration):
