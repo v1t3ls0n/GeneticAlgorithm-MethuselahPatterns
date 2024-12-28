@@ -139,7 +139,7 @@ class GeneticAlgorithm:
         game.run()
         max_alive_cells_count = max(game.alive_history)
         initial_living_cells_count = sum(configuration_tuple)
-        alive_growth = self.max_difference_with_distance(game.alive_history) 
+        alive_growth = self.max_difference_with_distance(game.alive_history)
         stableness = game.stable_count / game.max_stable_generations
         fitness_score = self.calc_fitness(
             lifespan=game.lifespan,
@@ -182,7 +182,8 @@ class GeneticAlgorithm:
         """
         new_population = set()
         for i in range(self.population_size):
-            parent1, parent2 = self.select_parents()
+            # parent1, parent2 = self.select_parents()
+            parent1, parent2 = self.select_parents_tournament_with_diversity()
             child = self.crossover(parent1, parent2)
             if random.uniform(0, 1) < self.mutation_rate:
                 child = self.mutate(child)
@@ -214,15 +215,10 @@ class GeneticAlgorithm:
         Returns:
             tuple[int]: A new configuration with mutations applied.
         """
-        N = self.grid_size
-        matrix = [configuration[i*N:(i+1)*N] for i in range(N)]
-        new_configuration = []
-        for row in matrix:
-            for cell in row:
-                if random.uniform(0, 1) < self.mutation_rate:
-                    new_configuration.append(1 if cell == 0 else 0)  # flip
-                else:
-                    new_configuration.append(cell)
+        new_configuration = list(configuration)
+        for i in range(len(configuration)):
+            if random.uniform(0, 1) < self.mutation_rate:
+                new_configuration[i] = 0 if configuration[i] else 1
         return tuple(new_configuration)
 
     def select_parents(self):
@@ -231,8 +227,7 @@ class GeneticAlgorithm:
 
         Selection Process:
             - Fitness scores are calculated for all individuals in the population.
-            - A probability distribution is created based on the fitness scores, with higher scores
-            having a greater chance of selection.
+            - A normalized probability distribution is created based on the fitness scores.
             - If the total fitness is 0 (e.g., all configurations have identical fitness), selection
             is done randomly.
 
@@ -241,26 +236,80 @@ class GeneticAlgorithm:
         """
         population = list(self.population)
         fitness_scores = []
+
+        # Calculate fitness scores
         for config in population:
             score = self.evaluate(config)['fitness_score']
-            if score is not None:
-                fitness_scores.append(score)
-            else:
-                fitness_scores.append(0)
+            fitness_scores.append(score if score is not None else 0)
 
         total_fitness = sum(fitness_scores)
-        avg_fitness = np.average(fitness_scores)
-        fitness_variance = np.std(fitness_scores)
+
         if total_fitness == 0:
-            # All zero => random
+            # Handle zero fitness scenario
             logging.info("Total fitness is 0, selecting random parents.")
             return random.choices(population, k=2)
 
-        # This probability model is somewhat ad-hoc and can be refined
-        probabilities = [(1+avg_fitness)*(1 + fitness_variance)
-                         for _score in fitness_scores]
+        # Normalize fitness scores to probabilities
+        probabilities = [score / total_fitness for score in fitness_scores]
+
+        # Add a slight bias to prevent over-convergence to top individuals
+        bias_factor = 0.01  
+        probabilities = [
+            prob + bias_factor for prob in probabilities
+        ]
+        probabilities_sum = sum(probabilities)
+        probabilities = [prob / probabilities_sum for prob in probabilities]
+
+        # Select two parents using the normalized probabilities
         parents = random.choices(population, weights=probabilities, k=2)
         return parents
+
+    def select_parents_tournament_with_diversity(self, tournament_size=3, diversity_weight=0.3):
+        """
+        Select two parent configurations using a tournament selection method with diversity.
+
+        Args:
+            tournament_size (int): Number of individuals in each tournament.
+            diversity_weight (float): Weight for diversity in selection (0-1).
+
+        Returns:
+            tuple: Two parent configurations selected from the population.
+        """
+        population = list(self.population)
+        fitness_scores = []
+        
+        # Calculate fitness scores for the population
+        for config in population:
+            score = self.evaluate(config)['fitness_score']
+            fitness_scores.append(score if score is not None else 0)
+
+        def diversity_score(config, population):
+            """
+            Calculate the diversity score of a configuration based on Hamming distance from others.
+            """
+            return np.mean([np.sum(np.array(config) != np.array(other)) for other in population])
+
+        # Perform tournament selection with diversity
+        def tournament_selection():
+            # Randomly select a subset of individuals for the tournament
+            candidates = random.sample(population, k=tournament_size)
+            candidate_scores = []
+            
+            for candidate in candidates:
+                fitness = self.evaluate(candidate)['fitness_score']
+                diversity = diversity_score(candidate, population)
+                # Weighted score combining fitness and diversity
+                combined_score = (1 - diversity_weight) * fitness + diversity_weight * diversity
+                candidate_scores.append(combined_score)
+            
+            # Select the individual with the highest combined score
+            return candidates[np.argmax(candidate_scores)]
+
+        # Select two parents
+        parent1 = tournament_selection()
+        parent2 = tournament_selection()
+        return parent1, parent2
+
 
     def crossover_basic(self, parent1, parent2):
         N = self.grid_size
@@ -636,7 +685,7 @@ class GeneticAlgorithm:
     def check_for_stagnation(self, last_generation):
         """
         Detects stagnation in the evolution process over the last 10 generations.
-        
+
         If the average fitness scores for the last 10 generations are identical (or nearly so),
         it adjusts the mutation rate to encourage diversity.
 
@@ -649,36 +698,38 @@ class GeneticAlgorithm:
         # Check only if there are at least 10 generations
         if last_generation < 10:
             return
-        
+
         # Retrieve average fitness scores for the last 10 generations
         avg_fitness = [
             self.generations_cache[g]['avg_fitness']
             for g in range(last_generation - 10, last_generation)
         ]
-        
+
         # Calculate the number of unique fitness scores
         unique_fitness_scores = len(set(avg_fitness))
         total_generations = len(avg_fitness)
-        
+
         # If fitness scores are stagnant (low diversity)
         if unique_fitness_scores == 1:
-            logging.warning(f"""Stagnation detected in last {total_generations} generations.""")
-            self.mutation_rate = min(1, self.mutation_rate * 1.5)  # Increase mutation rate
-            
+            logging.warning(f"""Stagnation detected in last {
+                            total_generations} generations.""")
+            self.mutation_rate = min(
+                1, self.mutation_rate * 1.5)  # Increase mutation rate
+
         elif unique_fitness_scores < total_generations / 2:
             # Partial stagnation - gentle increase
-            logging.info(f"""Partial stagnation detected. Increasing mutation rate slightly.""")
+            logging.info(
+                f"""Partial stagnation detected. Increasing mutation rate slightly.""")
             self.mutation_rate = min(1, self.mutation_rate * 1.2)
 
         # Ensure mutation rate does not fall below the lower limit
-        self.mutation_rate = max(self.mutation_rate, self.mutation_rate_lower_limit)
+        self.mutation_rate = max(
+            self.mutation_rate, self.mutation_rate_lower_limit)
 
-
-
-    def max_difference_with_distance(self,lst):
+    def max_difference_with_distance(self, lst):
         max_value = float('-inf')
-        dis = 0 
-        min_index = 0  
+        dis = 0
+        min_index = 0
         for j in range(1, len(lst)):
             diff = (lst[j] - lst[min_index]) * (j - min_index)
             if diff > max_value:
@@ -686,4 +737,4 @@ class GeneticAlgorithm:
                 max_value = diff
             if lst[j] < lst[min_index]:
                 min_index = j
-        return max(max_value,0) / dis
+        return max(max_value, 0) / dis
