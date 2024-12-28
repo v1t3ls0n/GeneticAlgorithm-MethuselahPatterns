@@ -317,8 +317,7 @@ class InteractiveSimulation:
             np.add(avg_initial_size, std_initial_size),
             color='cyan', alpha=0.2, label='Std Dev'
         )
-        self.standardized_lifespan_plot.set_title("Standardized Lifespan")
-        # self.standardized_lifespan_plot.legend()
+        self.standardized_initial_size_plot.set_title("Standardized Initial Size")
 
         # ---------------- Lifespan ----------------
         avg_lifespan = [self.generations_cache[g]['avg_lifespan']
@@ -328,6 +327,7 @@ class InteractiveSimulation:
         self.standardized_lifespan_plot.clear()
         self.standardized_lifespan_plot.plot(
             gens, avg_lifespan, label='Standardized Lifespan', color='green')
+        
         self.standardized_lifespan_plot.fill_between(
             gens,
             np.subtract(avg_lifespan, std_lifespan),
@@ -335,7 +335,6 @@ class InteractiveSimulation:
             color='green', alpha=0.2, label='Std Dev'
         )
         self.standardized_lifespan_plot.set_title("Standardized Lifespan")
-        # self.standardized_lifespan_plot.legend()
 
         # ---------------- Growth Rate ----------------
         avg_growth = [self.generations_cache[g]
@@ -353,7 +352,6 @@ class InteractiveSimulation:
         )
         self.standardized_growth_rate_plot.set_title(
             "Standardized Growth Rate")
-        # self.standardized_growth_rate_plot.legend()
 
         # ---------------- Alive Cells ----------------
         avg_alive_cells = [self.generations_cache[g]
@@ -371,14 +369,12 @@ class InteractiveSimulation:
         )
         self.standardized_alive_cells_plot.set_title(
             "Standardized Alive Cells")
-        # self.standardized_alive_cells_plot.legend()
 
         # ---------------- Mutation Rate ----------------
         self.mutation_rate_plot.clear()
         self.mutation_rate_plot.plot(
             gens, self.mutation_rate_history, label='Mutation Rate', color='orange')
         self.mutation_rate_plot.set_title("Mutation Rate")
-        # self.mutation_rate_plot.legend()
 
         # Optionally adjust spacing:
         self.stats_fig.tight_layout()
@@ -409,9 +405,6 @@ class InteractiveSimulation:
         """
         Show both windows at once.  plt.show() blocks until user closes them.
         """
-
-        # self.grid_fig.tight_layout(pad=1.0, h_pad=3.0, w_pad=1.0)
-        # self.stats_fig.tight_layout(pad=1.0, h_pad=3.0, w_pad=1.0)
 
         logging.info(
             "Running interactive simulation with separate Grid and Stats windows.")
