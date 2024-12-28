@@ -183,10 +183,13 @@ class GeneticAlgorithm:
         new_population = set()
         for i in range(self.population_size):
             parent1, parent2 = self.select_parents()
-            # parent1, parent2 = self.select_parents_tournament_with_diversity()
             child = self.crossover(parent1, parent2)
             if random.uniform(0, 1) < self.mutation_rate:
-                child = self.mutate(child)
+                if random.uniform(0,1) < 0.5:
+                    child = self.mutate_with_clusters(child)
+                else:
+                    child = self.mutate(child)
+
             new_population.add(child)
 
         # Merge old + new, then select the best
@@ -228,6 +231,27 @@ class GeneticAlgorithm:
                 new_configuration[idx] = 1
 
         return tuple(new_configuration)
+
+
+    def mutate_with_clusters(self, config, mutation_rate=0.1, cluster_size=3):
+        """
+        Mutate a configuration by flipping cells in random clusters.
+        """
+        N = self.grid_size
+        mutated = list(config)
+
+        for _ in range(cluster_size):
+            if random.uniform(0, 1) < mutation_rate:
+                center_row = random.randint(0, N - 1)
+                center_col = random.randint(0, N - 1)
+                for i in range(-1, 2):
+                    for j in range(-1, 2):
+                        row = (center_row + i) % N
+                        col = (center_col + j) % N
+                        index = row * N + col
+                        mutated[index] = 1 if mutated[index] == 0 else 0
+        return tuple(mutated)
+
 
     def select_parents(self):
         """
