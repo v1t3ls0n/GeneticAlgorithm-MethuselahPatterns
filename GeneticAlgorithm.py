@@ -181,8 +181,8 @@ class GeneticAlgorithm:
         for i in range(self.population_size):
             parent1, parent2 = self.select_parents()
             child = self.crossover(parent1, parent2)
-            if random.uniform(0, 1) < self.mutation_rate:
-                child = self.mutate(child)
+            # if random.uniform(0, 1) < self.mutation_rate:
+            #     child = self.mutate(child)
             new_population.add(child)
 
         # Merge old + new, then select the best
@@ -259,7 +259,46 @@ class GeneticAlgorithm:
         parents = random.choices(population, weights=probabilities, k=2)
         return parents
 
-    def crossover(self, parent1, parent2):
+    def crossover_basic(self, parent1, parent2):
+        N = self.grid_size
+        total_cells = N * N
+        child = []
+        for i in range(total_cells):
+            if i % 2 == 0: 
+                child.append(parent1[i])
+            else:  
+                child.append(parent2[i])
+
+        return tuple(child)
+
+
+    def crossover_simple(self, parent1, parent2):
+        N = self.grid_size
+        total_cells = N * N
+
+        if len(parent1) != total_cells or len(parent2) != total_cells:
+            logging.error(f"Parent configurations must be {total_cells}, but got sizes: {len(parent1)} and {len(parent2)}")
+            raise ValueError(f"Parent configurations must be {total_cells}, but got sizes: {len(parent1)} and {len(parent2)}")
+
+        block_size = total_cells // N
+        blocks_parent1 = [parent1[i * block_size:(i + 1) * block_size] for i in range(N)]
+        blocks_parent2 = [parent2[i * block_size:(i + 1) * block_size] for i in range(N)]
+
+        child_blocks = []
+        for i in range(N):
+            if i % 2 == 0:  
+                child_blocks.extend(blocks_parent2[i])
+            else: 
+                child_blocks.extend(blocks_parent1[i])
+
+        if len(child_blocks) != total_cells:
+            logging.debug(f"Child size mismatch, expected {total_cells}, got {len(child_blocks)}")
+            child_blocks = child_blocks + [0] * (total_cells - len(child_blocks))  
+
+        return tuple(child_blocks)
+    
+
+    def crossover_complex(self, parent1, parent2):
         """
         Create a child configuration by combining blocks from two parent configurations.
 
@@ -342,6 +381,20 @@ class GeneticAlgorithm:
                          total_cells}, got {len(child_blocks)}""")
             child_blocks = child_blocks + [0]*(total_cells - len(child_blocks))
         return tuple(child_blocks)
+
+
+
+    def crossover(self,parent1,parent2):
+        crossover_func = random.choices(['basic','simple','complex'], [1/3,1/3,1/3], k=1)[0]
+        match crossover_func:
+            case 'basic':
+                return self.crossover_basic(parent1,parent2)
+            case 'simple':
+                return self.crossover_simple(parent1,parent2)
+            case 'complex':
+                return self.crossover_complex(parent1,parent2)
+
+
 
     def initialize(self):
         """
