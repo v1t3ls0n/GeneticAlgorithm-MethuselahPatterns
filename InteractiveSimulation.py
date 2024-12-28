@@ -263,7 +263,7 @@ class InteractiveSimulation:
         self.grid_ax.set_ylabel("ARROWS: UP/DOWN=configs, LEFT/RIGHT=gens")
 
         param_dict = self.best_params[self.current_config_index]
-        fitness_score = param_dict.get('fitness_score',0)
+        fitness_score = param_dict.get('fitness_score',0) 
         lifespan = param_dict.get('lifespan', 0)
         max_alive = param_dict.get('max_alive_cells_count', 0)
         growth = param_dict.get('alive_growth', 1.0)

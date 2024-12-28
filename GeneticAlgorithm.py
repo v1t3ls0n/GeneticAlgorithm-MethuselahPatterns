@@ -112,7 +112,7 @@ class GeneticAlgorithm:
         stableness_score = stableness * self.stableness_weight
         large_configuration_penalty = (
             1 / max(1, initial_living_cells_count * self.initial_living_cells_count_penalty_weight))
-        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * large_configuration_penalty)
+        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * large_configuration_penalty) 
 
     def evaluate(self, configuration):
         """
@@ -592,7 +592,7 @@ class GeneticAlgorithm:
         best_params = []
         for config, _ in best_configs:
             params_dict = {
-                'fitness_score': int(self.configuration_cache[config]['fitness_score']),
+                'fitness_score': self.configuration_cache[config]['fitness_score'],
                 'lifespan': self.configuration_cache[config]['lifespan'],
                 'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
                 'alive_growth': self.configuration_cache[config]['alive_growth'],
