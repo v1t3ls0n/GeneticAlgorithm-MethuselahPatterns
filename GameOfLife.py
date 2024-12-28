@@ -66,8 +66,6 @@ class GameOfLife:
         self.is_static = 0
         self.is_periodic = 0
 
-        self.max_alive_cells_count = 0
-        self.alive_growth = 0
         self.alive_history = [sum(self.grid)]
 
     def step(self):
@@ -142,10 +140,6 @@ class GameOfLife:
                 
             self.step()
             limiter -= 1
-
-        self.max_alive_cells_count = max(self.alive_history)
-        self.alive_growth = max(self.alive_history) / max(1, min(self.alive_history)) if self.alive_history else 1
-        self.stableness = self.stable_count / self.max_stable_generations
 
     def count_alive_neighbors(self, x, y):
         """

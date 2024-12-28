@@ -112,7 +112,7 @@ class GeneticAlgorithm:
         stableness_score = stableness * self.stableness_weight
         large_configuration_penalty = (
             1 / max(1, initial_living_cells_count * self.initial_living_cells_count_penalty_weight))
-        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * large_configuration_penalty) 
+        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * large_configuration_penalty)
 
     def evaluate(self, configuration):
         """
@@ -137,12 +137,21 @@ class GeneticAlgorithm:
         # Create and run a GameOfLife instance
         game = GameOfLife(self.grid_size, configuration_tuple)
         game.run()
+
+        max_alive_cells_count = max(game.alive_history)
+        max_size = max(game.alive_history)
+        min_size = min(game.alive_history)
+        growth_duration = game.alive_history.index(max_size) - game.alive_history.index(min_size)
+        alive_growth = max(growth_duration * (max_size/max(min_size, 1)), 1)
+        game.stableness = game.stable_count / game.max_stable_generations
+        stableness = game.stable_count / game.max_stable_generations
+
         initial_living_cells_count = sum(configuration_tuple)
         fitness_score = self.calc_fitness(
             lifespan=game.lifespan,
-            max_alive_cells_count=game.max_alive_cells_count,
-            alive_growth=game.alive_growth,
-            stableness=game.stableness,
+            max_alive_cells_count=max_alive_cells_count,
+            alive_growth=alive_growth,
+            stableness=stableness,
             initial_living_cells_count=initial_living_cells_count
         )
 
@@ -150,8 +159,8 @@ class GeneticAlgorithm:
             'fitness_score': fitness_score,
             'history': tuple(game.history),
             'lifespan': game.lifespan,
-            'alive_growth': game.alive_growth,
-            'max_alive_cells_count': game.max_alive_cells_count,
+            'alive_growth': alive_growth,
+            'max_alive_cells_count': max_alive_cells_count,
             'is_static': game.is_static,
             'is periodic': game.is_periodic,
             'stableness': game.stableness,
