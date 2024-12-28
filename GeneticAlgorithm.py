@@ -112,7 +112,7 @@ class GeneticAlgorithm:
         stableness_score = stableness * self.stableness_weight
         large_configuration_penalty = (
             1 / max(1, initial_living_cells_count * self.initial_living_cells_count_penalty_weight))
-        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * large_configuration_penalty)/(self.grid_size*self.grid_size)
+        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * large_configuration_penalty) / (self.grid_size * self.grid_size)
 
     def evaluate(self, configuration):
         """
