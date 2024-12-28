@@ -139,14 +139,10 @@ class GeneticAlgorithm:
         game.run()
 
         max_alive_cells_count = max(game.alive_history)
-        max_size = max(game.alive_history)
-        min_size = min(game.alive_history)
-        growth_duration = game.alive_history.index(max_size) - game.alive_history.index(min_size)
-        alive_growth = max(growth_duration * (max_size/max(min_size, 1)), 1)
-        game.stableness = game.stable_count / game.max_stable_generations
+        initial_living_cells_count = sum(configuration_tuple)
+        alive_growth = self.max_difference_with_distance(game.alive_history)/initial_living_cells_count
         stableness = game.stable_count / game.max_stable_generations
 
-        initial_living_cells_count = sum(configuration_tuple)
         fitness_score = self.calc_fitness(
             lifespan=game.lifespan,
             max_alive_cells_count=max_alive_cells_count,
@@ -163,7 +159,7 @@ class GeneticAlgorithm:
             'max_alive_cells_count': max_alive_cells_count,
             'is_static': game.is_static,
             'is periodic': game.is_periodic,
-            'stableness': game.stableness,
+            'stableness': stableness,
             'initial_living_cells_count': initial_living_cells_count
         }
         return self.configuration_cache[configuration_tuple]
@@ -637,3 +633,14 @@ class GeneticAlgorithm:
             1, self.generations_cache[generation]['avg_fitness'])
         self.mutation_rate = max(self.mutation_rate_lower_limit, min(
             1, improvement_ratio * self.mutation_rate))
+
+    def max_difference_with_distance(self,lst):
+        max_value = float('-inf') 
+        min_index = 0  
+        for j in range(1, len(lst)):
+            diff = (lst[j] - lst[min_index]) * (j - min_index)
+            if diff > max_value:
+                max_value = diff
+            if lst[j] < lst[min_index]:
+                min_index = j
+        return max(max_value,0)

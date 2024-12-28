@@ -58,14 +58,12 @@ class GameOfLife:
         # Store the immutable initial state
         self.initial_state = tuple(self.grid)
         self.history = []
-
         self.game_iteration_limit = 150000
         self.stable_count = 0
         self.max_stable_generations = 10
         self.lifespan = 0
         self.is_static = 0
         self.is_periodic = 0
-
         self.alive_history = [sum(self.grid)]
 
     def step(self):
