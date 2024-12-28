@@ -388,7 +388,7 @@ class GeneticAlgorithm:
 
     def crossover(self, parent1, parent2):
         crossover_func = random.choices(
-            ['basic', 'simple', 'complex'], [0,1,0], k=1)[0]
+            ['basic', 'simple', 'complex'], [0.2, 0.2, 0.6], k=1)[0]
         match crossover_func:
             case 'basic':
                 return self.crossover_basic(parent1, parent2)
@@ -593,6 +593,7 @@ class GeneticAlgorithm:
         best_params = []
         for config, _ in best_configs:
             params_dict = {
+                'fitness_score': int(self.configuration_cache[config]['fitness_score']),
                 'lifespan': self.configuration_cache[config]['lifespan'],
                 'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
                 'alive_growth': self.configuration_cache[config]['alive_growth'],
