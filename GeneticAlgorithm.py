@@ -112,7 +112,7 @@ class GeneticAlgorithm:
         stableness_score = stableness * self.stableness_weight
         large_configuration_penalty = (
             1 / max(1, initial_living_cells_count * self.initial_living_cells_count_penalty_weight))
-        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * (large_configuration_penalty))
+        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * (large_configuration_penalty ** 2))
 
     def evaluate(self, configuration):
         """
@@ -182,8 +182,8 @@ class GeneticAlgorithm:
         """
         new_population = set()
         for i in range(self.population_size):
-            # parent1, parent2 = self.select_parents()
-            parent1, parent2 = self.select_parents_tournament_with_diversity()
+            parent1, parent2 = self.select_parents()
+            # parent1, parent2 = self.select_parents_tournament_with_diversity()
             child = self.crossover(parent1, parent2)
             if random.uniform(0, 1) < self.mutation_rate:
                 child = self.mutate(child)
@@ -309,7 +309,6 @@ class GeneticAlgorithm:
         parent1 = tournament_selection()
         parent2 = tournament_selection()
         return parent1, parent2
-
 
     def crossover_basic(self, parent1, parent2):
         N = self.grid_size
