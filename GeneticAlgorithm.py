@@ -112,7 +112,7 @@ class GeneticAlgorithm:
         stableness_score = stableness * self.stableness_weight
         large_configuration_penalty = (
             1 / max(1, initial_living_cells_count * self.initial_living_cells_count_penalty_weight))
-        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * (large_configuration_penalty ** 2))
+        return ((lifespan_score + alive_cells_score + growth_score + stableness_score) * (large_configuration_penalty))
 
     def evaluate(self, configuration):
         """
@@ -635,34 +635,44 @@ class GeneticAlgorithm:
 
     def check_for_stagnation(self, last_generation):
         """
-        Detect stagnation in the evolution process over the last 10 generations.
-
-        Purpose:
-            - Identify if the population has stopped improving in terms of average fitness.
-            - If stagnation is detected, increase the mutation rate significantly to encourage diversity and escape local optima.
-
-        Process:
-            - Retrieve the average fitness scores for the last 10 generations.
-            - If all 10 generations have identical average fitness, classify it as stagnation.
-            - Increase the mutation rate by 50% to encourage exploration.
+        Detects stagnation in the evolution process over the last 10 generations.
+        
+        If the average fitness scores for the last 10 generations are identical (or nearly so),
+        it adjusts the mutation rate to encourage diversity.
 
         Args:
-            last_generation (int): The index of the most recent generation.
+            last_generation (int): Index of the most recent generation.
 
         Adjustments:
-            - Mutation rate: Increased by 50% if stagnation is detected but capped at the mutation rate's lower limit.
-
-        Logs:
-            - A warning is logged if stagnation is detected.
+            - If stagnation is detected, increase mutation rate to explore more configurations.
         """
-        if last_generation >= 10:
+        # Check only if there are at least 10 generations
+        if last_generation < 10:
+            return
+        
+        # Retrieve average fitness scores for the last 10 generations
+        avg_fitness = [
+            self.generations_cache[g]['avg_fitness']
+            for g in range(last_generation - 10, last_generation)
+        ]
+        
+        # Calculate the number of unique fitness scores
+        unique_fitness_scores = len(set(avg_fitness))
+        total_generations = len(avg_fitness)
+        
+        # If fitness scores are stagnant (low diversity)
+        if unique_fitness_scores == 1:
+            logging.warning(f"""Stagnation detected in last {total_generations} generations.""")
+            self.mutation_rate = min(1, self.mutation_rate * 1.5)  # Increase mutation rate
+            
+        elif unique_fitness_scores < total_generations / 2:
+            # Partial stagnation - gentle increase
+            logging.info(f"""Partial stagnation detected. Increasing mutation rate slightly.""")
+            self.mutation_rate = min(1, self.mutation_rate * 1.2)
 
-            avg_fitness = [int(self.generations_cache[g]['avg_fitness'])
-                           for g in range(last_generation -10, last_generation)]
-            list_size = len(avg_fitness)
-            set_size = len(set(avg_fitness))
-            if set_size < list_size:
-                self.mutation_rate = min(1,min(self.mutation_rate_lower_limit, self.mutation_rate) * min((list_size/set_size), 1.5))
+        # Ensure mutation rate does not fall below the lower limit
+        self.mutation_rate = max(self.mutation_rate, self.mutation_rate_lower_limit)
+
 
 
     def max_difference_with_distance(self,lst):
