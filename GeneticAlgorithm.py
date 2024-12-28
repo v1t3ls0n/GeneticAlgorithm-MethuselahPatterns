@@ -219,6 +219,14 @@ class GeneticAlgorithm:
         for i in range(len(configuration)):
             if random.uniform(0, 1) < self.mutation_rate:
                 new_configuration[i] = 0 if configuration[i] else 1
+
+        if random.uniform(0, 1) < 0.1:
+            cluster_size = random.randint(1, len(new_configuration))
+            start = random.randint(0, len(new_configuration) - 1)
+            for j in range(cluster_size):
+                idx = (start + j) % len(new_configuration)
+                new_configuration[idx] = 1
+
         return tuple(new_configuration)
 
     def select_parents(self):
@@ -253,7 +261,7 @@ class GeneticAlgorithm:
         probabilities = [score / total_fitness for score in fitness_scores]
 
         # Add a slight bias to prevent over-convergence to top individuals
-        bias_factor = 0.01  
+        bias_factor = 0.01
         probabilities = [
             prob + bias_factor for prob in probabilities
         ]
@@ -263,52 +271,6 @@ class GeneticAlgorithm:
         # Select two parents using the normalized probabilities
         parents = random.choices(population, weights=probabilities, k=2)
         return parents
-
-    def select_parents_tournament_with_diversity(self, tournament_size=3, diversity_weight=0.3):
-        """
-        Select two parent configurations using a tournament selection method with diversity.
-
-        Args:
-            tournament_size (int): Number of individuals in each tournament.
-            diversity_weight (float): Weight for diversity in selection (0-1).
-
-        Returns:
-            tuple: Two parent configurations selected from the population.
-        """
-        population = list(self.population)
-        fitness_scores = []
-        
-        # Calculate fitness scores for the population
-        for config in population:
-            score = self.evaluate(config)['fitness_score']
-            fitness_scores.append(score if score is not None else 0)
-
-        def diversity_score(config, population):
-            """
-            Calculate the diversity score of a configuration based on Hamming distance from others.
-            """
-            return np.mean([np.sum(np.array(config) != np.array(other)) for other in population])
-
-        # Perform tournament selection with diversity
-        def tournament_selection():
-            # Randomly select a subset of individuals for the tournament
-            candidates = random.sample(population, k=tournament_size)
-            candidate_scores = []
-            
-            for candidate in candidates:
-                fitness = self.evaluate(candidate)['fitness_score']
-                diversity = diversity_score(candidate, population)
-                # Weighted score combining fitness and diversity
-                combined_score = (1 - diversity_weight) * fitness + diversity_weight * diversity
-                candidate_scores.append(combined_score)
-            
-            # Select the individual with the highest combined score
-            return candidates[np.argmax(candidate_scores)]
-
-        # Select two parents
-        parent1 = tournament_selection()
-        parent2 = tournament_selection()
-        return parent1, parent2
 
     def crossover_basic(self, parent1, parent2):
         N = self.grid_size
@@ -461,8 +423,9 @@ class GeneticAlgorithm:
         """
 
         print(f"Generation 1 started.")
-        self.population = [self.random_configuration()
-                           for _ in range(self.population_size)]
+        # self.population = [self.random_configuration()
+                        #    for _ in range(self.population_size)]
+        self.population = self.initialize_population_with_variety()
 
         generation = 0
         scores = []
@@ -495,6 +458,87 @@ class GeneticAlgorithm:
                              initial_living_cells_count=initial_living_cells_count
                              )
 
+
+
+
+    def initialize_population_with_variety(self):
+        """
+        Initialize the population with equal parts of clusters, scattered cells, and simple random patterns.
+        The number of clusters is dynamically adjusted based on the grid size.
+
+        Args:
+            initial_live_cells (int): Total number of live cells to distribute in each configuration.
+
+        Returns:
+            list[tuple[int]]: A diverse initial population.
+        """
+    
+        population = []
+        total_cells = self.grid_size * self.grid_size
+        initial_live_cells = total_cells // 3
+
+        # Adjust number of clusters based on grid size
+        cluster_cells = initial_live_cells // 3
+        scattered_cells = initial_live_cells // 3
+        pattern_cells = initial_live_cells - cluster_cells - scattered_cells
+        max_clusters = max(3, total_cells // 50)  # מספר אשכולות תלוי בגודל הגריד
+        min_clusters = max(1, total_cells // 200)  # מינימום אשכולות לגרידים קטנים
+
+        # חלק ראשון: יצירת אשכולות
+        for _ in range(self.population_size // 3):
+            configuration = [0] * total_cells
+            num_clusters = random.randint(min_clusters, max_clusters)
+            cluster_size = cluster_cells // num_clusters
+
+            for _ in range(num_clusters):
+                center_row = random.randint(0, self.grid_size - 1)
+                center_col = random.randint(0, self.grid_size - 1)
+
+                for _ in range(cluster_size):
+                    offset_row = random.randint(-1, 1)
+                    offset_col = random.randint(-1, 1)
+                    row = (center_row + offset_row) % self.grid_size
+                    col = (center_col + offset_col) % self.grid_size
+                    index = row * self.grid_size + col
+                    configuration[index] = 1
+
+            population.append(tuple(configuration))
+
+        # חלק שני: פיזור אקראי
+        for _ in range(self.population_size // 3):
+            configuration = [0] * total_cells
+            scattered_indices = random.sample(range(total_cells), scattered_cells)
+            for index in scattered_indices:
+                configuration[index] = 1
+            population.append(tuple(configuration))
+
+        # חלק שלישי: תבניות פשוטות אקראיות
+        for _ in range(self.population_size // 3):
+            configuration = [0] * total_cells
+            start_row = random.randint(0, self.grid_size - 3)
+            start_col = random.randint(0, self.grid_size - 3)
+
+            for i in range(3):
+                for j in range(3):
+                    if random.uniform(0, 1) < 0.5:  # מחצית מהתאים בתוך התבנית יהיו חיים
+                        row = (start_row + i) % self.grid_size
+                        col = (start_col + j) % self.grid_size
+                        index = row * self.grid_size + col
+                        configuration[index] = 1
+
+            current_live_cells = sum(configuration)
+            if current_live_cells < pattern_cells:
+                additional_cells = random.sample([i for i in range(total_cells) if configuration[i] == 0],
+                                                pattern_cells - current_live_cells)
+                for index in additional_cells:
+                    configuration[index] = 1
+
+            population.append(tuple(configuration))
+
+        return population
+
+
+
     def random_configuration(self):
         """
         Randomly generate an NxN configuration (flattened to length N*N).
@@ -505,6 +549,8 @@ class GeneticAlgorithm:
         Returns:
             tuple[int]: A new random configuration (flattened).
         """
+        
+        
         N = self.grid_size * self.grid_size
         configuration = [0]*N
 
@@ -520,6 +566,35 @@ class GeneticAlgorithm:
             for cell in chosen_cells:
                 configuration[cell] = 1
                 total_taken_cells -= 1
+        return tuple(configuration)
+
+    def random_configuration_not_in_use(self):
+        """
+        Randomly generate an NxN configuration (flattened to length N*N) with clusters of live cells.
+
+        Returns:
+            tuple[int]: A new random configuration (flattened).
+        """
+        N = self.grid_size
+        total_cells = N * N
+        configuration = [0] * total_cells
+
+        num_clusters = max(3, min(self.alive_blocks, total_cells // 5))
+        cluster_size = self.alive_cells_per_block
+
+        for _ in range(num_clusters):
+            center_row = random.randint(0, N - 1)
+            center_col = random.randint(0, N - 1)
+
+            for _ in range(cluster_size):
+                offset_row = random.randint(-1, 1)
+                offset_col = random.randint(-1, 1)
+                new_row = (center_row + offset_row) % N
+                new_col = (center_col + offset_col) % N
+
+                index = new_row * N + new_col
+                configuration[index] = 1
+
         return tuple(configuration)
 
     def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, stableness, max_alive_cells_count, initial_living_cells_count):
@@ -737,3 +812,50 @@ class GeneticAlgorithm:
             if lst[j] < lst[min_index]:
                 min_index = j
         return max(max_value, 0) / dis
+
+    def select_parents_tournament_with_diversity(self, tournament_size=3, diversity_weight=0.3):
+        """
+        Select two parent configurations using a tournament selection method with diversity.
+
+        Args:
+            tournament_size (int): Number of individuals in each tournament.
+            diversity_weight (float): Weight for diversity in selection (0-1).
+
+        Returns:
+            tuple: Two parent configurations selected from the population.
+        """
+        population = list(self.population)
+        fitness_scores = []
+
+        # Calculate fitness scores for the population
+        for config in population:
+            score = self.evaluate(config)['fitness_score']
+            fitness_scores.append(score if score is not None else 0)
+
+        def diversity_score(config, population):
+            """
+            Calculate the diversity score of a configuration based on Hamming distance from others.
+            """
+            return np.mean([np.sum(np.array(config) != np.array(other)) for other in population])
+
+        # Perform tournament selection with diversity
+        def tournament_selection():
+            # Randomly select a subset of individuals for the tournament
+            candidates = random.sample(population, k=tournament_size)
+            candidate_scores = []
+
+            for candidate in candidates:
+                fitness = self.evaluate(candidate)['fitness_score']
+                diversity = diversity_score(candidate, population)
+                # Weighted score combining fitness and diversity
+                combined_score = (1 - diversity_weight) * \
+                    fitness + diversity_weight * diversity
+                candidate_scores.append(combined_score)
+
+            # Select the individual with the highest combined score
+            return candidates[np.argmax(candidate_scores)]
+
+        # Select two parents
+        parent1 = tournament_selection()
+        parent2 = tournament_selection()
+        return parent1, parent2
