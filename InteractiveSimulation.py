@@ -271,7 +271,7 @@ class InteractiveSimulation:
         initial_living_cells_count = param_dict.get(
             'initial_living_cells_count', 0.0)
         text_str = (
-            f"""fitness score = {fitness_score} | """
+            f"""fitness score = {fitness_score:.3f} | """
             f"""lifespan = {lifespan} | initial_size = {
                 initial_living_cells_count} | """
             f"""max_alive = {max_alive} | growth = {
