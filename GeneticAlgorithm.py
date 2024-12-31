@@ -168,8 +168,7 @@ class GeneticAlgorithm:
             'initial_living_cells_count': initial_living_cells_count
         }
         return self.configuration_cache[configuration_tuple]
-    
-        
+
     def populate(self, generation):
         """
         Update the population by retaining top individuals and introducing new ones every 5 generations.
@@ -203,8 +202,6 @@ class GeneticAlgorithm:
 
         # Step 3: Combine old and new populations
         self.population = new_population
-
-        logging.info(f"Population size after enrichment and filtering: {len(self.population)}")
 
 
     def mutate_basic(self, configuration):
@@ -256,7 +253,8 @@ class GeneticAlgorithm:
         return tuple(new_configuration)
 
     def mutate(self, configuration):
-        mutation_methods = [self.mutate_basic, self.mutate_clusters, self.mutate_harsh]
+        mutation_methods = [self.mutate_basic,
+                            self.mutate_clusters, self.mutate_harsh]
         mutate_func = random.choices(mutation_methods, [0.3, 0.3, 0.4], k=1)[0]
         return mutate_func(configuration)
 
@@ -293,7 +291,8 @@ class GeneticAlgorithm:
             bias_factor = 0.01
             probabilities = [prob + bias_factor for prob in probabilities]
             probabilities_sum = sum(probabilities)
-            probabilities = [prob / probabilities_sum for prob in probabilities]
+            probabilities = [
+                prob / probabilities_sum for prob in probabilities]
 
             # Select two parents using the normalized probabilities
             return random.choices(population, weights=probabilities, k=2)
@@ -303,31 +302,36 @@ class GeneticAlgorithm:
             Select two parents using tournament selection.
             """
             tournament_size = 3
-            candidates1 = random.sample(list(self.population), k=tournament_size)
-            candidates2 = random.sample(list(self.population), k=tournament_size)
-            parent1 = max(candidates1, key=lambda x: self.evaluate(x)['fitness_score'])
-            parent2 = max(candidates2, key=lambda x: self.evaluate(x)['fitness_score'])
+            candidates1 = random.sample(
+                list(self.population), k=tournament_size)
+            candidates2 = random.sample(
+                list(self.population), k=tournament_size)
+            parent1 = max(candidates1, key=lambda x: self.evaluate(x)[
+                          'fitness_score'])
+            parent2 = max(candidates2, key=lambda x: self.evaluate(x)[
+                          'fitness_score'])
             return parent1, parent2
 
-
         def rank_based_selection():
-            sorted_population = sorted(list(self.population), key=lambda x: self.evaluate(x)['fitness_score'], reverse=True)
+            sorted_population = sorted(list(self.population), key=lambda x: self.evaluate(x)[
+                                       'fitness_score'], reverse=True)
             ranks = range(1, len(sorted_population) + 1)
             total_rank = sum(ranks)
             probabilities = [rank / total_rank for rank in ranks]
             return random.choices(sorted_population, weights=probabilities, k=2)
 
         # List of selection methods
-        selection_methods = [normalized_probability_selection, tournament_selection, rank_based_selection]
-        selected_method = random.choice(selection_methods)  # Randomly select a method
+        selection_methods = [normalized_probability_selection,
+                             tournament_selection, rank_based_selection]
+        selected_method = random.choice(
+            selection_methods)  # Randomly select a method
 
         # Select two parents using the chosen method
-        parent1,parent2 = selected_method()
+        parent1, parent2 = selected_method()
 
         logging.info(f""""parent1 {parent1} parent2 {parent2}""")
 
         return parent1, parent2
-
 
     def crossover_basic(self, parent1, parent2):
         N = self.grid_size
@@ -456,10 +460,11 @@ class GeneticAlgorithm:
         return tuple(child_blocks)
 
     def crossover(self, parent1, parent2):
-        crossover_methods = [self.crossover_basic, self.crossover_simple, self.crossover_complex]
-        selected_crossover_method = random.choices(crossover_methods, [0.3, 0.3, 0.4], k=1)[0]
-        return selected_crossover_method(parent1,parent2)
-
+        crossover_methods = [self.crossover_basic,
+                             self.crossover_simple, self.crossover_complex]
+        selected_crossover_method = random.choices(
+            crossover_methods, [0.3, 0.3, 0.4], k=1)[0]
+        return selected_crossover_method(parent1, parent2)
 
     def enrich_population_with_variety(self, clusters_type_amount, scatter_type_amount, basic_patterns_type_amount):
         """
