@@ -22,17 +22,52 @@ logging.basicConfig(filename="simulation.log",
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
-def main(grid_size=10,
-         population_size=20,
-         generations=100,
-         initial_mutation_rate=0.5,
-         alive_cells_weight=0.12,
-         mutation_rate_lower_limit=0.1,
-         lifespan_weight=200.0,
-         alive_growth_weight=5,
-         stableness_weight=1.0,
-         initial_living_cells_count_penalty_weight=10,
-         predefined_configurations=None):
+class Configuration:
+    def __init__(
+        self,
+        grid_size=10,
+        population_size=20,
+        generations=100,
+        initial_mutation_rate=0.5,
+        alive_cells_weight=0.12,
+        mutation_rate_lower_limit=0.1,
+        lifespan_weight=200.0,
+        alive_growth_weight=5,
+        stableness_weight=1.0,
+        initial_living_cells_count_penalty_weight=10,
+        predefined_configurations=None
+    ):
+        self.grid_size = grid_size
+        self.population_size = population_size
+        self.generations = generations
+        self.initial_mutation_rate = initial_mutation_rate
+        self.alive_cells_weight = alive_cells_weight
+        self.mutation_rate_lower_limit = mutation_rate_lower_limit
+        self.lifespan_weight = lifespan_weight
+        self.alive_growth_weight = alive_growth_weight
+        self.stableness_weight = stableness_weight
+        self.initial_living_cells_count_penalty_weight = initial_living_cells_count_penalty_weight
+        self.predefined_configurations = predefined_configurations
+
+    def as_dict(self):
+        """Convert configuration attributes to a dictionary."""
+        return vars(self)
+
+
+default_config = Configuration()
+default_params = default_config.as_dict()  # Fetch default values as a dictionary
+
+def main(grid_size,
+         population_size,
+         generations,
+         initial_mutation_rate,
+         alive_cells_weight,
+         mutation_rate_lower_limit,
+         lifespan_weight,
+         alive_growth_weight,
+         stableness_weight,
+         initial_living_cells_count_penalty_weight,
+         predefined_configurations):
     """
     Main function that drives the process:
     1. Instantiates the GeneticAlgorithm with the given parameters.
@@ -128,34 +163,28 @@ def run_main_interactively():
         - If the user opts for default values, the `main` function is invoked directly.
         - Otherwise, the user is prompted for each parameter, with defaults available for convenience.
     """
-    use_defaults = input("Use default values for ALL parameters? (y/N): ").lower()
+    # Create a default configuration instance
+    default_config = Configuration()
+    default_params = default_config.as_dict()  # Fetch default values as a dictionary
+
+    # Ask if the user wants to use all defaults
+    use_defaults = input("Use default values for ALL parameters? (y/N): ").strip().lower()
     if use_defaults.startswith('y') or use_defaults == "":
-        main()
+        main(**default_params)
+        return
+
     else:
-        grid_size = int(get_user_param("Enter grid_size", "10"))
-        population_size = int(get_user_param("Enter population_size", "20"))
-        generations = int(get_user_param("Enter generations", "100"))
-        initial_mutation_rate = float(get_user_param("Enter initial_mutation_rate", "0.5"))
-        mutation_rate_lower_limit = float(get_user_param("Enter mutation_rate_lower_limit", "0.1"))
-        alive_cells_weight = float(get_user_param("Enter alive_cells_weight", "0.12"))
-        lifespan_weight = float(get_user_param("Enter lifespan_weight", "100.0"))
-        alive_growth_weight = float(get_user_param("Enter alive_growth_weight", "5"))
-        stableness_weight = float(get_user_param("Enter stableness_weight", "1.0"))
-        initial_living_cells_count_penalty_weight = float(get_user_param("Enter initial_living_cells_count_penalty_weight", "10.0"))
+        # Interactively get parameters, falling back on the defaults dynamically
+        updated_params = {}
+        for key, value in default_params.items():
+            user_input = input(f"Enter {key} [{value}]: ").strip()
+            if user_input == "":
+                updated_params[key] = value  # Use the default
+            else:
+                updated_params[key] = type(value)(user_input)  # Cast to the correct type
 
-        # Run main with custom parameters
-        main(grid_size=grid_size,
-             population_size=population_size,
-             generations=generations,
-             initial_mutation_rate=initial_mutation_rate,
-             mutation_rate_lower_limit=mutation_rate_lower_limit,
-             alive_cells_weight=alive_cells_weight,
-             lifespan_weight=lifespan_weight,
-             alive_growth_weight=alive_growth_weight,
-             stableness_weight=stableness_weight,
-             initial_living_cells_count_penalty_weight=initial_living_cells_count_penalty_weight,
-             predefined_configurations=None)
-
+        # Pass the updated parameters to main
+        main(**updated_params)
 
 if __name__ == '__main__':
     run_main_interactively()
