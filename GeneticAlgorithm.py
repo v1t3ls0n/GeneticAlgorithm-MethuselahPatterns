@@ -169,47 +169,42 @@ class GeneticAlgorithm:
         }
         return self.configuration_cache[configuration_tuple]
     
-    
-    def populate(self):
+        
+    def populate(self, generation):
         """
-        Generate a new generation of configurations for the population.
+        Update the population by retaining top individuals and introducing new ones every 5 generations.
 
-        Process:
-            1. Retain the top half of the population based on fitness.
-            2. Fill the other half with new individuals using enrichment.
-            3. Combine both parts and ensure the total population size is maintained.
-
+        Args:
+            generation (int): Current generation number.
         Returns:
-            None: Updates the `population` attribute in place.
+            None: Updates self.population in place.
         """
-        # Step 1: Evaluate fitness for the current population
-        fitness_scores = [
-            (config, self.evaluate(config)['fitness_score'])
-            for config in self.population
-        ]
-        fitness_scores.sort(key=lambda x: x[1], reverse=True)
-
-        # Step 2: Retain the top half of the population
-        top_half_population = {config for config, _ in fitness_scores[:self.population_size // 2]}
-
-        # Step 3: Enrich with new individuals for the other half
         new_population = set()
-        num_new_individuals = self.population_size - len(top_half_population)
-        self.enrich_population_with_variety(
-            clusters_type_amount=num_new_individuals // 3,
-            scatter_type_amount=num_new_individuals // 3,
-            basic_patterns_type_amount=num_new_individuals // 3
-        )
 
-        # Extract the newly enriched individuals
-        new_individuals = self.population.difference(top_half_population)
-        new_population.update(new_individuals)
+        # Step 1: Generate children using `select_parents`
+        for _ in range(self.population_size):
+            parent1, parent2 = self.select_parents()
+            child = self.crossover(parent1, parent2)
+            if random.uniform(0, 1) < self.mutation_rate:
+                child = self.mutate(child)
+            new_population.add(child)
 
-        # Step 4: Combine top performers and new individuals
-        self.population = top_half_population.union(list(new_population)[:num_new_individuals])
+        # Step 2: Enrich with new individuals every 5 generations
+        if generation % 5 == 0:
+            logging.info(f"Enriching population at generation {generation}.")
+            num_new_individuals = len(self.population) - len(new_population)
+            self.enrich_population_with_variety(
+                clusters_type_amount=num_new_individuals // 3,
+                scatter_type_amount=num_new_individuals // 3,
+                basic_patterns_type_amount=num_new_individuals // 3
+            )
+            new_individuals = self.population.difference(new_population)
+            new_population.update(new_individuals)
 
-        logging.info(f"Population size after splitting and enrichment: {len(self.population)}")
+        # Step 3: Combine old and new populations
+        self.population = new_population
 
+        logging.info(f"Population size after enrichment and filtering: {len(self.population)}")
 
 
     def mutate_basic(self, configuration):
@@ -264,73 +259,75 @@ class GeneticAlgorithm:
         mutation_methods = [self.mutate_basic, self.mutate_clusters, self.mutate_harsh]
         mutate_func = random.choices(mutation_methods, [0.3, 0.3, 0.4], k=1)[0]
         return mutate_func(configuration)
-    # Tournament Selection
-    def tournament_selection(self, tournament_size=3):
-        """
-        Select a parent using tournament selection.
-        Args:
-            population (list): List of individuals.
-            evaluate_func (callable): Function to compute fitness for an individual.
-            tournament_size (int): Number of individuals in the tournament.
-        Returns:
-            Individual selected as a parent.
-        """
-        candidates = random.sample(list(self.population), k=tournament_size)
-        candidates_with_fitness = [(candidate, self.evaluate(candidate)['fitness_score']) for candidate in candidates]
-        return max(candidates_with_fitness, key=lambda x: x[1])[0]
 
-    # Roulette Wheel Selection
-    def roulette_wheel_selection(self):
-        """
-        Select a parent using roulette wheel selection.
-        Args:
-            population (list): List of individuals.
-            evaluate_func (callable): Function to compute fitness for an individual.
-        Returns:
-            Individual selected as a parent.
-        """
-        fitness_scores = [self.evaluate(individual)['fitness_score'] for individual in self.population]
-        total_fitness = sum(fitness_scores)
-
-        if total_fitness == 0:
-            return random.choice(self.population)  # Random selection if all fitness is 0
-
-        probabilities = [score / total_fitness for score in fitness_scores]
-        return random.choices(list(self.population), weights=probabilities, k=1)[0]
-
-    # Rank-Based Selection
-    def rank_based_selection(self):
-        """
-        Select a parent using rank-based selection.
-        Args:
-            population (list): List of individuals.
-            evaluate_func (callable): Function to compute fitness for an individual.
-        Returns:
-            Individual selected as a parent.
-        """
-        sorted_population = sorted(list(self.population), key=lambda x: self.evaluate(x)['fitness_score'], reverse=True)
-        ranks = range(1, len(sorted_population) + 1)  # Assign ranks
-        total_rank = sum(ranks)
-        probabilities = [rank / total_rank for rank in ranks]
-        return random.choices(sorted_population, weights=probabilities, k=1)[0]
-
-    # Main Selection Function
     def select_parents(self):
         """
-        Select two parents using one of the three methods: tournament, roulette, or rank-based.
-        Args:
-            population (list): List of individuals.
-            evaluate_func (callable): Function to compute fitness for an individual.
-        Returns:
-            tuple: Two parent individuals selected.
-        """
-        selection_methods = [self.tournament_selection, self.roulette_wheel_selection, self.rank_based_selection]
-        selected_method = random.choices(selection_methods,[0.3, 0.3, 0.4], k=1)[0]  # Randomly select a method
+        Select two parent configurations from the current population for crossover.
 
-        parent1 = selected_method()
-        parent2 = selected_method()
+        Selection Process:
+            - Randomly chooses one of three methods: normalized probability (existing logic), 
+            tournament selection, or rank-based selection.
+            - Parents are selected based on the chosen method.
+
+        Returns:
+            tuple: Two parent configurations selected from the population.
+        """
+        def normalized_probability_selection():
+            population = list(self.population)
+            fitness_scores = []
+            for config in population:
+                score = self.evaluate(config)['fitness_score']
+                fitness_scores.append(score if score is not None else 0)
+
+            total_fitness = sum(fitness_scores)
+
+            if total_fitness == 0:
+                # Handle zero fitness scenario
+                logging.info("Total fitness is 0, selecting random parents.")
+                return random.choices(population, k=2)
+
+            # Normalize fitness scores to probabilities
+            probabilities = [score / total_fitness for score in fitness_scores]
+
+            # Add a slight bias to prevent over-convergence to top individuals
+            bias_factor = 0.01
+            probabilities = [prob + bias_factor for prob in probabilities]
+            probabilities_sum = sum(probabilities)
+            probabilities = [prob / probabilities_sum for prob in probabilities]
+
+            # Select two parents using the normalized probabilities
+            return random.choices(population, weights=probabilities, k=2)
+
+        def tournament_selection():
+            """
+            Select two parents using tournament selection.
+            """
+            tournament_size = 3
+            candidates1 = random.sample(list(self.population), k=tournament_size)
+            candidates2 = random.sample(list(self.population), k=tournament_size)
+            parent1 = max(candidates1, key=lambda x: self.evaluate(x)['fitness_score'])
+            parent2 = max(candidates2, key=lambda x: self.evaluate(x)['fitness_score'])
+            return parent1, parent2
+
+
+        def rank_based_selection():
+            sorted_population = sorted(list(self.population), key=lambda x: self.evaluate(x)['fitness_score'], reverse=True)
+            ranks = range(1, len(sorted_population) + 1)
+            total_rank = sum(ranks)
+            probabilities = [rank / total_rank for rank in ranks]
+            return random.choices(sorted_population, weights=probabilities, k=2)
+
+        # List of selection methods
+        selection_methods = [normalized_probability_selection, tournament_selection, rank_based_selection]
+        selected_method = random.choice(selection_methods)  # Randomly select a method
+
+        # Select two parents using the chosen method
+        parent1,parent2 = selected_method()
+
+        logging.info(f""""parent1 {parent1} parent2 {parent2}""")
 
         return parent1, parent2
+
 
     def crossover_basic(self, parent1, parent2):
         N = self.grid_size
@@ -695,7 +692,7 @@ class GeneticAlgorithm:
         """
         self.initialize()
         for generation in range(1, self.generations):
-            self.populate()
+            self.populate(generation=generation)
             self.compute_generation(generation=generation)
             self.adjust_mutation_rate(generation)
             self.check_for_stagnation(generation)
