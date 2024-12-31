@@ -177,7 +177,7 @@ class GeneticAlgorithm:
             1. Select two parent configurations from the current population based on fitness.
             2. Create a child configuration using crossover between the two parents.
             3. Apply mutation to the child with a probability determined by the mutation rate.
-            4. Enrich the population with new individuals periodically (to ensure diversity).
+            4. Enrich the population with new individuals periodically.
             5. Evaluate all configurations and retain only the top `population_size` individuals.
 
         Returns:
@@ -197,21 +197,19 @@ class GeneticAlgorithm:
         # Step 2: Enrich population with new individuals periodically
         if len(self.generations_cache) % 10 == 0:  # Every 10 generations
             logging.info("Enriching population with new individuals.")
-            new_individuals = set()
+            enriched_population = set()
             num_new_individuals = self.population_size // 4  # Add 25% new individuals
             self.enrich_population_with_variety(
                 clusters_type_amount=num_new_individuals // 3,
                 scatter_type_amount=num_new_individuals // 3,
                 basic_patterns_type_amount=num_new_individuals // 3
             )
-            new_individuals = self.population.difference(
-                new_population)  # Identify the enriched individuals
+            enriched_population = self.population.difference(new_population)
 
-            # Temporarily exempt new individuals from filtering
-            for individual in new_individuals:
-                new_population.add(individual)
+            # Boost new individuals' chances by adding them directly to the new population
+            new_population.update(enriched_population)
 
-        # Step 3: Combine old and new populations, then filter
+        # Step 3: Combine old and new populations, then evaluate
         combined_population = list(self.population) + list(new_population)
         fitness_scores = [
             (config, self.evaluate(config)['fitness_score'])
@@ -224,8 +222,7 @@ class GeneticAlgorithm:
             config for config, _ in fitness_scores[:self.population_size]
         }
 
-        logging.info(f"""Population size after enrichment and filtering: {
-                     len(self.population)}""")
+        logging.info(f"Population size after enrichment and filtering: {len(self.population)}")
 
     def mutate_basic(self, configuration):
         """
