@@ -213,13 +213,11 @@ class GeneticAlgorithm:
 
     def mutate_harsh(self, configuration):
         new_configuration = list(configuration)
-        override_value = random.randint(0,1)
-        logging.info
         cluster_size = random.randint(1, len(new_configuration))
         start = random.randint(0, len(new_configuration) - 1)
         for j in range(cluster_size):
             idx = (start + j) % len(new_configuration)
-            new_configuration[idx] = override_value
+            new_configuration[idx] = random.randint(0, 1)
 
         return tuple(new_configuration)
 
@@ -244,9 +242,9 @@ class GeneticAlgorithm:
         return tuple(new_configuration)
 
     def mutate(self, configuration):
+
         mutate_func = random.choices(
-            ['basic', 'clusters', 'harsh'], [0.5, 0.4, 0.1], k=1)[0]
-        mutated = configuration
+            ['basic', 'clusters', 'harsh'], [0.25, 0.5, 0.25], k=1)[0]
         match mutate_func:
             case 'basic':
                 return self.mutate_basic(configuration)
@@ -254,7 +252,6 @@ class GeneticAlgorithm:
                 return self.mutate_harsh(configuration)
             case 'clusters':
                 return self.mutate_clusters(configuration)
-        return mutated
 
     def select_parents(self):
         """
@@ -489,7 +486,6 @@ class GeneticAlgorithm:
             num_clusters = random.randint(
                 min_clusters_amount, max_cluster_amount)
             cluster_size = random.randint(min_cluster_size, max_cluster_size)
-            logging.info(f"""number of clusters : {num_clusters}""")
 
             for _ in range(num_clusters):
                 center_row = random.randint(0, self.grid_size - 1)
