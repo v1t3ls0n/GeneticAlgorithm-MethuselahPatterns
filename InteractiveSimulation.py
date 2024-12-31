@@ -19,21 +19,17 @@ class InteractiveSimulation:
     def __init__(
         self,
         configurations,
-        histories,
         grid_size,
         generations_cache,
         mutation_rate_history,
-        best_params,
         run_params=None
     ):
         print("Initializing InteractiveSimulation with TWO windows.")
         self.configurations = configurations
-        self.histories = histories
         self.grid_size = grid_size
         self.generations_cache = generations_cache
         self.mutation_rate_history = mutation_rate_history
         self.run_params = run_params or {}
-        self.best_params = best_params or []
 
         # Navigation state
         self.current_config_index = 0
@@ -231,7 +227,7 @@ class InteractiveSimulation:
         """
         Advance one generation in the current config's history, if available.
         """
-        hist_len = len(self.histories[self.current_config_index])
+        hist_len = len(self.configurations[self.current_config_index]['history'])
         if self.current_generation + 1 < hist_len:
             self.current_generation += 1
             self.update_grid()
@@ -248,21 +244,8 @@ class InteractiveSimulation:
         """
         Redraw the NxN grid in the "Grid Window" for the current config/generation.
         """
-        grid_2d = [
-            self.histories[self.current_config_index][self.current_generation][
-                i * self.grid_size:(i+1) * self.grid_size
-            ]
-            for i in range(self.grid_size)
-        ]
-        self.grid_ax.clear()
-        self.grid_ax.imshow(grid_2d, cmap="binary")
-        self.grid_ax.set_title(
-            f"""Best Initial Config #{
-                self.current_config_index + 1}, Day {self.current_generation}"""
-        )
-        self.grid_ax.set_ylabel("ARROWS: UP/DOWN=configs, LEFT/RIGHT=gens")
-
-        param_dict = self.best_params[self.current_config_index]
+        
+        param_dict = self.configurations[self.current_config_index]
         fitness_score = param_dict.get('fitness_score',0) 
         lifespan = param_dict.get('lifespan', 0)
         max_alive = param_dict.get('max_alive_cells_count', 0)
@@ -270,6 +253,24 @@ class InteractiveSimulation:
         stableness = param_dict.get('stableness', 0.0)
         initial_living_cells_count = param_dict.get(
             'initial_living_cells_count', 0.0)
+        is_first_generation = param_dict.get('is_first_generation')
+        title_txt = "Config From First Generation" if is_first_generation else "Top Config"
+        # title_txt = "Config"
+        grid_2d = [
+            self.configurations[self.current_config_index]['history'][self.current_generation][
+                i * self.grid_size:(i+1) * self.grid_size
+            ]
+            for i in range(self.grid_size)
+        ]
+        self.grid_ax.clear()
+        self.grid_ax.imshow(grid_2d, cmap="binary")
+
+        self.grid_ax.set_title(
+            f"""{title_txt} #{
+                self.current_config_index + 1}, Day {self.current_generation}"""
+        )
+        self.grid_ax.set_ylabel("ARROWS: UP/DOWN=configs, LEFT/RIGHT=gens")
+
         text_str = (
             f"""fitness score = {fitness_score:.3f} | """
             f"""lifespan = {lifespan} | initial_size = {
@@ -277,6 +278,7 @@ class InteractiveSimulation:
             f"""max_alive = {max_alive} | growth = {
                 growth:.2f} | stableness = {stableness:.2f}"""
         )
+
         self.grid_ax.set_xlabel(text_str)
 
         self.grid_fig.canvas.draw_idle()

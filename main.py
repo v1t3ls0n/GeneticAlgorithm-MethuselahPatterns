@@ -31,8 +31,6 @@ def main(grid_size=10,
          lifespan_weight=200.0,
          alive_growth_weight=5,
          stableness_weight=1.0,
-         alive_cells_per_block=5,
-         alive_blocks=1,
          initial_living_cells_count_penalty_weight=10,
          predefined_configurations=None):
     """
@@ -51,8 +49,6 @@ def main(grid_size=10,
         lifespan_weight (float): Fitness weight for lifespan.
         alive_growth_weight (float): Fitness weight for growth ratio.
         stableness_weight (float): Fitness weight for how quickly a pattern stabilizes or not.
-        alive_cells_per_block (int): Number of living cells per block in random initialization.
-        alive_blocks (int): Number of blocks containing living cells in random initialization.
         predefined_configurations (None or iterable): Optional, known patterns for initialization.
     """
     logging.info(f"Starting run with parameters: "
@@ -65,8 +61,6 @@ def main(grid_size=10,
                  f"lifespan_weight={lifespan_weight}, "
                  f"alive_growth_weight={alive_growth_weight}, "
                  f"stableness_weight={stableness_weight}, "
-                 f"alive_cells_per_block={alive_cells_per_block}, "
-                 f"alive_blocks={alive_blocks}, "
                  f"initial_living_cells_count_penalty_weight={initial_living_cells_count_penalty_weight}, "
                  f"predefined_configurations={predefined_configurations}")
 
@@ -80,13 +74,12 @@ def main(grid_size=10,
                                  lifespan_weight,
                                  alive_growth_weight,
                                  stableness_weight,
-                                 alive_cells_per_block=alive_cells_per_block,
-                                 alive_blocks=alive_blocks,
                                  initial_living_cells_count_penalty_weight=initial_living_cells_count_penalty_weight,
                                  predefined_configurations=predefined_configurations)
 
     # Run the algorithm and retrieve top configurations and their parameters
-    best_configs, best_params = algorithm.run()
+    algorithm.run()
+    selected_configurations = algorithm.get_experiment_results()
     run_params = {
         "grid_size": grid_size,
         "population_size": population_size,
@@ -97,16 +90,12 @@ def main(grid_size=10,
         "lifespan_weight": lifespan_weight,
         "alive_growth_weight": alive_growth_weight,
         "stableness_weight": stableness_weight,
-        "alive_cells_per_block": alive_cells_per_block,
-        "alive_blocks": alive_blocks,
         "initial_living_cells_count_penalty_weight": initial_living_cells_count_penalty_weight,
         "predefined_configurations": predefined_configurations
     }
 
     # Launch interactive simulation with the best configurations
-    simulation = InteractiveSimulation(configurations=best_configs,
-                                       best_params=best_params,
-                                       histories=algorithm.best_histories,
+    simulation = InteractiveSimulation(configurations=selected_configurations,
                                        grid_size=grid_size,
                                        generations_cache=algorithm.generations_cache,
                                        mutation_rate_history=algorithm.mutation_rate_history,
@@ -153,8 +142,6 @@ def run_main_interactively():
         alive_growth_weight = float(get_user_param("Enter alive_growth_weight", "5"))
         stableness_weight = float(get_user_param("Enter stableness_weight", "1.0"))
         initial_living_cells_count_penalty_weight = float(get_user_param("Enter initial_living_cells_count_penalty_weight", "10.0"))
-        alive_cells_per_block = int(get_user_param("Enter alive_cells_per_block", "5"))
-        alive_blocks = int(get_user_param("Enter alive_blocks", "1"))
 
         # Run main with custom parameters
         main(grid_size=grid_size,
@@ -166,8 +153,6 @@ def run_main_interactively():
              lifespan_weight=lifespan_weight,
              alive_growth_weight=alive_growth_weight,
              stableness_weight=stableness_weight,
-             alive_cells_per_block=alive_cells_per_block,
-             alive_blocks=alive_blocks,
              initial_living_cells_count_penalty_weight=initial_living_cells_count_penalty_weight,
              predefined_configurations=None)
 

@@ -35,20 +35,16 @@ class GeneticAlgorithm:
         alive_growth_weight (float): Weight for alive cell growth ratio in fitness.
         stableness_weight (float): Weight for stability of configurations in fitness.
         initial_living_cells_count_penalty_weight (float): Weight for penalizing large initial configurations.
-        alive_cells_per_block (int): Maximum alive cells allowed per block in random initialization.
-        alive_blocks (int): Number of blocks containing alive cells in random initialization.
         predefined_configurations (optional): Allows injecting pre-made Game of Life configurations.
         population (set[tuple]): Current population of configurations (unique).
         configuration_cache (dict): Stores previously evaluated configurations and results.
         generations_cache (dict): Tracks statistics (e.g., fitness) for each generation.
-        best_histories (list): Histories of top configurations for each generation.
         mutation_rate_history (list): Tracks mutation rate changes across generations.
-        lifespan_threshold (int): Threshold used for additional lifespan-based logic (unused).
     """
 
     def __init__(self, grid_size, population_size, generations, initial_mutation_rate, mutation_rate_lower_limit,
                  alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight, initial_living_cells_count_penalty_weight,
-                 alive_cells_per_block, alive_blocks, predefined_configurations=None):
+                 predefined_configurations=None):
         """
         Initialize the GeneticAlgorithm class with key parameters.
 
@@ -76,7 +72,6 @@ class GeneticAlgorithm:
         self.alive_cells_weight = alive_cells_weight
         self.lifespan_weight = lifespan_weight
         self.initial_living_cells_count_penalty_weight = initial_living_cells_count_penalty_weight
-        self.lifespan_threshold = (grid_size * grid_size) * 3
         self.alive_growth_weight = alive_growth_weight
         self.stableness_weight = stableness_weight
         self.configuration_cache = collections.defaultdict(
@@ -84,12 +79,9 @@ class GeneticAlgorithm:
         self.generations_cache = collections.defaultdict(
             collections.defaultdict)
         self.predefined_configurations = predefined_configurations
-        self.alive_cells_per_block = alive_cells_per_block
-        self.alive_blocks = alive_blocks
-        self.best_histories = []
-        self.best_params = []
         self.population = set()
-        self.mutation_rate_history = [initial_mutation_rate]
+        self.initial_population = []
+        self.mutation_rate_history = []
 
     def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, stableness, initial_living_cells_count):
         """
@@ -185,7 +177,7 @@ class GeneticAlgorithm:
             parent1, parent2 = self.select_parents()
             child = self.crossover(parent1, parent2)
             if random.uniform(0, 1) < self.mutation_rate:
-                if random.uniform(0,1) < 0.5:
+                if random.uniform(0, 1) < 0.5:
                     child = self.mutate_with_clusters(child)
                 else:
                     child = self.mutate(child)
@@ -232,7 +224,6 @@ class GeneticAlgorithm:
 
         return tuple(new_configuration)
 
-
     def mutate_with_clusters(self, config, mutation_rate=0.1, cluster_size=3):
         """
         Mutate a configuration by flipping cells in random clusters.
@@ -251,7 +242,6 @@ class GeneticAlgorithm:
                         index = row * N + col
                         mutated[index] = 1 if mutated[index] == 0 else 0
         return tuple(mutated)
-
 
     def select_parents(self):
         """
@@ -446,43 +436,14 @@ class GeneticAlgorithm:
             None: Updates the `population` attribute and initializes the first generation's statistics.
         """
 
-        print(f"Generation 1 started.")
-        # self.population = [self.random_configuration()
-        #    for _ in range(self.population_size)]
-        self.population = self.initialize_population_with_variety()
+        uniform_amount = self.population_size // 3
+        rem_amount = self.population_size % 3
+        self.initialize_population_with_variety(clusters_type_amount=uniform_amount+rem_amount,
+                                                scatter_type_amount=uniform_amount, basic_patterns_type_amount=uniform_amount)
+        self.initial_population = list(self.population)
+        self.compute_generation(generation=0)
 
-        generation = 0
-        scores = []
-        lifespans = []
-        alive_growth_rates = []
-        max_alive_cells_count = []
-        stableness = []
-        initial_living_cells_count = []
-        for configuration in self.population:
-            self.evaluate(configuration)
-            scores.append(
-                self.configuration_cache[configuration]['fitness_score'])
-            lifespans.append(
-                self.configuration_cache[configuration]['lifespan'])
-            alive_growth_rates.append(
-                self.configuration_cache[configuration]['alive_growth'])
-            max_alive_cells_count.append(
-                self.configuration_cache[configuration]['max_alive_cells_count'])
-            stableness.append(
-                self.configuration_cache[configuration]['stableness'])
-            initial_living_cells_count.append(
-                self.configuration_cache[configuration]['initial_living_cells_count'])
-
-        self.calc_statistics(generation=generation,
-                             scores=scores,
-                             lifespans=lifespans,
-                             alive_growth_rates=alive_growth_rates,
-                             max_alive_cells_count=max_alive_cells_count,
-                             stableness=stableness,
-                             initial_living_cells_count=initial_living_cells_count
-                             )
-
-    def initialize_population_with_variety(self):
+    def initialize_population_with_variety(self, clusters_type_amount, scatter_type_amount, basic_patterns_type_amount):
         """
         Initialize the population with equal parts of clusters, scattered cells, and simple random patterns.
         The number of clusters is dynamically adjusted based on the grid size.
@@ -494,29 +455,32 @@ class GeneticAlgorithm:
             list[tuple[int]]: A diverse initial population.
         """
 
-        population = []
         total_cells = self.grid_size * self.grid_size
         initial_live_cells = total_cells // 3
 
         # Adjust number of clusters based on grid size
-        cluster_cells = initial_live_cells // 3
-        scattered_cells = initial_live_cells // 3
-        pattern_cells = initial_live_cells - cluster_cells - scattered_cells
-        # מספר אשכולות תלוי בגודל הגריד
-        max_clusters = max(3, total_cells // 50)
-        # מינימום אשכולות לגרידים קטנים
-        min_clusters = max(1, total_cells // 200)
+        max_cluster_amount = self.grid_size // 3
+        min_clusters_amount = 1
+        max_cluster_size = self.grid_size
+        min_cluster_size = min(2, self.grid_size)
 
-        # חלק ראשון: יצירת אשכולות
-        for _ in range(self.population_size // 3):
+        max_scattered_cells = (initial_live_cells // 4) * 2
+        min_scattered_cells = 1
+
+        max_pattern_cells = (initial_live_cells // 4) * 2
+        min_pattern_cells = 1
+
+        # Generate Cluster Configurations
+        for _ in range(clusters_type_amount):
             configuration = [0] * total_cells
-            num_clusters = random.randint(min_clusters, max_clusters)
-            cluster_size = cluster_cells // num_clusters
+            num_clusters = random.randint(
+                min_clusters_amount, max_cluster_amount)
+            cluster_size = random.randint(min_cluster_size, max_cluster_size)
+            logging.info(f"""number of clusters : {num_clusters}""")
 
             for _ in range(num_clusters):
                 center_row = random.randint(0, self.grid_size - 1)
                 center_col = random.randint(0, self.grid_size - 1)
-
                 for _ in range(cluster_size):
                     offset_row = random.randint(-1, 1)
                     offset_col = random.randint(-1, 1)
@@ -525,26 +489,31 @@ class GeneticAlgorithm:
                     index = row * self.grid_size + col
                     configuration[index] = 1
 
-            population.append(tuple(configuration))
+            self.population.add(tuple(configuration))
 
-        # חלק שני: פיזור אקראי
-        for _ in range(self.population_size // 3):
+        # Generate Scattered Configurations
+        for _ in range(scatter_type_amount):
             configuration = [0] * total_cells
+            scattered_cells = random.randint(
+                min_scattered_cells, max_scattered_cells)
             scattered_indices = random.sample(
                 range(total_cells), scattered_cells)
             for index in scattered_indices:
                 configuration[index] = 1
-            population.append(tuple(configuration))
 
-        # חלק שלישי: תבניות פשוטות אקראיות
-        for _ in range(self.population_size // 3):
+            self.population.add(tuple(configuration))
+
+        # Generate Simple Patterns Configuration
+        for _ in range(basic_patterns_type_amount):
             configuration = [0] * total_cells
+            pattern_cells = random.randint(
+                min_pattern_cells, max_pattern_cells)
             start_row = random.randint(0, self.grid_size - 3)
             start_col = random.randint(0, self.grid_size - 3)
 
-            for i in range(3):
-                for j in range(3):
-                    if random.uniform(0, 1) < 0.5:  # מחצית מהתאים בתוך התבנית יהיו חיים
+            for i in range(self.grid_size):
+                for j in range(self.grid_size):
+                    if random.uniform(0, 1) < 0.5:  #
                         row = (start_row + i) % self.grid_size
                         col = (start_col + j) % self.grid_size
                         index = row * self.grid_size + col
@@ -557,66 +526,7 @@ class GeneticAlgorithm:
                 for index in additional_cells:
                     configuration[index] = 1
 
-            population.append(tuple(configuration))
-
-        return population
-
-    def random_configuration(self):
-        """
-        Randomly generate an NxN configuration (flattened to length N*N).
-        The grid is divided conceptually into `grid_size` parts. We randomly select
-        `alive_blocks` of those parts, and within each part, we randomly turn
-        `alive_cells_per_block` cells into 1 (alive).
-
-        Returns:
-            tuple[int]: A new random configuration (flattened).
-        """
-
-        N = self.grid_size * self.grid_size
-        configuration = [0]*N
-
-        partition_size = self.grid_size
-        alive_blocks_indices = random.sample(
-            range(self.alive_blocks), k=self.alive_blocks)
-        total_taken_cells = self.alive_blocks * self.alive_cells_per_block
-        for part_index in alive_blocks_indices:
-            start_idx = part_index*partition_size
-            end_idx = start_idx + partition_size
-            chosen_cells = random.sample(
-                range(start_idx, end_idx), k=self.alive_cells_per_block)
-            for cell in chosen_cells:
-                configuration[cell] = 1
-                total_taken_cells -= 1
-        return tuple(configuration)
-
-    def random_configuration_not_in_use(self):
-        """
-        Randomly generate an NxN configuration (flattened to length N*N) with clusters of live cells.
-
-        Returns:
-            tuple[int]: A new random configuration (flattened).
-        """
-        N = self.grid_size
-        total_cells = N * N
-        configuration = [0] * total_cells
-
-        num_clusters = max(3, min(self.alive_blocks, total_cells // 5))
-        cluster_size = self.alive_cells_per_block
-
-        for _ in range(num_clusters):
-            center_row = random.randint(0, N - 1)
-            center_col = random.randint(0, N - 1)
-
-            for _ in range(cluster_size):
-                offset_row = random.randint(-1, 1)
-                offset_col = random.randint(-1, 1)
-                new_row = (center_row + offset_row) % N
-                new_col = (center_col + offset_col) % N
-
-                index = new_row * N + new_col
-                configuration[index] = 1
-
-        return tuple(configuration)
+            self.population.add(tuple(configuration))
 
     def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, stableness, max_alive_cells_count, initial_living_cells_count):
         """
@@ -656,6 +566,42 @@ class GeneticAlgorithm:
         self.generations_cache[generation]['std_initial_living_cells_count'] = np.std(
             initial_living_cells_count)
 
+    def compute_generation(self, generation):
+
+        print(f"""Computing Generation {generation+1} started.""")
+        scores = []
+        lifespans = []
+        alive_growth_rates = []
+        max_alive_cells_count = []
+        stableness = []
+        initial_living_cells_count = []
+
+        for configuration in self.population:
+            self.evaluate(configuration)
+            scores.append(
+                self.configuration_cache[configuration]['fitness_score'])
+            lifespans.append(
+                self.configuration_cache[configuration]['lifespan'])
+            alive_growth_rates.append(
+                self.configuration_cache[configuration]['alive_growth'])
+            max_alive_cells_count.append(
+                self.configuration_cache[configuration]['max_alive_cells_count'])
+            stableness.append(
+                self.configuration_cache[configuration]['stableness'])
+            initial_living_cells_count.append(
+                self.configuration_cache[configuration]['initial_living_cells_count'])
+
+        self.mutation_rate_history.append(self.mutation_rate)
+        self.calc_statistics(generation=generation,
+                             scores=scores,
+                             lifespans=lifespans,
+                             alive_growth_rates=alive_growth_rates,
+                             max_alive_cells_count=max_alive_cells_count,
+                             stableness=stableness,
+                             initial_living_cells_count=initial_living_cells_count
+
+                             )
+
     def run(self):
         """
         Execute the genetic algorithm over the specified number of generations.
@@ -677,79 +623,85 @@ class GeneticAlgorithm:
         """
         self.initialize()
         for generation in range(1, self.generations):
-            print(f"""Computing Generation {generation+1} started.""")
             self.populate()
-
-            scores = []
-            lifespans = []
-            alive_growth_rates = []
-            max_alive_cells_count = []
-            stableness = []
-            initial_living_cells_count = []
-
-            for configuration in self.population:
-                self.evaluate(configuration)
-                scores.append(
-                    self.configuration_cache[configuration]['fitness_score'])
-                lifespans.append(
-                    self.configuration_cache[configuration]['lifespan'])
-                alive_growth_rates.append(
-                    self.configuration_cache[configuration]['alive_growth'])
-                max_alive_cells_count.append(
-                    self.configuration_cache[configuration]['max_alive_cells_count'])
-                stableness.append(
-                    self.configuration_cache[configuration]['stableness'])
-                initial_living_cells_count.append(
-                    self.configuration_cache[configuration]['initial_living_cells_count'])
-
-            self.mutation_rate_history.append(self.mutation_rate)
-            self.calc_statistics(generation=generation,
-                                 scores=scores,
-                                 lifespans=lifespans,
-                                 alive_growth_rates=alive_growth_rates,
-                                 max_alive_cells_count=max_alive_cells_count,
-                                 stableness=stableness,
-                                 initial_living_cells_count=initial_living_cells_count
-
-                                 )
+            self.compute_generation(generation=generation)
             self.adjust_mutation_rate(generation)
             self.check_for_stagnation(generation)
 
+    def get_experiment_results(self):
         # Final selection of best configurations
         fitness_scores = [(config, self.configuration_cache[config]['fitness_score'])
                           for config in self.population]
+
+        fitness_scores_initial_population = [(config, self.configuration_cache[config]['fitness_score'])
+                                             for config in self.initial_population]
+
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
-        best_configs = fitness_scores[:min(10, len(fitness_scores))]
+        fitness_scores_initial_population.sort(
+            key=lambda x: x[1], reverse=True)
+
+        top_ten_configs = fitness_scores[:min(10, len(fitness_scores))]
+
+        results = []
 
         # Store their histories for later viewing
-        for config, _ in best_configs:
-            history = list(self.configuration_cache[config]['history'])
-            self.best_histories.append(history)
-            logging.info("Top Configuration:")
-            logging.info(f"  Configuration: {config}")
-            logging.info(f"""Fitness Score: {
-                         self.configuration_cache[config]['fitness_score']}""")
-            logging.info(f"""Lifespan: {
-                         self.configuration_cache[config]['lifespan']}""")
-            logging.info(f"""Total Alive Cells: {
-                         self.configuration_cache[config]['max_alive_cells_count']}""")
-            logging.info(f"""Alive Growth: {
-                         self.configuration_cache[config]['alive_growth']}""")
-            logging.info(f"""Initial Configuration Living Cells Count: {
-                         self.configuration_cache[config]['initial_living_cells_count']}""")
-        best_params = []
-        for config, _ in best_configs:
+        for config, _ in top_ten_configs:
+
+            # logging.info("Top Configuration:")
+            # logging.info(f"  Configuration: {config}")
+            # logging.info(f"""Fitness Score: {
+            #              self.configuration_cache[config]['fitness_score']}""")
+            # logging.info(f"""Lifespan: {
+            #              self.configuration_cache[config]['lifespan']}""")
+            # logging.info(f"""Total Alive Cells: {
+            #              self.configuration_cache[config]['max_alive_cells_count']}""")
+            # logging.info(f"""Alive Growth: {
+            #              self.configuration_cache[config]['alive_growth']}""")
+            # logging.info(f"""Initial Configuration Living Cells Count: {
+            #              self.configuration_cache[config]['initial_living_cells_count']}""")
             params_dict = {
                 'fitness_score': self.configuration_cache[config]['fitness_score'],
                 'lifespan': self.configuration_cache[config]['lifespan'],
                 'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
                 'alive_growth': self.configuration_cache[config]['alive_growth'],
                 'stableness': self.configuration_cache[config]['stableness'],
-                'initial_living_cells_count': self.configuration_cache[config]['initial_living_cells_count']
+                'initial_living_cells_count': self.configuration_cache[config]['initial_living_cells_count'],
+                'history': list(self.configuration_cache[config]['history']),
+                'config': config,
+                'is_first_generation': False
+
             }
-            best_params.append(params_dict)
-        self.best_params = best_params
-        return best_configs, best_params
+            results.append(params_dict)
+
+        for config, _ in fitness_scores_initial_population:
+
+            # logging.info("Top Configuration:")
+            # logging.info(f"  Configuration: {config}")
+            # logging.info(f"""Fitness Score: {
+            #              self.configuration_cache[config]['fitness_score']}""")
+            # logging.info(f"""Lifespan: {
+            #              self.configuration_cache[config]['lifespan']}""")
+            # logging.info(f"""Total Alive Cells: {
+            #              self.configuration_cache[config]['max_alive_cells_count']}""")
+            # logging.info(f"""Alive Growth: {
+            #              self.configuration_cache[config]['alive_growth']}""")
+            # logging.info(f"""Initial Configuration Living Cells Count: {
+            #              self.configuration_cache[config]['initial_living_cells_count']}""")
+            params_dict = {
+                'fitness_score': self.configuration_cache[config]['fitness_score'],
+                'lifespan': self.configuration_cache[config]['lifespan'],
+                'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
+                'alive_growth': self.configuration_cache[config]['alive_growth'],
+                'stableness': self.configuration_cache[config]['stableness'],
+                'initial_living_cells_count': self.configuration_cache[config]['initial_living_cells_count'],
+                'history': list(self.configuration_cache[config]['history']),
+                'config': config,
+                'is_first_generation': True
+
+            }
+            results.append(params_dict)
+
+        return results
 
     def adjust_mutation_rate(self, generation):
         """
@@ -809,13 +761,13 @@ class GeneticAlgorithm:
             logging.warning(f"""Stagnation detected in last {
                             total_generations} generations.""")
             self.mutation_rate = min(
-                1, self.mutation_rate * 1.5)  # Increase mutation rate
+                0.5, self.mutation_rate * 1.5)  # Increase mutation rate
 
         elif unique_fitness_scores < total_generations / 2:
             # Partial stagnation - gentle increase
             logging.info(
                 f"""Partial stagnation detected. Increasing mutation rate slightly.""")
-            self.mutation_rate = min(1, self.mutation_rate * 1.2)
+            self.mutation_rate = min(0.5, self.mutation_rate * 1.2)
 
         # Ensure mutation rate does not fall below the lower limit
         self.mutation_rate = max(
@@ -833,50 +785,3 @@ class GeneticAlgorithm:
             if lst[j] < lst[min_index]:
                 min_index = j
         return max(max_value, 0) / dis
-
-    def select_parents_tournament_with_diversity(self, tournament_size=3, diversity_weight=0.3):
-        """
-        Select two parent configurations using a tournament selection method with diversity.
-
-        Args:
-            tournament_size (int): Number of individuals in each tournament.
-            diversity_weight (float): Weight for diversity in selection (0-1).
-
-        Returns:
-            tuple: Two parent configurations selected from the population.
-        """
-        population = list(self.population)
-        fitness_scores = []
-
-        # Calculate fitness scores for the population
-        for config in population:
-            score = self.evaluate(config)['fitness_score']
-            fitness_scores.append(score if score is not None else 0)
-
-        def diversity_score(config, population):
-            """
-            Calculate the diversity score of a configuration based on Hamming distance from others.
-            """
-            return np.mean([np.sum(np.array(config) != np.array(other)) for other in population])
-
-        # Perform tournament selection with diversity
-        def tournament_selection():
-            # Randomly select a subset of individuals for the tournament
-            candidates = random.sample(population, k=tournament_size)
-            candidate_scores = []
-
-            for candidate in candidates:
-                fitness = self.evaluate(candidate)['fitness_score']
-                diversity = diversity_score(candidate, population)
-                # Weighted score combining fitness and diversity
-                combined_score = (1 - diversity_weight) * \
-                    fitness + diversity_weight * diversity
-                candidate_scores.append(combined_score)
-
-            # Select the individual with the highest combined score
-            return candidates[np.argmax(candidate_scores)]
-
-        # Select two parents
-        parent1 = tournament_selection()
-        parent2 = tournament_selection()
-        return parent1, parent2
