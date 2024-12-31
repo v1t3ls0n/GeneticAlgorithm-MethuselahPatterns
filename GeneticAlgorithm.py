@@ -177,10 +177,7 @@ class GeneticAlgorithm:
             parent1, parent2 = self.select_parents()
             child = self.crossover(parent1, parent2)
             if random.uniform(0, 1) < self.mutation_rate:
-                if random.uniform(0, 1) < 0.5:
-                    child = self.mutate_with_clusters(child)
-                else:
-                    child = self.mutate(child)
+                child = self.mutate(child)
 
             new_population.add(child)
 
@@ -196,14 +193,12 @@ class GeneticAlgorithm:
         # Convert back to set for uniqueness
         self.population = set(self.population)
 
-    def mutate(self, configuration):
+    def mutate_basic(self, configuration):
         """
-        Perform mutation on a given configuration by flipping some dead cells (0 -> 1).
+        Perform mutation on a given configuration by flipping some cells.
 
         Mutation Process:
             - The chance of flipping is determined by `self.mutation_rate`.
-            - Live cells (1) are not flipped to 0 in this implementation but could be added as an extension.
-
         Args:
             configuration (tuple[int]): A flattened NxN grid of 0s and 1s representing the configuration.
 
@@ -212,27 +207,32 @@ class GeneticAlgorithm:
         """
         new_configuration = list(configuration)
         for i in range(len(configuration)):
-            if random.uniform(0, 1) < self.mutation_rate:
+            if random.uniform(0, 1) < min(0.5, self.mutation_rate * 5):
                 new_configuration[i] = 0 if configuration[i] else 1
+        return tuple(new_configuration)
 
-        if random.uniform(0, 1) < 0.1:
-            cluster_size = random.randint(1, len(new_configuration))
-            start = random.randint(0, len(new_configuration) - 1)
-            for j in range(cluster_size):
-                idx = (start + j) % len(new_configuration)
-                new_configuration[idx] = 1
+    def mutate_harsh(self, configuration):
+        new_configuration = list(configuration)
+        override_value = random.randint(0,1)
+        logging.info
+        cluster_size = random.randint(1, len(new_configuration))
+        start = random.randint(0, len(new_configuration) - 1)
+        for j in range(cluster_size):
+            idx = (start + j) % len(new_configuration)
+            new_configuration[idx] = override_value
 
         return tuple(new_configuration)
 
-    def mutate_with_clusters(self, config, mutation_rate=0.1, cluster_size=3):
+    def mutate_clusters(self, configuration):
         """
         Mutate a configuration by flipping cells in random clusters.
         """
         N = self.grid_size
-        mutated = list(config)
+        new_configuration = list(configuration)
+        cluster_size = self.grid_size
 
         for _ in range(cluster_size):
-            if random.uniform(0, 1) < mutation_rate:
+            if random.uniform(0, 1) < min(0.5, self.mutation_rate * 5):
                 center_row = random.randint(0, N - 1)
                 center_col = random.randint(0, N - 1)
                 for i in range(-1, 2):
@@ -240,8 +240,21 @@ class GeneticAlgorithm:
                         row = (center_row + i) % N
                         col = (center_col + j) % N
                         index = row * N + col
-                        mutated[index] = 1 if mutated[index] == 0 else 0
-        return tuple(mutated)
+                        new_configuration[index] = 1 if new_configuration[index] == 0 else 0
+        return tuple(new_configuration)
+
+    def mutate(self, configuration):
+        mutate_func = random.choices(
+            ['basic', 'clusters', 'harsh'], [0.5, 0.4, 0.1], k=1)[0]
+        mutated = configuration
+        match mutate_func:
+            case 'basic':
+                return self.mutate_basic(configuration)
+            case 'harsh':
+                return self.mutate_harsh(configuration)
+            case 'clusters':
+                return self.mutate_clusters(configuration)
+        return mutated
 
     def select_parents(self):
         """
