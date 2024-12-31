@@ -195,7 +195,7 @@ class GeneticAlgorithm:
             new_population.add(child)
 
         # Step 2: Enrich population with new individuals periodically
-        if len(self.generations_cache) % 10 == 0:  # Every 10 generations
+        if len(self.generations_cache) % 5 == 0:  # Every 10 generations
             logging.info("Enriching population with new individuals.")
             enriched_population = set()
             num_new_individuals = self.population_size // 4  # Add 25% new individuals
