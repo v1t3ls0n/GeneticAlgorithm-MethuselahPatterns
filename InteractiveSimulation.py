@@ -254,7 +254,9 @@ class InteractiveSimulation:
         initial_living_cells_count = param_dict.get(
             'initial_living_cells_count', 0.0)
         is_first_generation = param_dict.get('is_first_generation')
-        title_txt = "Config From First Generation" if is_first_generation else "Top Config"
+        title_txt = (f"""Config From First Generation #{self.current_config_index -9}""" if is_first_generation 
+        else  f"""Top Config #{self.current_config_index + 1}""")
+
         # title_txt = "Config"
         grid_2d = [
             self.configurations[self.current_config_index]['history'][self.current_generation][
@@ -266,8 +268,7 @@ class InteractiveSimulation:
         self.grid_ax.imshow(grid_2d, cmap="binary")
 
         self.grid_ax.set_title(
-            f"""{title_txt} #{
-                self.current_config_index + 1}, Day {self.current_generation}"""
+            f"""{title_txt} Day (Of Game Of Life) {self.current_generation}"""
         )
         self.grid_ax.set_ylabel("ARROWS: UP/DOWN=configs, LEFT/RIGHT=gens")
 

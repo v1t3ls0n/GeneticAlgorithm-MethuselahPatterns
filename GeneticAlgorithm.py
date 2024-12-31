@@ -117,21 +117,36 @@ class GeneticAlgorithm:
         Returns:
             dict: Simulation results including fitness, lifespan, and other statistics.
         """
+
         configuration_tuple = tuple(configuration)
+
+        if configuration_tuple in self.configuration_cache:
+            return self.configuration_cache[configuration_tuple]
+
+        def max_difference_with_distance(lst):
+            max_value = float('-inf')
+            dis = 0
+            min_index = 0
+            for j in range(1, len(lst)):
+                diff = (lst[j] - lst[min_index]) * (j - min_index)
+                if diff > max_value:
+                    dis = j - min_index
+                    max_value = diff
+                if lst[j] < lst[min_index]:
+                    min_index = j
+            return max(max_value, 0) / dis
+
         expected_size = self.grid_size * self.grid_size
         if len(configuration_tuple) != expected_size:
             raise ValueError(f"""Configuration size must be {
                              expected_size}, but got {len(configuration_tuple)}""")
-
-        if configuration_tuple in self.configuration_cache:
-            return self.configuration_cache[configuration_tuple]
 
         # Create and run a GameOfLife instance
         game = GameOfLife(self.grid_size, configuration_tuple)
         game.run()
         max_alive_cells_count = max(game.alive_history)
         initial_living_cells_count = sum(configuration_tuple)
-        alive_growth = self.max_difference_with_distance(game.alive_history)
+        alive_growth = max_difference_with_distance(game.alive_history)
         stableness = game.stable_count / game.max_stable_generations
         fitness_score = self.calc_fitness(
             lifespan=game.lifespan,
@@ -162,18 +177,16 @@ class GeneticAlgorithm:
             1. Select two parent configurations from the current population based on fitness.
             2. Create a child configuration using crossover between the two parents.
             3. Apply mutation to the child with a probability determined by the mutation rate.
-            4. Combine the new children with the existing population.
+            4. Enrich the population with new individuals periodically (to ensure diversity).
             5. Evaluate all configurations and retain only the top `population_size` individuals.
-
-        Ensures:
-            - The population evolves towards higher fitness by keeping top performers.
-            - The population remains diverse through mutation.
 
         Returns:
             None: Updates the `population` attribute in place.
         """
         new_population = set()
-        for i in range(self.population_size):
+
+        # Step 1: Generate children from the current population
+        for _ in range(self.population_size):
             parent1, parent2 = self.select_parents()
             child = self.crossover(parent1, parent2)
             if random.uniform(0, 1) < self.mutation_rate:
@@ -181,17 +194,38 @@ class GeneticAlgorithm:
 
             new_population.add(child)
 
-        # Merge old + new, then select the best
+        # Step 2: Enrich population with new individuals periodically
+        if len(self.generations_cache) % 10 == 0:  # Every 10 generations
+            logging.info("Enriching population with new individuals.")
+            new_individuals = set()
+            num_new_individuals = self.population_size // 4  # Add 25% new individuals
+            self.enrich_population_with_variety(
+                clusters_type_amount=num_new_individuals // 3,
+                scatter_type_amount=num_new_individuals // 3,
+                basic_patterns_type_amount=num_new_individuals // 3
+            )
+            new_individuals = self.population.difference(
+                new_population)  # Identify the enriched individuals
+
+            # Temporarily exempt new individuals from filtering
+            for individual in new_individuals:
+                new_population.add(individual)
+
+        # Step 3: Combine old and new populations, then filter
         combined_population = list(self.population) + list(new_population)
-        fitness_scores = [(config, self.evaluate(config)['fitness_score'])
-                          for config in combined_population]
+        fitness_scores = [
+            (config, self.evaluate(config)['fitness_score'])
+            for config in combined_population
+        ]
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
 
-        # Keep only the best population_size
-        self.population = [config for config,
-                           _ in fitness_scores[:self.population_size]]
-        # Convert back to set for uniqueness
-        self.population = set(self.population)
+        # Step 4: Retain only the top `population_size` configurations
+        self.population = {
+            config for config, _ in fitness_scores[:self.population_size]
+        }
+
+        logging.info(f"""Population size after enrichment and filtering: {
+                     len(self.population)}""")
 
     def mutate_basic(self, configuration):
         """
@@ -242,59 +276,76 @@ class GeneticAlgorithm:
         return tuple(new_configuration)
 
     def mutate(self, configuration):
-
-        mutate_func = random.choices(
-            ['basic', 'clusters', 'harsh'], [0.25, 0.5, 0.25], k=1)[0]
-        match mutate_func:
-            case 'basic':
-                return self.mutate_basic(configuration)
-            case 'harsh':
-                return self.mutate_harsh(configuration)
-            case 'clusters':
-                return self.mutate_clusters(configuration)
-
-    def select_parents(self):
+        mutation_methods = [self.mutate_basic, self.mutate_clusters, self.mutate_harsh]
+        mutate_func = random.choices(mutation_methods, [0.3, 0.3, 0.4], k=1)[0]
+        return mutate_func(configuration)
+    # Tournament Selection
+    def tournament_selection(self, tournament_size=3):
         """
-        Select two parent configurations from the current population for crossover.
-
-        Selection Process:
-            - Fitness scores are calculated for all individuals in the population.
-            - A normalized probability distribution is created based on the fitness scores.
-            - If the total fitness is 0 (e.g., all configurations have identical fitness), selection
-            is done randomly.
-
+        Select a parent using tournament selection.
+        Args:
+            population (list): List of individuals.
+            evaluate_func (callable): Function to compute fitness for an individual.
+            tournament_size (int): Number of individuals in the tournament.
         Returns:
-            tuple: Two parent configurations selected from the population.
+            Individual selected as a parent.
         """
-        population = list(self.population)
-        fitness_scores = []
+        candidates = random.sample(list(self.population), k=tournament_size)
+        candidates_with_fitness = [(candidate, self.evaluate(candidate)['fitness_score']) for candidate in candidates]
+        return max(candidates_with_fitness, key=lambda x: x[1])[0]
 
-        # Calculate fitness scores
-        for config in population:
-            score = self.evaluate(config)['fitness_score']
-            fitness_scores.append(score if score is not None else 0)
-
+    # Roulette Wheel Selection
+    def roulette_wheel_selection(self):
+        """
+        Select a parent using roulette wheel selection.
+        Args:
+            population (list): List of individuals.
+            evaluate_func (callable): Function to compute fitness for an individual.
+        Returns:
+            Individual selected as a parent.
+        """
+        fitness_scores = [self.evaluate(individual)['fitness_score'] for individual in self.population]
         total_fitness = sum(fitness_scores)
 
         if total_fitness == 0:
-            # Handle zero fitness scenario
-            logging.info("Total fitness is 0, selecting random parents.")
-            return random.choices(population, k=2)
+            return random.choice(self.population)  # Random selection if all fitness is 0
 
-        # Normalize fitness scores to probabilities
         probabilities = [score / total_fitness for score in fitness_scores]
+        return random.choices(list(self.population), weights=probabilities, k=1)[0]
 
-        # Add a slight bias to prevent over-convergence to top individuals
-        bias_factor = 0.01
-        probabilities = [
-            prob + bias_factor for prob in probabilities
-        ]
-        probabilities_sum = sum(probabilities)
-        probabilities = [prob / probabilities_sum for prob in probabilities]
+    # Rank-Based Selection
+    def rank_based_selection(self):
+        """
+        Select a parent using rank-based selection.
+        Args:
+            population (list): List of individuals.
+            evaluate_func (callable): Function to compute fitness for an individual.
+        Returns:
+            Individual selected as a parent.
+        """
+        sorted_population = sorted(list(self.population), key=lambda x: self.evaluate(x)['fitness_score'], reverse=True)
+        ranks = range(1, len(sorted_population) + 1)  # Assign ranks
+        total_rank = sum(ranks)
+        probabilities = [rank / total_rank for rank in ranks]
+        return random.choices(sorted_population, weights=probabilities, k=1)[0]
 
-        # Select two parents using the normalized probabilities
-        parents = random.choices(population, weights=probabilities, k=2)
-        return parents
+    # Main Selection Function
+    def select_parents(self):
+        """
+        Select two parents using one of the three methods: tournament, roulette, or rank-based.
+        Args:
+            population (list): List of individuals.
+            evaluate_func (callable): Function to compute fitness for an individual.
+        Returns:
+            tuple: Two parent individuals selected.
+        """
+        selection_methods = [self.tournament_selection, self.roulette_wheel_selection, self.rank_based_selection]
+        selected_method = random.choices(selection_methods,[0.3, 0.3, 0.4], k=1)[0]  # Randomly select a method
+
+        parent1 = selected_method()
+        parent2 = selected_method()
+
+        return parent1, parent2
 
     def crossover_basic(self, parent1, parent2):
         N = self.grid_size
@@ -423,37 +474,12 @@ class GeneticAlgorithm:
         return tuple(child_blocks)
 
     def crossover(self, parent1, parent2):
-        crossover_func = random.choices(
-            ['basic', 'simple', 'complex'], [0.3, 0.3, 0.4], k=1)[0]
-        match crossover_func:
-            case 'basic':
-                return self.crossover_basic(parent1, parent2)
-            case 'simple':
-                return self.crossover_simple(parent1, parent2)
-            case 'complex':
-                return self.crossover_complex(parent1, parent2)
+        crossover_methods = [self.crossover_basic, self.crossover_simple, self.crossover_complex]
+        selected_crossover_method = random.choices(crossover_methods, [0.3, 0.3, 0.4], k=1)[0]
+        return selected_crossover_method(parent1,parent2)
 
-    def initialize(self):
-        """
-        Initialize the population with random configurations and evaluate their fitness.
 
-        Initialization Process:
-            - Create `population_size` random configurations.
-            - Evaluate the fitness of each configuration using the `evaluate` method.
-            - Calculate and store initial statistics (average fitness, lifespan, etc.) for generation 0.
-
-        Returns:
-            None: Updates the `population` attribute and initializes the first generation's statistics.
-        """
-
-        uniform_amount = self.population_size // 3
-        rem_amount = self.population_size % 3
-        self.initialize_population_with_variety(clusters_type_amount=uniform_amount+rem_amount,
-                                                scatter_type_amount=uniform_amount, basic_patterns_type_amount=uniform_amount)
-        self.initial_population = list(self.population)
-        self.compute_generation(generation=0)
-
-    def initialize_population_with_variety(self, clusters_type_amount, scatter_type_amount, basic_patterns_type_amount):
+    def enrich_population_with_variety(self, clusters_type_amount, scatter_type_amount, basic_patterns_type_amount):
         """
         Initialize the population with equal parts of clusters, scattered cells, and simple random patterns.
         The number of clusters is dynamically adjusted based on the grid size.
@@ -537,43 +563,95 @@ class GeneticAlgorithm:
 
             self.population.add(tuple(configuration))
 
-    def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, stableness, max_alive_cells_count, initial_living_cells_count):
+    def initialize(self):
         """
-        Record the average and standard deviation of each metric for the population at this generation.
+        Initialize the population with random configurations and evaluate their fitness.
+
+        Initialization Process:
+            - Create `population_size` random configurations.
+            - Evaluate the fitness of each configuration using the `evaluate` method.
+            - Calculate and store initial statistics (average fitness, lifespan, etc.) for generation 0.
+
+        Returns:
+            None: Updates the `population` attribute and initializes the first generation's statistics.
+        """
+
+        uniform_amount = self.population_size // 3
+        rem_amount = self.population_size % 3
+        self.enrich_population_with_variety(clusters_type_amount=uniform_amount+rem_amount,
+                                            scatter_type_amount=uniform_amount, basic_patterns_type_amount=uniform_amount)
+        self.initial_population = list(self.population)
+        self.compute_generation(generation=0)
+
+    def adjust_mutation_rate(self, generation):
+        """
+        Dynamically adjust the mutation rate based on changes in average fitness between generations.
+
+        Purpose:
+            - Increase mutation rate if no improvement in average fitness is observed, 
+            to encourage exploration and escape local minima.
+            - Reduce mutation rate gently if improvement is observed, promoting stability in the evolution.
+
+        Process:
+            - Compare the average fitness of the current generation with the previous generation.
+            - If there is no improvement in average fitness for more than 10 generations, the mutation rate is increased.
+            - If fitness improves, the mutation rate is decreased, but it is always kept above `mutation_rate_lower_limit`.
 
         Args:
-            generation (int): Which generation we're recording.
-            scores (list[float]): Fitness values of all individuals in the population.
-            lifespans (list[int]): Lifespan (unique states) for each individual.
-            alive_growth_rates (list[float]): alive_growth metric for each individual.
-            stableness (list[float]): how stable or unstable each individual ended up.
-            max_alive_cells_count (list[int]): maximum number of living cells encountered for each.
+            generation (int): The current generation index.
+
+        Adjustments:
+            - Increase mutation rate: Mutation rate is multiplied by 1.2, but capped at the mutation rate's lower limit.
+            - Decrease mutation rate: Mutation rate is multiplied by 0.9, but not reduced below `mutation_rate_lower_limit`.
         """
-        scores = np.array(scores)
-        lifespans = np.array(lifespans)
-        alive_growth_rates = np.array(alive_growth_rates)
-        stableness = np.array(stableness)
-        max_alive_cells_count = np.array(max_alive_cells_count)
+        improvement_ratio = self.generations_cache[generation-1]['avg_fitness'] / max(
+            1, self.generations_cache[generation]['avg_fitness'])
+        self.mutation_rate = max(self.mutation_rate_lower_limit, min(
+            1, improvement_ratio * self.mutation_rate))
 
-        self.generations_cache[generation]['avg_fitness'] = np.mean(scores)
-        self.generations_cache[generation]['avg_lifespan'] = np.mean(lifespans)
-        self.generations_cache[generation]['avg_alive_growth_rate'] = np.mean(
-            alive_growth_rates)
-        self.generations_cache[generation]['avg_max_alive_cells_count'] = np.mean(
-            max_alive_cells_count)
-        self.generations_cache[generation]['avg_stableness'] = np.mean(
-            stableness)
-        self.generations_cache[generation]['avg_initial_living_cells_count'] = np.mean(
-            initial_living_cells_count)
+    def check_for_stagnation(self, last_generation):
+        """
+        Detects stagnation in the evolution process over the last 10 generations.
 
-        self.generations_cache[generation]['std_fitness'] = np.std(scores)
-        self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
-        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(
-            alive_growth_rates)
-        self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
-            max_alive_cells_count)
-        self.generations_cache[generation]['std_initial_living_cells_count'] = np.std(
-            initial_living_cells_count)
+        If the average fitness scores for the last 10 generations are identical (or nearly so),
+        it adjusts the mutation rate to encourage diversity.
+
+        Args:
+            last_generation (int): Index of the most recent generation.
+
+        Adjustments:
+            - If stagnation is detected, increase mutation rate to explore more configurations.
+        """
+        # Check only if there are at least 10 generations
+        if last_generation < 10:
+            return
+
+        # Retrieve average fitness scores for the last 10 generations
+        avg_fitness = [
+            self.generations_cache[g]['avg_fitness']
+            for g in range(last_generation - 10, last_generation)
+        ]
+
+        # Calculate the number of unique fitness scores
+        unique_fitness_scores = len(set(avg_fitness))
+        total_generations = len(avg_fitness)
+
+        # If fitness scores are stagnant (low diversity)
+        if unique_fitness_scores == 1:
+            logging.warning(f"""Stagnation detected in last {
+                            total_generations} generations.""")
+            self.mutation_rate = min(
+                0.5, self.mutation_rate * 1.5)  # Increase mutation rate
+
+        elif unique_fitness_scores < total_generations / 2:
+            # Partial stagnation - gentle increase
+            logging.info(
+                f"""Partial stagnation detected. Increasing mutation rate slightly.""")
+            self.mutation_rate = min(0.5, self.mutation_rate * 1.2)
+
+        # Ensure mutation rate does not fall below the lower limit
+        self.mutation_rate = max(
+            self.mutation_rate, self.mutation_rate_lower_limit)
 
     def compute_generation(self, generation):
 
@@ -636,6 +714,44 @@ class GeneticAlgorithm:
             self.compute_generation(generation=generation)
             self.adjust_mutation_rate(generation)
             self.check_for_stagnation(generation)
+
+    def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, stableness, max_alive_cells_count, initial_living_cells_count):
+        """
+        Record the average and standard deviation of each metric for the population at this generation.
+
+        Args:
+            generation (int): Which generation we're recording.
+            scores (list[float]): Fitness values of all individuals in the population.
+            lifespans (list[int]): Lifespan (unique states) for each individual.
+            alive_growth_rates (list[float]): alive_growth metric for each individual.
+            stableness (list[float]): how stable or unstable each individual ended up.
+            max_alive_cells_count (list[int]): maximum number of living cells encountered for each.
+        """
+        scores = np.array(scores)
+        lifespans = np.array(lifespans)
+        alive_growth_rates = np.array(alive_growth_rates)
+        stableness = np.array(stableness)
+        max_alive_cells_count = np.array(max_alive_cells_count)
+
+        self.generations_cache[generation]['avg_fitness'] = np.mean(scores)
+        self.generations_cache[generation]['avg_lifespan'] = np.mean(lifespans)
+        self.generations_cache[generation]['avg_alive_growth_rate'] = np.mean(
+            alive_growth_rates)
+        self.generations_cache[generation]['avg_max_alive_cells_count'] = np.mean(
+            max_alive_cells_count)
+        self.generations_cache[generation]['avg_stableness'] = np.mean(
+            stableness)
+        self.generations_cache[generation]['avg_initial_living_cells_count'] = np.mean(
+            initial_living_cells_count)
+
+        self.generations_cache[generation]['std_fitness'] = np.std(scores)
+        self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
+        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(
+            alive_growth_rates)
+        self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
+            max_alive_cells_count)
+        self.generations_cache[generation]['std_initial_living_cells_count'] = np.std(
+            initial_living_cells_count)
 
     def get_experiment_results(self):
         # Final selection of best configurations
@@ -711,86 +827,3 @@ class GeneticAlgorithm:
             results.append(params_dict)
 
         return results
-
-    def adjust_mutation_rate(self, generation):
-        """
-        Dynamically adjust the mutation rate based on changes in average fitness between generations.
-
-        Purpose:
-            - Increase mutation rate if no improvement in average fitness is observed, 
-            to encourage exploration and escape local minima.
-            - Reduce mutation rate gently if improvement is observed, promoting stability in the evolution.
-
-        Process:
-            - Compare the average fitness of the current generation with the previous generation.
-            - If there is no improvement in average fitness for more than 10 generations, the mutation rate is increased.
-            - If fitness improves, the mutation rate is decreased, but it is always kept above `mutation_rate_lower_limit`.
-
-        Args:
-            generation (int): The current generation index.
-
-        Adjustments:
-            - Increase mutation rate: Mutation rate is multiplied by 1.2, but capped at the mutation rate's lower limit.
-            - Decrease mutation rate: Mutation rate is multiplied by 0.9, but not reduced below `mutation_rate_lower_limit`.
-        """
-        improvement_ratio = self.generations_cache[generation-1]['avg_fitness'] / max(
-            1, self.generations_cache[generation]['avg_fitness'])
-        self.mutation_rate = max(self.mutation_rate_lower_limit, min(
-            1, improvement_ratio * self.mutation_rate))
-
-    def check_for_stagnation(self, last_generation):
-        """
-        Detects stagnation in the evolution process over the last 10 generations.
-
-        If the average fitness scores for the last 10 generations are identical (or nearly so),
-        it adjusts the mutation rate to encourage diversity.
-
-        Args:
-            last_generation (int): Index of the most recent generation.
-
-        Adjustments:
-            - If stagnation is detected, increase mutation rate to explore more configurations.
-        """
-        # Check only if there are at least 10 generations
-        if last_generation < 10:
-            return
-
-        # Retrieve average fitness scores for the last 10 generations
-        avg_fitness = [
-            self.generations_cache[g]['avg_fitness']
-            for g in range(last_generation - 10, last_generation)
-        ]
-
-        # Calculate the number of unique fitness scores
-        unique_fitness_scores = len(set(avg_fitness))
-        total_generations = len(avg_fitness)
-
-        # If fitness scores are stagnant (low diversity)
-        if unique_fitness_scores == 1:
-            logging.warning(f"""Stagnation detected in last {
-                            total_generations} generations.""")
-            self.mutation_rate = min(
-                0.5, self.mutation_rate * 1.5)  # Increase mutation rate
-
-        elif unique_fitness_scores < total_generations / 2:
-            # Partial stagnation - gentle increase
-            logging.info(
-                f"""Partial stagnation detected. Increasing mutation rate slightly.""")
-            self.mutation_rate = min(0.5, self.mutation_rate * 1.2)
-
-        # Ensure mutation rate does not fall below the lower limit
-        self.mutation_rate = max(
-            self.mutation_rate, self.mutation_rate_lower_limit)
-
-    def max_difference_with_distance(self, lst):
-        max_value = float('-inf')
-        dis = 0
-        min_index = 0
-        for j in range(1, len(lst)):
-            diff = (lst[j] - lst[min_index]) * (j - min_index)
-            if diff > max_value:
-                dis = j - min_index
-                max_value = diff
-            if lst[j] < lst[min_index]:
-                min_index = j
-        return max(max_value, 0) / dis
