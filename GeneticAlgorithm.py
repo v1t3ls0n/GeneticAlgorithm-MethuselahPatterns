@@ -162,7 +162,7 @@ class GeneticAlgorithm:
 
         self.configuration_cache[configuration_tuple] = {
             'fitness_score': fitness_score,
-            'history': tuple(game.history),
+            'history': tuple(game.history[:]),
             'lifespan': game.lifespan,
             'alive_growth': alive_growth,
             'max_alive_cells_count': max_alive_cells_count,
@@ -505,7 +505,7 @@ class GeneticAlgorithm:
             list[tuple[int]]: Collection of diverse initial configurations
         """
         total_cells = self.grid_size * self.grid_size
-        max_cluster_size = self.grid_size
+        max_cluster_size = total_cells // 4
         min_cluster_size = min(3, self.grid_size)
         max_scattered_cells = total_cells
         min_scattered_cells = self.grid_size
@@ -517,18 +517,16 @@ class GeneticAlgorithm:
         for _ in range(clusters_type_amount):
             configuration = [0] * total_cells
             cluster_size = random.randint(min_cluster_size, max_cluster_size)
-
-            for _ in range(clusters_type_amount):
-                center_row = random.randint(0, self.grid_size - 1)
-                center_col = random.randint(0, self.grid_size - 1)
-                for _ in range(cluster_size):
-                    offset_row = random.randint(-1, 1)
-                    offset_col = random.randint(-1, 1)
-                    row = (center_row + offset_row) % self.grid_size
-                    col = (center_col + offset_col) % self.grid_size
-                    index = row * self.grid_size + col
-                    configuration[index] = 1
-                population_pool.append(tuple(configuration))
+            center_row = random.randint(0, self.grid_size - 1)
+            center_col = random.randint(0, self.grid_size - 1)
+            for _ in range(cluster_size):
+                offset_row = random.randint(-1, 1)
+                offset_col = random.randint(-1, 1)
+                row = (center_row + offset_row) % self.grid_size
+                col = (center_col + offset_col) % self.grid_size
+                index = row * self.grid_size + col
+                configuration[index] = 1
+            population_pool.append(tuple(configuration))
 
         # Generate Scattered Configurations
         for _ in range(scatter_type_amount):
@@ -588,7 +586,7 @@ class GeneticAlgorithm:
             basic_patterns_type_amount=uniform_amount
         )
 
-        self.initial_population = population
+        self.initial_population = set(population[:])
         self.population = set(population)
         self.compute_generation(generation=0)
 
@@ -782,6 +780,7 @@ class GeneticAlgorithm:
         fitness_scores_initial_population = [(config, self.configuration_cache[config]['fitness_score'])
                                              for config in self.initial_population]
 
+        logging.info(f""" initial population size : {len(fitness_scores_initial_population)}""")
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
         fitness_scores_initial_population.sort(
             key=lambda x: x[1], reverse=True)
@@ -790,32 +789,6 @@ class GeneticAlgorithm:
 
         results = []
 
-        for config, _ in fitness_scores_initial_population:
-            params_dict = {
-                'fitness_score': self.configuration_cache[config]['fitness_score'],
-                'lifespan': self.configuration_cache[config]['lifespan'],
-                'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
-                'alive_growth': self.configuration_cache[config]['alive_growth'],
-                'stableness': self.configuration_cache[config]['stableness'],
-                'initial_living_cells_count': self.configuration_cache[config]['initial_living_cells_count'],
-                'history': list(self.configuration_cache[config]['history']),
-                'config': config,
-                'is_first_generation': True
-            }
-
-            logging.info("Initial Configuration:")
-            logging.info(f"  Configuration: {config}")
-            logging.info(f"""Fitness Score: {
-                         self.configuration_cache[config]['fitness_score']}""")
-            logging.info(f"""Lifespan: {
-                         self.configuration_cache[config]['lifespan']}""")
-            logging.info(f"""Total Alive Cells: {
-                         self.configuration_cache[config]['max_alive_cells_count']}""")
-            logging.info(f"""Alive Growth: {
-                         self.configuration_cache[config]['alive_growth']}""")
-            logging.info(f"""Initial Configuration Living Cells Count: {
-                         self.configuration_cache[config]['initial_living_cells_count']}""")
-            results.append(params_dict)
 
         for config, _ in top_configs:
 
@@ -846,4 +819,33 @@ class GeneticAlgorithm:
                          self.configuration_cache[config]['initial_living_cells_count']}""")
             results.append(params_dict)
 
-        return results
+        for config, _ in fitness_scores_initial_population:
+            params_dict = {
+                'fitness_score': self.configuration_cache[config]['fitness_score'],
+                'lifespan': self.configuration_cache[config]['lifespan'],
+                'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
+                'alive_growth': self.configuration_cache[config]['alive_growth'],
+                'stableness': self.configuration_cache[config]['stableness'],
+                'initial_living_cells_count': self.configuration_cache[config]['initial_living_cells_count'],
+                'history': list(self.configuration_cache[config]['history']),
+                'config': config,
+                'is_first_generation': True
+            }
+
+            logging.info("Initial Configuration:")
+            logging.info(f"  Configuration: {config}")
+            logging.info(f"""Fitness Score: {
+                         self.configuration_cache[config]['fitness_score']}""")
+            logging.info(f"""Lifespan: {
+                         self.configuration_cache[config]['lifespan']}""")
+            logging.info(f"""Total Alive Cells: {
+                         self.configuration_cache[config]['max_alive_cells_count']}""")
+            logging.info(f"""Alive Growth: {
+                         self.configuration_cache[config]['alive_growth']}""")
+            logging.info(f"""Initial Configuration Living Cells Count: {
+                         self.configuration_cache[config]['initial_living_cells_count']}""")
+            results.append(params_dict)
+
+
+        initial_configurations_start_index = len(top_configs)
+        return results, initial_configurations_start_index

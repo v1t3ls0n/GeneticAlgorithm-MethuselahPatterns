@@ -22,6 +22,7 @@ class InteractiveSimulation:
         grid_size,
         generations_cache,
         mutation_rate_history,
+         initial_configurations_start_index,
         run_params=None
     ):
         print("Initializing InteractiveSimulation with TWO windows.")
@@ -29,8 +30,8 @@ class InteractiveSimulation:
         self.grid_size = grid_size
         self.generations_cache = generations_cache
         self.mutation_rate_history = mutation_rate_history
+        self.initial_configurations_start_index =  initial_configurations_start_index
         self.run_params = run_params or {}
-
         # Navigation state
         self.current_config_index = 0
         self.current_generation = 0
@@ -254,7 +255,8 @@ class InteractiveSimulation:
         initial_living_cells_count = param_dict.get(
             'initial_living_cells_count', 0.0)
         is_first_generation = param_dict.get('is_first_generation')
-        title_txt = (f"""Config From First Generation #{self.current_config_index -9}""" if is_first_generation 
+
+        title_txt = (f"""Config From First Generation #{self.current_config_index - self.initial_configurations_start_index  +1}""" if is_first_generation 
         else  f"""Top Config #{self.current_config_index + 1}""")
 
         # title_txt = "Config"

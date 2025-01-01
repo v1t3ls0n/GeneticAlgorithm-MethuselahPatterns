@@ -27,7 +27,7 @@ class Configuration:
         self,
         grid_size=10,
         population_size=20,
-        generations=300,
+        generations=100,
         initial_mutation_rate=0.5,
         alive_cells_weight=0.12,
         mutation_rate_lower_limit=0.1,
@@ -114,7 +114,7 @@ def main(grid_size,
 
     # Run the algorithm and retrieve top configurations and their parameters
     algorithm.run()
-    selected_configurations = algorithm.get_experiment_results()
+    selected_configurations, initial_configurations_start_index = algorithm.get_experiment_results()
     run_params = {
         "grid_size": grid_size,
         "population_size": population_size,
@@ -126,11 +126,12 @@ def main(grid_size,
         "alive_growth_weight": alive_growth_weight,
         "stableness_weight": stableness_weight,
         "initial_living_cells_count_penalty_weight": initial_living_cells_count_penalty_weight,
-        "predefined_configurations": predefined_configurations
+        "predefined_configurations": predefined_configurations,
     }
 
     # Launch interactive simulation with the best configurations
     simulation = InteractiveSimulation(configurations=selected_configurations,
+                                       initial_configurations_start_index=initial_configurations_start_index,
                                        grid_size=grid_size,
                                        generations_cache=algorithm.generations_cache,
                                        mutation_rate_history=algorithm.mutation_rate_history,
