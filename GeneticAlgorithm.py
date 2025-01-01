@@ -115,18 +115,21 @@ class GeneticAlgorithm:
             cluster_size = random.randint(min_cluster_size, max_cluster_size)
             center_row = random.randint(0, self.grid_size - 1)
             center_col = random.randint(0, self.grid_size - 1)
-            added_cells = set()  # to ensure no duplicate cells
+            # Define a set for the added cells, to avoid repetition
+            added_cells = set()
+
             for _ in range(cluster_size):
-                while True:
-                    offset_row = random.randint(-1, 1)
-                    offset_col = random.randint(-1, 1)
-                    row = (center_row + offset_row) % self.grid_size
-                    col = (center_col + offset_col) % self.grid_size
-                    index = row * self.grid_size + col
-                    if index not in added_cells:
-                        added_cells.add(index)
-                        configuration[index] = 1
-                        break
+                # Randomly select an offset to create a "cluster"
+                offset_row = random.randint(-1, 1)
+                offset_col = random.randint(-1, 1)
+                row = (center_row + offset_row) % self.grid_size
+                col = (center_col + offset_col) % self.grid_size
+                index = row * self.grid_size + col
+                added_cells.add(index)
+
+            for index in added_cells:
+                configuration[index] = 1
+
             population_pool.append(tuple(configuration))
 
         # Generate Scattered Configurations
@@ -164,7 +167,6 @@ class GeneticAlgorithm:
 
         logging.debug("""Enriched population with variety.""")
         return population_pool
-
 
     def generate_new_population_pool(self, amount):
         clusters_type_amount = amount // 2 + amount % 2
