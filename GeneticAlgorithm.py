@@ -218,73 +218,157 @@ class GeneticAlgorithm:
 
     def select_parents(self):
         """
-        Select two parent configurations using one of three selection methods:
+        Select two parent configurations using one of three selection methods.
 
-        1. Normalized probability (90% chance):
-           - Selection probability proportional to fitness
-           - Includes small bias to prevent over-convergence
+        Combines canonical forms and cell frequency analysis to adjust fitness scores dynamically.
+        Penalizes configurations that are both frequent in canonical form and have highly common active cells.
 
-        2. Tournament selection (5% chance):
-           - Competitions between random subgroups
-           - Selects winners as parents
-
-        3. Rank-based selection (5% chance):
-           - Selection probability based on fitness ranking
-           - Helps maintain diversity
+        Methods:
+            1. Normalized probability (90% chance): Fitness proportional to adjusted score.
+            2. Tournament selection (5% chance): Random subsets competition.
+            3. Rank-based selection (5% chance): Based on fitness ranking.
 
         Returns:
-            tuple: Two parent configurations chosen for crossover.
+            tuple: Two parent configurations for crossover.
         """
+
+        def canonical_form(config, grid_size):
+            """
+            Compute the canonical form of a configuration.
+            Handles translations, rotations, and flips to ensure unique representation.
+
+            Args:
+                config (list[int]): Flattened 1D representation of the grid.
+                grid_size (int): Size of the grid (NxN).
+
+            Returns:
+                tuple[int]: Canonical form of the configuration.
+            """
+            grid = [config[i * grid_size:(i + 1) * grid_size]
+                    for i in range(grid_size)]
+            live_cells = [(r, c) for r in range(grid_size)
+                          for c in range(grid_size) if grid[r][c] == 1]
+            if not live_cells:
+                return tuple(config)  # Return empty configuration as-is
+
+            # Translate to (0,0)
+            min_row = min(r for r, c in live_cells)
+            min_col = min(c for r, c in live_cells)
+            normalized_grid = [[0] * grid_size for _ in range(grid_size)]
+            for r, c in live_cells:
+                normalized_grid[r - min_row][c - min_col] = 1
+
+            # Generate transformations
+            transformations = []
+            for _ in range(4):  # Rotate 4 times
+                transformations.append(normalized_grid)
+                transformations.append(
+                    [row[::-1] for row in normalized_grid])  # Horizontal flip
+                # Rotate 90 degrees clockwise
+                normalized_grid = list(zip(*normalized_grid[::-1]))
+
+            # Flatten transformations and find lexicographical minimum
+            flattened_forms = [
+                tuple(cell for row in trans for cell in row) for trans in transformations]
+            return min(flattened_forms)
+
+        def calculate_corrected_scores(frequency_vector, canonical_frequency):
+            """
+            Calculate corrected scores by combining canonical form and cell frequency penalties.
+            """
+            corrected_scores = []
+            for config in self.population:
+                fitness_score = self.configuration_cache[config]['fitness_score']
+                active_cells = [
+                    i for i, cell in enumerate(config) if cell == 1]
+
+                # Calculate canonical form frequency penalty
+                canonical = canonical_form(config, self.grid_size)
+                canonical_penalty = canonical_frequency.get(canonical, 1)
+
+                # Calculate cell frequency penalty
+                if len(active_cells) == 0:
+                    cell_frequency_penalty = 1  # Avoid division by zero
+                else:
+                    total_frequency = sum(
+                        frequency_vector[i] for i in active_cells)
+                    cell_frequency_penalty = (
+                        total_frequency / len(active_cells))
+
+                # Combine penalties
+                uniqueness_score = (canonical_penalty *
+                                    cell_frequency_penalty) ** 3
+
+                # Adjust the fitness score
+                corrected_score = (
+                    fitness_score if fitness_score is not None else 0) / max(1, uniqueness_score)
+                corrected_scores.append((config, corrected_score))
+            return corrected_scores
+
+        # Step 1: Calculate the frequency of canonical forms in the population
+        canonical_frequency = {}
+        for config in self.population:
+            canonical = canonical_form(config, self.grid_size)
+            if canonical not in canonical_frequency:
+                canonical_frequency[canonical] = 0
+            canonical_frequency[canonical] += 1
+
+        # Step 2: Calculate the frequency vector for active cells
+        total_cells = self.grid_size * self.grid_size
+        frequency_vector = np.zeros(total_cells)
+        for config in self.population:
+            frequency_vector += np.array(config)
+
+        # Step 3: Calculate corrected scores
+        corrected_scores = calculate_corrected_scores(
+            frequency_vector, canonical_frequency)
+
+        # Step 4: Define selection methods
         def normalized_probability_selection():
-            population = list(self.population)
-            fitness_scores = []
-            for config in population:
-                score = self.evaluate(config)['fitness_score']
-                fitness_scores.append(score if score is not None else 0)
+            """
+            Select parents based on normalized probability of corrected scores.
+            """
+            configs, scores = zip(*corrected_scores)
+            total_score = sum(scores)
+            if total_score == 0:
+                logging.info("Total score is 0, selecting random parents.")
+                return random.choices(configs, k=2)
 
-            total_fitness = sum(fitness_scores)
-
-            if total_fitness == 0:
-                logging.info("Total fitness is 0, selecting random parents.""")
-                return random.choices(population, k=2)
-
-            probabilities = [score / total_fitness for score in fitness_scores]
-            bias_factor = 0.01
-            probabilities = [prob + bias_factor for prob in probabilities]
-            probabilities_sum = sum(probabilities)
-            probabilities = [
-                prob / probabilities_sum for prob in probabilities]
-
-            return random.choices(population, weights=probabilities, k=2)
+            probabilities = [score / total_score for score in scores]
+            return random.choices(configs, weights=probabilities, k=2)
 
         def tournament_selection():
+            """
+            Select parents using tournament selection with corrected scores.
+            """
             tournament_size = min(3, self.population_size // 4)
-            candidates1 = random.sample(
-                list(self.population), k=tournament_size)
-            candidates2 = random.sample(
-                list(self.population), k=tournament_size)
-            parent1 = max(candidates1, key=lambda x: self.evaluate(x)[
-                          'fitness_score'])
-            parent2 = max(candidates2, key=lambda x: self.evaluate(x)[
-                          'fitness_score'])
+            candidates1 = random.sample(corrected_scores, k=tournament_size)
+            candidates2 = random.sample(corrected_scores, k=tournament_size)
+            parent1 = max(candidates1, key=lambda x: x[1])[
+                0]  # Select based on corrected score
+            parent2 = max(candidates2, key=lambda x: x[1])[0]
             return parent1, parent2
 
         def rank_based_selection():
-            sorted_population = sorted(list(self.population),
-                                       key=lambda x: self.evaluate(
-                                           x)['fitness_score'],
-                                       reverse=True)
-            ranks = range(1, len(sorted_population) + 1)
+            """
+            Select parents using rank-based selection with corrected scores.
+            """
+            sorted_scores = sorted(
+                corrected_scores, key=lambda x: x[1], reverse=True)
+            configs, scores = zip(*sorted_scores)
+            ranks = range(1, len(configs) + 1)
             total_rank = sum(ranks)
             probabilities = [rank / total_rank for rank in ranks]
-            return random.choices(sorted_population, weights=probabilities, k=2)
+            return random.choices(configs, weights=probabilities, k=2)
 
+        # Step 5: Randomly select a selection method
         selection_methods = [normalized_probability_selection,
                              tournament_selection, rank_based_selection]
         selected_method = random.choices(selection_methods, weights=[
                                          0.9, 0.05, 0.05], k=1)[0]
-        parent1, parent2 = selected_method()
-        return parent1, parent2
+
+        # Step 6: Return two selected parents
+        return selected_method()
 
     def mutate(self, configuration):
         """
