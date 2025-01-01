@@ -604,10 +604,27 @@ class GeneticAlgorithm:
         Args:
             generation (int): Current generation number
         """
-        improvement_ratio = self.generations_cache[generation-1]['avg_fitness'] / max(
-            1, self.generations_cache[generation]['avg_fitness'])
-        self.mutation_rate = max(self.mutation_rate_lower_limit, min(
-            1, improvement_ratio * self.mutation_rate))
+        if generation < 10:
+            # Not enough history for 10 generations, use basic improvement ratio
+            improvement_ratio = self.generations_cache[generation-1]['avg_fitness'] / max(
+                1, self.generations_cache[generation]['avg_fitness'])
+            self.mutation_rate = max(self.mutation_rate_lower_limit, min(
+                self.initial_mutation_rate, improvement_ratio * self.mutation_rate))
+        else:
+            # Calculate improvement over the last 10 generations
+            avg_fitness_last_10 = [
+                self.generations_cache[g]['avg_fitness'] for g in range(generation-10, generation)
+            ]
+            improvement_ratio = avg_fitness_last_10[-1] / max(1, avg_fitness_last_10[0])
+
+            if improvement_ratio < 1.01:
+                # Plateau detected, increase mutation rate
+                self.mutation_rate = min(self.initial_mutation_rate, self.mutation_rate * 1.2)
+            else:
+                # Fitness improving, decrease mutation rate
+                self.mutation_rate = max(self.mutation_rate_lower_limit, self.mutation_rate * 0.9)
+
+        logging.info(f"Adjusted mutation rate to {self.mutation_rate:.4f} at generation {generation}.")
 
     def check_for_stagnation(self, last_generation):
         """
@@ -625,7 +642,7 @@ class GeneticAlgorithm:
             return
 
         avg_fitness = [
-            int(self.generations_cache[g]['avg_fitness'])
+            self.generations_cache[g]['avg_fitness']
             for g in range(last_generation - 10, last_generation)
         ]
 
@@ -638,13 +655,8 @@ class GeneticAlgorithm:
                 self.initial_mutation_rate, self.mutation_rate * 1.5)
 
         elif stagnation_score > 2:
-            logging.info(
-                "Partial stagnation detected. Increasing mutation rate slightly.""")
             self.mutation_rate = min(
                 self.initial_mutation_rate, self.mutation_rate * 1.2)
-
-        self.mutation_rate = max(
-            self.mutation_rate, self.mutation_rate_lower_limit)
 
     def compute_generation(self, generation):
         """
@@ -778,7 +790,33 @@ class GeneticAlgorithm:
 
         results = []
 
-        # Store their histories for later viewing
+        for config, _ in fitness_scores_initial_population:
+            params_dict = {
+                'fitness_score': self.configuration_cache[config]['fitness_score'],
+                'lifespan': self.configuration_cache[config]['lifespan'],
+                'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
+                'alive_growth': self.configuration_cache[config]['alive_growth'],
+                'stableness': self.configuration_cache[config]['stableness'],
+                'initial_living_cells_count': self.configuration_cache[config]['initial_living_cells_count'],
+                'history': list(self.configuration_cache[config]['history']),
+                'config': config,
+                'is_first_generation': True
+            }
+
+            logging.info("Initial Configuration:")
+            logging.info(f"  Configuration: {config}")
+            logging.info(f"""Fitness Score: {
+                         self.configuration_cache[config]['fitness_score']}""")
+            logging.info(f"""Lifespan: {
+                         self.configuration_cache[config]['lifespan']}""")
+            logging.info(f"""Total Alive Cells: {
+                         self.configuration_cache[config]['max_alive_cells_count']}""")
+            logging.info(f"""Alive Growth: {
+                         self.configuration_cache[config]['alive_growth']}""")
+            logging.info(f"""Initial Configuration Living Cells Count: {
+                         self.configuration_cache[config]['initial_living_cells_count']}""")
+            results.append(params_dict)
+
         for config, _ in top_configs:
 
             params_dict = {
@@ -793,21 +831,19 @@ class GeneticAlgorithm:
                 'is_first_generation': False
 
             }
-            results.append(params_dict)
 
-        for config, _ in fitness_scores_initial_population:
-            params_dict = {
-                'fitness_score': self.configuration_cache[config]['fitness_score'],
-                'lifespan': self.configuration_cache[config]['lifespan'],
-                'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
-                'alive_growth': self.configuration_cache[config]['alive_growth'],
-                'stableness': self.configuration_cache[config]['stableness'],
-                'initial_living_cells_count': self.configuration_cache[config]['initial_living_cells_count'],
-                'history': list(self.configuration_cache[config]['history']),
-                'config': config,
-                'is_first_generation': True
-
-            }
+            logging.info("Top Configuration:")
+            logging.info(f"  Configuration: {config}")
+            logging.info(f"""Fitness Score: {
+                         self.configuration_cache[config]['fitness_score']}""")
+            logging.info(f"""Lifespan: {
+                         self.configuration_cache[config]['lifespan']}""")
+            logging.info(f"""Total Alive Cells: {
+                         self.configuration_cache[config]['max_alive_cells_count']}""")
+            logging.info(f"""Alive Growth: {
+                         self.configuration_cache[config]['alive_growth']}""")
+            logging.info(f"""Initial Configuration Living Cells Count: {
+                         self.configuration_cache[config]['initial_living_cells_count']}""")
             results.append(params_dict)
 
         return results
