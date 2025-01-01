@@ -81,16 +81,16 @@ class GeneticAlgorithm:
         Generate diverse configurations using three distinct pattern types:
 
         1. Clustered: Groups of adjacent living cells
-           - Creates naturalistic patterns
-           - Variable cluster sizes based on grid dimensions
+        - Creates naturalistic patterns
+        - Variable cluster sizes based on grid dimensions
 
         2. Scattered: Randomly distributed living cells
-           - Ensures broad pattern coverage
-           - Controlled density distribution
+        - Ensures broad pattern coverage
+        - Controlled density distribution
 
         3. Basic patterns: Simple geometric arrangements
-           - Creates structured initial patterns
-           - Balanced random variations
+        - Creates structured initial patterns
+        - Balanced random variations
 
         Args:
             clusters_type_amount (int): Number of cluster-based configurations
@@ -115,22 +115,25 @@ class GeneticAlgorithm:
             cluster_size = random.randint(min_cluster_size, max_cluster_size)
             center_row = random.randint(0, self.grid_size - 1)
             center_col = random.randint(0, self.grid_size - 1)
+            added_cells = set()  # to ensure no duplicate cells
             for _ in range(cluster_size):
-                offset_row = random.randint(-1, 1)
-                offset_col = random.randint(-1, 1)
-                row = (center_row + offset_row) % self.grid_size
-                col = (center_col + offset_col) % self.grid_size
-                index = row * self.grid_size + col
-                configuration[index] = 1
+                while True:
+                    offset_row = random.randint(-1, 1)
+                    offset_col = random.randint(-1, 1)
+                    row = (center_row + offset_row) % self.grid_size
+                    col = (center_col + offset_col) % self.grid_size
+                    index = row * self.grid_size + col
+                    if index not in added_cells:
+                        added_cells.add(index)
+                        configuration[index] = 1
+                        break
             population_pool.append(tuple(configuration))
 
         # Generate Scattered Configurations
         for _ in range(scatter_type_amount):
             configuration = [0] * total_cells
-            scattered_cells = random.randint(
-                min_scattered_cells, max_scattered_cells)
-            scattered_indices = random.sample(
-                range(total_cells), scattered_cells)
+            scattered_cells = random.randint(min_scattered_cells, max_scattered_cells)
+            scattered_indices = random.sample(range(total_cells), scattered_cells)
             for index in scattered_indices:
                 configuration[index] = 1
             population_pool.append(tuple(configuration))
@@ -138,8 +141,7 @@ class GeneticAlgorithm:
         # Generate Simple Patterns Configuration
         for _ in range(basic_patterns_type_amount):
             configuration = [0] * total_cells
-            pattern_cells = random.randint(
-                min_pattern_cells, max_pattern_cells)
+            pattern_cells = random.randint(min_pattern_cells, max_pattern_cells)
             start_row = random.randint(0, self.grid_size - 3)
             start_col = random.randint(0, self.grid_size - 3)
 
@@ -154,7 +156,7 @@ class GeneticAlgorithm:
             current_live_cells = sum(configuration)
             if current_live_cells < pattern_cells:
                 additional_cells = random.sample([i for i in range(total_cells) if configuration[i] == 0],
-                                                 pattern_cells - current_live_cells)
+                                                pattern_cells - current_live_cells)
                 for index in additional_cells:
                     configuration[index] = 1
 
@@ -162,6 +164,7 @@ class GeneticAlgorithm:
 
         logging.debug("""Enriched population with variety.""")
         return population_pool
+
 
     def generate_new_population_pool(self, amount):
         clusters_type_amount = amount // 2 + amount % 2
