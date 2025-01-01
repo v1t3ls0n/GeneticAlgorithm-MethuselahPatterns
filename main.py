@@ -28,15 +28,15 @@ logging.basicConfig(
 class Configuration:
     def __init__(
         self,
-        grid_size=60,
-        population_size=64,
-        generations=100,
+        grid_size=10,
+        population_size=20,
+        generations=500,
         initial_mutation_rate=0.3,
         alive_cells_weight=0.12,
         mutation_rate_lower_limit=0.1,
         lifespan_weight=100.0,
         alive_growth_weight=2,
-        initial_living_cells_count_penalty_weight=2,
+        initial_living_cells_count_penalty_weight=10,
         predefined_configurations=None
     ):
         self.grid_size = grid_size
@@ -56,7 +56,8 @@ class Configuration:
 
 
 default_config = Configuration()
-default_params = default_config.as_dict()  # Fetch default values as a dictionary
+# Fetch default values as a dictionary
+default_params = default_config.as_dict()
 
 
 def main(grid_size,
@@ -87,16 +88,16 @@ def main(grid_size,
         initial_living_cells_count_penalty_weight (float): Weight for penalizing large initial patterns.
         predefined_configurations (None or iterable): Optional, known patterns for initialization.
     """
-    logging.info(f"""Starting run with parameters: 
-    grid_size={grid_size}, 
-    population_size={population_size}, 
-    generations={generations}, 
-    initial_mutation_rate={initial_mutation_rate}, 
-    alive_cells_weight={alive_cells_weight}, 
-    mutation_rate_lower_limit={mutation_rate_lower_limit}, 
-    lifespan_weight={lifespan_weight}, 
-    alive_growth_weight={alive_growth_weight}, 
-    initial_living_cells_count_penalty_weight={initial_living_cells_count_penalty_weight}, 
+    logging.info(f"""Starting run with parameters:
+    grid_size={grid_size},
+    population_size={population_size},
+    generations={generations},
+    initial_mutation_rate={initial_mutation_rate},
+    alive_cells_weight={alive_cells_weight},
+    mutation_rate_lower_limit={mutation_rate_lower_limit},
+    lifespan_weight={lifespan_weight},
+    alive_growth_weight={alive_growth_weight},
+    initial_living_cells_count_penalty_weight={initial_living_cells_count_penalty_weight},
     predefined_configurations={predefined_configurations}""")
 
     # Instantiate the GeneticAlgorithm
@@ -115,9 +116,9 @@ def main(grid_size,
 
     # Run the algorithm and retrieve top configurations and their parameters
     results, initial_configurations_start_index = algorithm.run()
-    
+
     # Extract only the 'config' from the results for visualization
-    
+
     run_params = {
         "grid_size": grid_size,
         "population_size": population_size,
@@ -171,10 +172,12 @@ def run_main_interactively():
     """
     # Create a default configuration instance
     default_config = Configuration()
-    default_params = default_config.as_dict()  # Fetch default values as a dictionary
+    # Fetch default values as a dictionary
+    default_params = default_config.as_dict()
 
     # Ask if the user wants to use all defaults
-    use_defaults = input("""Use default values for ALL parameters? (y/N): """).strip().lower()
+    use_defaults = input(
+        """Use default values for ALL parameters? (y/N): """).strip().lower()
     if use_defaults.startswith('y') or use_defaults == "":
         main(**default_params)
         return
@@ -191,7 +194,8 @@ def run_main_interactively():
                     # Attempt to cast the user input to the type of the default value
                     updated_params[key] = type(value)(user_input)
                 except ValueError:
-                    logging.warning(f"""Invalid input for {key}. Using default value: {value}""")
+                    logging.warning(f"""Invalid input for {
+                                    key}. Using default value: {value}""")
                     updated_params[key] = value
 
         # Pass the updated parameters to main

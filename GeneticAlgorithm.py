@@ -101,8 +101,8 @@ class GeneticAlgorithm:
             list[tuple[int]]: Collection of diverse initial configurations
         """
         total_cells = self.grid_size * self.grid_size
-        max_cluster_size = total_cells // 4
-        min_cluster_size = min(3, self.grid_size)
+        max_cluster_size = self.grid_size ** 2
+        min_cluster_size = self.grid_size
         max_scattered_cells = total_cells
         min_scattered_cells = self.grid_size
         max_pattern_cells = total_cells
@@ -163,6 +163,20 @@ class GeneticAlgorithm:
         logging.debug("""Enriched population with variety.""")
         return population_pool
 
+    def generate_new_population_pool(self, amount):
+        clusters_type_amount = amount // 2 + amount % 2
+        scatter_type_amount = amount // 4
+        basic_patterns_type_amount = amount // 4
+
+        population = self.enrich_population_with_variety(
+            clusters_type_amount=clusters_type_amount,
+            scatter_type_amount=scatter_type_amount,
+            basic_patterns_type_amount=basic_patterns_type_amount
+        )
+
+        return population
+
+    
     def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, stableness, initial_living_cells_count):
         """
         Calculate weighted fitness score combining multiple optimization objectives.
@@ -188,7 +202,8 @@ class GeneticAlgorithm:
         growth_score = alive_growth * self.alive_growth_weight
         large_configuration_penalty = (
             1 / max(1, initial_living_cells_count * self.initial_living_cells_count_penalty_weight))
-        fitness = ((lifespan_score + alive_cells_score + growth_score) * (large_configuration_penalty) * stableness)
+        fitness = ((lifespan_score + alive_cells_score + growth_score)
+                   * (large_configuration_penalty) * stableness)
         return fitness
 
     def evaluate(self, configuration):
@@ -305,16 +320,11 @@ class GeneticAlgorithm:
         """
         logging.info(
             """Initializing population with diverse configurations.""")
-        uniform_amount = self.population_size // 3
-        rem_amount = self.population_size % 3
-        population = self.enrich_population_with_variety(
-            clusters_type_amount=uniform_amount + rem_amount,
-            scatter_type_amount=uniform_amount,
-            basic_patterns_type_amount=uniform_amount
-        )
 
-        self.initial_population = set(population[:])
-        self.population = set(population)
+        population_pool = self.generate_new_population_pool(amount = self.population_size)
+
+        self.initial_population.update(population_pool)
+        self.population.update(population_pool)
         self.compute_generation(generation=0)
 
     def populate(self, generation):
@@ -346,9 +356,9 @@ class GeneticAlgorithm:
         )
         elites = sorted_population[:elitism_count]
         new_population.update(elites)
-        logging.debug(f"Elitism: Preserved top {elitism_count} configurations.")
+        logging.debug(f"""Elitism: Preserved top {
+                      elitism_count} configurations.""")
 
-        
         if generation % 10 != 0:
             amount = self.population_size // 4
             for _ in range(amount):
@@ -367,14 +377,7 @@ class GeneticAlgorithm:
             # Introduce fresh diversity
             logging.debug(
                 """Introducing fresh diversity for generation {}.""".format(generation + 1))
-            uniform_amount = self.population_size // 3
-            rem_amount = self.population_size % 3
-            enriched = self.enrich_population_with_variety(
-                clusters_type_amount=uniform_amount + rem_amount,
-                scatter_type_amount=uniform_amount,
-                basic_patterns_type_amount=uniform_amount
-            )
-            new_population = set(enriched)
+            new_population = set(self.generate_new_population_pool(amount=self.population_size))
 
         # Combine new and existing population
         combined = list(new_population) + list(self.population)
