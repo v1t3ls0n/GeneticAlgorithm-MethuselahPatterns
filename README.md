@@ -99,9 +99,6 @@ When prompted, you can either:
 - `alive_cells_weight`: Fitness weight for maximum population (default: 0.12)
 - `lifespan_weight`: Fitness weight for pattern longevity (default: 200.0)
 - `alive_growth_weight`: Fitness weight for population growth (default: 0.1)
-- `stableness_weight`: Fitness weight for pattern stability (default: 0.01)
-- `alive_cells_per_block`: Initial cells per active block (default: 5)
-- `alive_blocks`: Number of active blocks in initialization (default: 3)
 - `initial_living_cells_count_penalty_weight`: Penalty for large initial patterns (default: 0.7)
 
 ## 🖥️ Interactive Visualization
