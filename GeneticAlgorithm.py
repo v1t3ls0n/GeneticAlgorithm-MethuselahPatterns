@@ -625,9 +625,6 @@ class GeneticAlgorithm:
                 self.mutation_rate = max(
                     self.mutation_rate_lower_limit, self.mutation_rate * 0.9)
 
-        logging.info(f"Adjusted mutation rate to {
-                     self.mutation_rate:.4f} at generation {generation}.")
-
     def check_for_stagnation(self, last_generation):
         """
         Monitor evolution progress and detect stagnation patterns.
