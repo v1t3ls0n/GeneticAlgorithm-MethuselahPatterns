@@ -32,6 +32,7 @@ class GameOfLife:
         self.is_static = False
         self.is_periodic = False
         self.period_length = 1
+        self.period_start = 0 
         self.alive_history = [np.sum(self.grid)]
         self.unique_states = set()
         self.is_methuselah = False
@@ -107,9 +108,9 @@ class GameOfLife:
         # Periodic check: If the new state matches any previous state (excluding the immediate last)
         elif not self.is_periodic and new_state in self.history:
             self.is_periodic = True
-            self.period_length = len(self.history) - \
-                self.history.index(new_state)
-            self.max_stable_generations = self.period_length * 5
+            self.period_start = self.history.index(new_state)
+            self.period_length = len(self.history) - self.period_start 
+            self.max_stable_generations = self.period_length * 10
             logging.debug(f"""Grid has entered a periodic cycle. period length = {
                           self.period_length}""")
 
@@ -134,10 +135,13 @@ class GameOfLife:
 
             if self.is_static or self.is_periodic:
                 self.stable_count += 1
+                if self.is_periodic:
+                    cycle_index = self.period_start + len(self.history) % self.period_length
+                    self.grid = self.history[cycle_index]
             else:
                 self.lifespan += 1
+                self.step()
 
-            self.step()
             limiter -= 1
 
         self.is_methuselah = self.lifespan > self.period_length
