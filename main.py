@@ -31,7 +31,7 @@ class Configuration:
         initial_mutation_rate=0.3,
         alive_cells_weight=0.12,
         mutation_rate_lower_limit=0.1,
-        lifespan_weight=10.0,
+        lifespan_weight=100.0,
         alive_growth_weight=2,
         stableness_weight=1.0,
         initial_living_cells_count_penalty_weight=2,
