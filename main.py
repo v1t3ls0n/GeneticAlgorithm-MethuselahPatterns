@@ -13,14 +13,17 @@ Modules and Functions:
 """
 
 import logging
-from InteractiveSimulation import InteractiveSimulation
 from GeneticAlgorithm import GeneticAlgorithm
+from InteractiveSimulation import InteractiveSimulation
 
-# Configure logging to append to a log file
-logging.basicConfig(filename="simulation.log",
-                    filemode='a',
-                    level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure logging to append to a log file with triple-quoted messages
+logging.basicConfig(
+    filename="simulation.log",
+    filemode='a',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
 
 class Configuration:
     def __init__(
@@ -57,6 +60,7 @@ class Configuration:
 default_config = Configuration()
 default_params = default_config.as_dict()  # Fetch default values as a dictionary
 
+
 def main(grid_size,
          population_size,
          generations,
@@ -71,7 +75,7 @@ def main(grid_size,
     """
     Main function that drives the process:
     1. Instantiates the GeneticAlgorithm with the given parameters.
-    2. Runs the GA to completion, returning the top 5 best configurations.
+    2. Runs the GA to completion, returning the top configurations.
     3. Passes those configurations to InteractiveSimulation for visualization and analysis.
 
     Args:
@@ -84,37 +88,42 @@ def main(grid_size,
         lifespan_weight (float): Fitness weight for lifespan.
         alive_growth_weight (float): Fitness weight for growth ratio.
         stableness_weight (float): Fitness weight for how quickly a pattern stabilizes or not.
+        initial_living_cells_count_penalty_weight (float): Weight for penalizing large initial patterns.
         predefined_configurations (None or iterable): Optional, known patterns for initialization.
     """
-    logging.info(f"Starting run with parameters: "
-                 f"grid_size={grid_size}, "
-                 f"population_size={population_size}, "
-                 f"generations={generations}, "
-                 f"initial_mutation_rate={initial_mutation_rate}, "
-                 f"alive_cells_weight={alive_cells_weight}, "
-                 f"mutation_rate_lower_limit={mutation_rate_lower_limit}, "
-                 f"lifespan_weight={lifespan_weight}, "
-                 f"alive_growth_weight={alive_growth_weight}, "
-                 f"stableness_weight={stableness_weight}, "
-                 f"initial_living_cells_count_penalty_weight={initial_living_cells_count_penalty_weight}, "
-                 f"predefined_configurations={predefined_configurations}")
+    logging.info(f"""Starting run with parameters: 
+    grid_size={grid_size}, 
+    population_size={population_size}, 
+    generations={generations}, 
+    initial_mutation_rate={initial_mutation_rate}, 
+    alive_cells_weight={alive_cells_weight}, 
+    mutation_rate_lower_limit={mutation_rate_lower_limit}, 
+    lifespan_weight={lifespan_weight}, 
+    alive_growth_weight={alive_growth_weight}, 
+    stableness_weight={stableness_weight}, 
+    initial_living_cells_count_penalty_weight={initial_living_cells_count_penalty_weight}, 
+    predefined_configurations={predefined_configurations}""")
 
     # Instantiate the GeneticAlgorithm
-    algorithm = GeneticAlgorithm(grid_size,
-                                 population_size,
-                                 generations,
-                                 initial_mutation_rate,
-                                 mutation_rate_lower_limit,
-                                 alive_cells_weight,
-                                 lifespan_weight,
-                                 alive_growth_weight,
-                                 stableness_weight,
-                                 initial_living_cells_count_penalty_weight=initial_living_cells_count_penalty_weight,
-                                 predefined_configurations=predefined_configurations)
+    algorithm = GeneticAlgorithm(
+        grid_size=grid_size,
+        population_size=population_size,
+        generations=generations,
+        initial_mutation_rate=initial_mutation_rate,
+        mutation_rate_lower_limit=mutation_rate_lower_limit,
+        alive_cells_weight=alive_cells_weight,
+        lifespan_weight=lifespan_weight,
+        alive_growth_weight=alive_growth_weight,
+        stableness_weight=stableness_weight,
+        initial_living_cells_count_penalty_weight=initial_living_cells_count_penalty_weight,
+        predefined_configurations=predefined_configurations
+    )
 
     # Run the algorithm and retrieve top configurations and their parameters
-    algorithm.run()
-    selected_configurations, initial_configurations_start_index = algorithm.get_experiment_results()
+    results, initial_configurations_start_index = algorithm.run()
+    
+    # Extract only the 'config' from the results for visualization
+    
     run_params = {
         "grid_size": grid_size,
         "population_size": population_size,
@@ -130,12 +139,15 @@ def main(grid_size,
     }
 
     # Launch interactive simulation with the best configurations
-    simulation = InteractiveSimulation(configurations=selected_configurations,
-                                       initial_configurations_start_index=initial_configurations_start_index,
-                                       grid_size=grid_size,
-                                       generations_cache=algorithm.generations_cache,
-                                       mutation_rate_history=algorithm.mutation_rate_history,
-                                       run_params=run_params)
+    simulation = InteractiveSimulation(
+        configurations=results,
+        initial_configurations_start_index=initial_configurations_start_index,
+        grid_size=grid_size,
+        generations_cache=algorithm.generations_cache,
+        mutation_rate_history=algorithm.mutation_rate_history,
+        diversity_history=algorithm.diversity_history,  # Pass the new diversity metric
+        run_params=run_params
+    )
     simulation.run()
 
 
@@ -151,7 +163,7 @@ def get_user_param(prompt: str, default_value: str) -> str:
     Returns:
         str: The user-entered string or the default if empty.
     """
-    user_input = input(f"{prompt} [{default_value}]: ").strip()
+    user_input = input(f"""{prompt} [{default_value}]: """).strip()
     return user_input if user_input else default_value
 
 
@@ -169,7 +181,7 @@ def run_main_interactively():
     default_params = default_config.as_dict()  # Fetch default values as a dictionary
 
     # Ask if the user wants to use all defaults
-    use_defaults = input("Use default values for ALL parameters? (y/N): ").strip().lower()
+    use_defaults = input("""Use default values for ALL parameters? (y/N): """).strip().lower()
     if use_defaults.startswith('y') or use_defaults == "":
         main(**default_params)
         return
@@ -178,14 +190,20 @@ def run_main_interactively():
         # Interactively get parameters, falling back on the defaults dynamically
         updated_params = {}
         for key, value in default_params.items():
-            user_input = input(f"Enter {key} [{value}]: ").strip()
+            user_input = input(f"""{key} [{value}]: """).strip()
             if user_input == "":
                 updated_params[key] = value  # Use the default
             else:
-                updated_params[key] = type(value)(user_input)  # Cast to the correct type
+                try:
+                    # Attempt to cast the user input to the type of the default value
+                    updated_params[key] = type(value)(user_input)
+                except ValueError:
+                    logging.warning(f"""Invalid input for {key}. Using default value: {value}""")
+                    updated_params[key] = value
 
         # Pass the updated parameters to main
         main(**updated_params)
+
 
 if __name__ == '__main__':
     run_main_interactively()

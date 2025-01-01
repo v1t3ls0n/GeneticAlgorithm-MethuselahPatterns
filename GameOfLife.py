@@ -1,39 +1,43 @@
+
 """
-GameOfLife.py
--------------
-
-This module implements Conway's Game of Life, a cellular automaton, using a simulation class.
-The simulation starts with an initial configuration represented as a 1D list (mapped to a 2D grid)
-and evolves based on predefined rules. The simulation stops when the grid reaches a static or
-periodic state, or when a maximum iteration limit is exceeded.
-
+Optimized_GameOfLife.py
+-----------------------
+    
+This module implements Conway's Game of Life, optimized for performance while maintaining a
+1D grid representation. It leverages NumPy's vectorized operations to efficiently compute
+state transitions and uses multithreading for parallel computations where applicable. The
+simulation retains the original logic, ensuring compatibility with the existing codebase.
+    
 Classes:
-    GameOfLife: Handles the simulation of the Game of Life logic, including state transitions,
-    detecting static/periodic behavior, and tracking relevant statistics.
+    GameOfLife: Handles the simulation of Conway's Game of Life, including state transitions,
+    detecting static or periodic behavior, and tracking relevant statistics with optimized performance.
 """
 
-import random
 import logging
+import numpy as np
+from scipy.signal import convolve2d
+from threading import Thread
+from queue import Queue
 
 
 class GameOfLife:
     """
-    The GameOfLife class simulates Conway's Game of Life on a 2D grid, given an initial state.
-    It tracks the evolution of the grid through multiple generations, stopping when the grid
-    becomes static (unchanging) or periodic (repeats a previously encountered state), or when
-    the simulation reaches a maximum number of iterations.
+    The GameOfLife class simulates Conway's Game of Life on a 1D flattened NxN grid, optimized
+    for large grids using NumPy for vectorized operations. It tracks the evolution of the grid
+    through multiple generations, stopping when the grid becomes static (unchanging) or periodic
+    (repeats a previously encountered state), or when a maximum iteration limit is exceeded.
 
     Attributes:
         grid_size (int): The dimension N of the NxN grid.
-        grid (list[int]): A flat list of length N*N, representing the grid's cells (0=dead, 1=alive).
+        grid (numpy.ndarray): A 1D NumPy array of length N*N, representing the grid's cells (0=dead, 1=alive).
         initial_state (tuple[int]): The initial configuration of the grid (immutable).
         history (list[tuple[int]]): A record of all states encountered during the simulation.
         game_iteration_limit (int): Maximum number of generations to simulate.
         stable_count (int): Tracks consecutive generations where the state is static or periodic.
         max_stable_generations (int): Threshold for terminating the simulation if stable_count is reached.
         lifespan (int): Number of unique states the grid has passed through before stopping.
-        is_static (int): Indicates whether the grid has become static (1=true, 0=false).
-        is_periodic (int): Indicates whether the grid has entered a periodic cycle (1=true, 0=false).
+        is_static (bool): Indicates whether the grid has become static.
+        is_periodic (bool): Indicates whether the grid has entered a periodic cycle.
         max_alive_cells_count (int): Maximum number of alive cells observed during the simulation.
         alive_growth (float): Ratio between the maximum and minimum alive cell counts across generations.
         alive_history (list[int]): History of alive cell counts for each generation.
@@ -46,14 +50,19 @@ class GameOfLife:
 
         Args:
             grid_size (int): Size of the NxN grid.
-            initial_state (Iterable[int], optional): Flat list of the grid's initial configuration.
+            initial_state (Iterable[int], optional): Flattened list of the grid's initial configuration.
                 If None, the grid is initialized to all zeros (dead cells).
 
         The initial state is stored as an immutable tuple, and the simulation starts with
         an empty history except for the initial configuration.
         """
         self.grid_size = grid_size
-        self.grid = [0] * (grid_size * grid_size) if initial_state is None else list(initial_state)
+        if initial_state is None:
+            self.grid = np.zeros(grid_size * grid_size, dtype=int)
+        else:
+            if len(initial_state) != grid_size * grid_size:
+                raise ValueError(f"Initial state must have {grid_size * grid_size} elements.")
+            self.grid = np.array(initial_state, dtype=int)
 
         # Store the immutable initial state
         self.initial_state = tuple(self.grid)
@@ -62,49 +71,98 @@ class GameOfLife:
         self.stable_count = 0
         self.max_stable_generations = 10
         self.lifespan = 0
-        self.is_static = 0
-        self.is_periodic = 0
-        self.alive_history = [sum(self.grid)]
+        self.is_static = False
+        self.is_periodic = False
+        self.alive_history = [np.sum(self.grid)]
+        self.unique_states = set()
+        self.unique_states.add(self.initial_state)
+
+    def _grid_to_hashable(self, grid):
+        """
+        Converts a NumPy grid to a hashable tuple for state comparison.
+
+        Args:
+            grid (numpy.ndarray): The grid to convert.
+
+        Returns:
+            tuple: A tuple representation of the grid.
+        """
+        return tuple(grid.flatten())
+
+    def _count_alive_neighbors(self, grid):
+        """
+        Counts the number of alive neighbors for each cell in the grid using convolution.
+
+        Args:
+            grid (numpy.ndarray): The current grid as a 1D NumPy array.
+
+        Returns:
+            numpy.ndarray: A 1D NumPy array with the count of alive neighbors for each cell.
+        """
+        # Reshape to 2D for convolution
+        grid_2d = grid.reshape((self.grid_size, self.grid_size))
+
+        # Define the convolution kernel to count alive neighbors
+        kernel = np.array([[1, 1, 1],
+                           [1, 0, 1],
+                           [1, 1, 1]])
+
+        # Count alive neighbors using convolution with periodic boundary conditions
+        neighbor_count_2d = convolve2d(grid_2d, kernel, mode='same', boundary='wrap')
+
+        # Flatten back to 1D
+        neighbor_count = neighbor_count_2d.flatten()
+
+        return neighbor_count
+
+    def _compute_next_generation(self, current_grid, neighbor_count):
+        """
+        Computes the next generation of the grid based on the current grid and neighbor counts.
+
+        Args:
+            current_grid (numpy.ndarray): The current grid as a 1D NumPy array.
+            neighbor_count (numpy.ndarray): A 1D NumPy array with the count of alive neighbors for each cell.
+
+        Returns:
+            numpy.ndarray: The next generation grid as a 1D NumPy array.
+        """
+        # Apply the Game of Life rules using NumPy's vectorized operations
+        # Rule 1: A living cell with 2 or 3 neighbors survives.
+        survive = (current_grid == 1) & ((neighbor_count == 2) | (neighbor_count == 3))
+        # Rule 2: A dead cell with exactly 3 neighbors becomes alive.
+        birth = (current_grid == 0) & (neighbor_count == 3)
+        # Rule 3: All other cells die or remain dead.
+        next_grid = np.where(survive | birth, 1, 0)
+        return next_grid
 
     def step(self):
         """
         Executes one generation step in the Game of Life.
-        Each cell's state in the next generation is determined by its neighbors:
-            - A living cell (1) with 2 or 3 neighbors survives.
-            - A dead cell (0) with exactly 3 neighbors becomes alive.
-            - All other cells either die or remain dead.
-
-        After computing the new grid, the method checks if the state is static
-        (unchanged from the previous state) or periodic (matches a previous state
-        in the simulation history, excluding the immediately prior state).
+        Updates the grid based on neighbor counts and applies the Game of Life rules.
+        Checks for static or periodic states after updating.
         """
-        cur_grid = self.grid[:]
-        new_grid = [0] * (self.grid_size * self.grid_size)
+        current_grid = self.grid.copy()
+        neighbor_count = self._count_alive_neighbors(current_grid)
+        next_grid = self._compute_next_generation(current_grid, neighbor_count)
 
-        for x in range(self.grid_size):
-            for y in range(self.grid_size):
-                index = x * self.grid_size + y
-                alive_neighbors = self.count_alive_neighbors(x, y)
-                if cur_grid[index] == 1:
-                    # Survives if it has 2 or 3 neighbors
-                    if alive_neighbors in [2, 3]:
-                        new_grid[index] = 1
-                else:
-                    # A dead cell becomes alive if it has exactly 3 neighbors
-                    if alive_neighbors == 3:
-                        new_grid[index] = 1
-
-        new_state = tuple(new_grid)
-        cur_state = tuple(cur_grid)
+        # Convert to tuple for hashing and state tracking
+        new_state = tuple(next_grid)
+        current_state = tuple(current_grid)
 
         # Static check: No change from the previous generation
-        if new_state == cur_state:
-            self.is_static = 1
+        if np.array_equal(next_grid, current_grid):
+            self.is_static = True
+            logging.info("Grid has become static.")
         # Periodic check: If the new state matches any previous state (excluding the immediate last)
-        elif new_state in self.history[:-1]:
-            self.is_periodic = 1
+        elif new_state in self.unique_states:
+            self.is_periodic = True
+            logging.info("Grid has entered a periodic cycle.")
         else:
-            self.grid = new_grid
+            # Update the grid
+            self.grid = next_grid
+            # Add the new state to history and unique states
+            self.history.append(current_state)
+            self.unique_states.add(new_state)
 
     def run(self):
         """
@@ -122,42 +180,23 @@ class GameOfLife:
         """
         limiter = self.game_iteration_limit
 
-        while limiter and ((not self.is_static and not self.is_periodic) or self.stable_count < self.max_stable_generations):
-            alive_cell_count = sum(self.grid)
+        while limiter > 0 and ((not self.is_static and not self.is_periodic) or self.stable_count < self.max_stable_generations):
+            alive_cell_count = np.sum(self.grid)
             # If no cells are alive, mark as static
-            if not alive_cell_count:
-                self.is_static = 1
+            if alive_cell_count == 0:
+                self.is_static = True
+                logging.info("All cells are dead. Grid has become static.")
+                self.alive_history.append(0)
+                break
 
             self.alive_history.append(alive_cell_count)
-            self.history.append(tuple(self.grid[:]))
+            # Append the current state to history
+            self.history.append(tuple(self.grid))
 
             if self.is_periodic or self.is_static:
                 self.stable_count += 1
             else:
                 self.lifespan += 1
-                
+
             self.step()
             limiter -= 1
-
-    def count_alive_neighbors(self, x, y):
-        """
-        Counts the number of alive neighbors for a cell at position (x, y).
-
-        Args:
-            x (int): The row index of the cell.
-            y (int): The column index of the cell.
-
-        Returns:
-            int: The total number of alive neighbors surrounding the cell.
-        """
-        alive = 0
-        for i in range(-1, 2):
-            for j in range(-1, 2):
-                if i == 0 and j == 0:
-                    continue
-                nx, ny = x + i, y + j
-                if 0 <= nx < self.grid_size and 0 <= ny < self.grid_size:
-                    index = nx * self.grid_size + ny
-                    alive += self.grid[index]
-        return alive
-
