@@ -28,7 +28,7 @@ logging.basicConfig(
 class Configuration:
     def __init__(
         self,
-        grid_size=10,
+        grid_size=60,
         population_size=20,
         generations=100,
         initial_mutation_rate=0.3,

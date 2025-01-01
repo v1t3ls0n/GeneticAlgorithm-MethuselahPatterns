@@ -147,7 +147,7 @@ class GameOfLife:
         elif not self.is_periodic and new_state in self.history:
             self.is_periodic = True
             self.period_length = len(self.history) - self.history.index(new_state)
-            self.max_stable_generations+ = self.period_length
+            self.max_stable_generations += self.period_length * 2
             logging.info(f"""Grid has entered a periodic cycle. period length = {self.period_length}""")
 
         # Update the grid
