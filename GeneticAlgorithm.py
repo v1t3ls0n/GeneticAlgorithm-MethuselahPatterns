@@ -69,6 +69,7 @@ class GeneticAlgorithm:
         self.generations = generations
         self.mutation_rate_lower_limit = mutation_rate_lower_limit
         self.mutation_rate = initial_mutation_rate
+        self.initial_mutation_rate = initial_mutation_rate
         self.alive_cells_weight = alive_cells_weight
         self.lifespan_weight = lifespan_weight
         self.initial_living_cells_count_penalty_weight = initial_living_cells_count_penalty_weight
@@ -171,92 +172,44 @@ class GeneticAlgorithm:
 
     def populate(self, generation):
         """
-        Update the population by retaining top individuals and introducing new ones every 5 generations.
+        Generate a new generation of configurations for the population.
 
-        Args:
-            generation (int): Current generation number.
+        Process:
+            1. Select two parent configurations from the current population based on fitness.
+            2. Create a child configuration using crossover between the two parents.
+            3. Apply mutation to the child with a probability determined by the mutation rate.
+            4. Combine the new children with the existing population.
+            5. Evaluate all configurations and retain only the top `population_size` individuals.
+
+        Ensures:
+            - The population evolves towards higher fitness by keeping top performers.
+            - The population remains diverse through mutation.
+
         Returns:
-            None: Updates self.population in place.
+            None: Updates the `population` attribute in place.
         """
         new_population = set()
+        if generation % 10:
+            amount = self.population_size // 4
+            for _ in range(amount):
+                parent1, parent2 = self.select_parents()
+                child = self.crossover(parent1, parent2)
+                if random.uniform(0, 1) < self.mutation_rate:
+                    child = self.mutate(child)
+                new_population.add(child)
+        else:
+            uniform_amount = self.population_size // 4
+            rem_amount = self.population_size % 4
+            new_population = set(self.enrich_population_with_variety(clusters_type_amount=uniform_amount+rem_amount,
+                                                                     scatter_type_amount=uniform_amount, basic_patterns_type_amount=uniform_amount))
 
-        # Step 1: Generate children using `select_parents`
-        for _ in range(self.population_size):
-            parent1, parent2 = self.select_parents()
-            child = self.crossover(parent1, parent2)
-            if random.uniform(0, 1) < self.mutation_rate:
-                child = self.mutate(child)
-            new_population.add(child)
+        combined = list(new_population) + list(self.population)
+        combined = [(config, self.evaluate(config)['fitness_score'])
+                    for config in combined]
+        combined.sort(key=lambda x: x[1], reverse=True)
+        self.population = set(
+            [config for config, _ in combined[:self.population_size]])
 
-        # Step 2: Enrich with new individuals every 5 generations
-        if generation % 5 == 0:
-            logging.info(f"Enriching population at generation {generation}.")
-            num_new_individuals = len(self.population) - len(new_population)
-            self.enrich_population_with_variety(
-                clusters_type_amount=num_new_individuals // 3,
-                scatter_type_amount=num_new_individuals // 3,
-                basic_patterns_type_amount=num_new_individuals // 3
-            )
-            new_individuals = self.population.difference(new_population)
-            new_population.update(new_individuals)
-
-        # Step 3: Combine old and new populations
-        self.population = new_population
-
-
-    def mutate_basic(self, configuration):
-        """
-        Perform mutation on a given configuration by flipping some cells.
-
-        Mutation Process:
-            - The chance of flipping is determined by `self.mutation_rate`.
-        Args:
-            configuration (tuple[int]): A flattened NxN grid of 0s and 1s representing the configuration.
-
-        Returns:
-            tuple[int]: A new configuration with mutations applied.
-        """
-        new_configuration = list(configuration)
-        for i in range(len(configuration)):
-            if random.uniform(0, 1) < min(0.5, self.mutation_rate * 5):
-                new_configuration[i] = 0 if configuration[i] else 1
-        return tuple(new_configuration)
-
-    def mutate_harsh(self, configuration):
-        new_configuration = list(configuration)
-        cluster_size = random.randint(1, len(new_configuration))
-        start = random.randint(0, len(new_configuration) - 1)
-        for j in range(cluster_size):
-            idx = (start + j) % len(new_configuration)
-            new_configuration[idx] = random.randint(0, 1)
-
-        return tuple(new_configuration)
-
-    def mutate_clusters(self, configuration):
-        """
-        Mutate a configuration by flipping cells in random clusters.
-        """
-        N = self.grid_size
-        new_configuration = list(configuration)
-        cluster_size = self.grid_size
-
-        for _ in range(cluster_size):
-            if random.uniform(0, 1) < min(0.5, self.mutation_rate * 5):
-                center_row = random.randint(0, N - 1)
-                center_col = random.randint(0, N - 1)
-                for i in range(-1, 2):
-                    for j in range(-1, 2):
-                        row = (center_row + i) % N
-                        col = (center_col + j) % N
-                        index = row * N + col
-                        new_configuration[index] = 1 if new_configuration[index] == 0 else 0
-        return tuple(new_configuration)
-
-    def mutate(self, configuration):
-        mutation_methods = [self.mutate_basic,
-                            self.mutate_clusters, self.mutate_harsh]
-        mutate_func = random.choices(mutation_methods, [0.3, 0.3, 0.4], k=1)[0]
-        return mutate_func(configuration)
 
     def select_parents(self):
         """
@@ -301,7 +254,7 @@ class GeneticAlgorithm:
             """
             Select two parents using tournament selection.
             """
-            tournament_size = 3
+            tournament_size = min(3, self.population_size // 4)
             candidates1 = random.sample(
                 list(self.population), k=tournament_size)
             candidates2 = random.sample(
@@ -323,145 +276,199 @@ class GeneticAlgorithm:
         # List of selection methods
         selection_methods = [normalized_probability_selection,
                              tournament_selection, rank_based_selection]
-        selected_method = random.choice(
-            selection_methods)  # Randomly select a method
-
+        selected_method = random.choices(selection_methods, weights=[0.9,0.05,0.05], k=1)[
+            0]  # Randomly select a method
         # Select two parents using the chosen method
         parent1, parent2 = selected_method()
-
-        logging.info(f""""parent1 {parent1} parent2 {parent2}""")
-
         return parent1, parent2
 
-    def crossover_basic(self, parent1, parent2):
-        N = self.grid_size
-        total_cells = N * N
-        child = []
-        for i in range(total_cells):
-            if i % 2 == 0:
-                child.append(parent1[i])
-            else:
-                child.append(parent2[i])
+    def mutate(self, configuration):
 
-        return tuple(child)
+        def mutate_basic(configuration):
+            """
+            Perform mutation on a given configuration by flipping some cells.
 
-    def crossover_simple(self, parent1, parent2):
-        N = self.grid_size
-        total_cells = N * N
+            Mutation Process:
+                - The chance of flipping is determined by `self.mutation_rate`.
+            Args:
+                configuration (tuple[int]): A flattened NxN grid of 0s and 1s representing the configuration.
 
-        if len(parent1) != total_cells or len(parent2) != total_cells:
-            logging.error(f"""Parent configurations must be {total_cells}, but got sizes: {
-                          len(parent1)} and {len(parent2)}""")
-            raise ValueError(f"""Parent configurations must be {
-                             total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
+            Returns:
+                tuple[int]: A new configuration with mutations applied.
+            """
+            new_configuration = list(configuration)
+            for i in range(len(configuration)):
+                if random.uniform(0, 1) < min(0.5, self.mutation_rate * 5):
+                    new_configuration[i] = 0 if configuration[i] else 1
+            return tuple(new_configuration)
 
-        blocks_parent1 = [
-            parent1[i * N: (i + 1) * N] for i in range(N)]
-        blocks_parent2 = [
-            parent2[i * N: (i + 1) * N] for i in range(N)]
+        def mutate_harsh(configuration):
+            new_configuration = list(configuration)
+            cluster_size = random.randint(1, len(new_configuration))
+            start = random.randint(0, len(new_configuration) - 1)
+            value = random.randint(0, 1)
+            for j in range(cluster_size):
+                idx = (start + j) % len(new_configuration)
+                new_configuration[idx] = value
 
-        child_blocks = []
-        for i in range(N):
-            if i % 2 == 0:
-                child_blocks.extend(blocks_parent2[i])
-            else:
-                child_blocks.extend(blocks_parent1[i])
+            return tuple(new_configuration)
 
-        if len(child_blocks) != total_cells:
-            logging.debug(f"""Child size mismatch, expected {
-                          total_cells}, got {len(child_blocks)}""")
-            child_blocks = child_blocks + [0] * \
-                (total_cells - len(child_blocks))
+        def mutate_clusters(configuration, mutation_rate=0.1, cluster_size=3):
+            """
+            Mutate a configuration by flipping cells in random clusters.
+            """
+            N = self.grid_size
+            mutated = list(configuration)
 
-        return tuple(child_blocks)
+            for _ in range(cluster_size):
+                if random.uniform(0, 1) < mutation_rate:
+                    center_row = random.randint(0, N - 1)
+                    center_col = random.randint(0, N - 1)
+                    for i in range(-1, 2):
+                        for j in range(-1, 2):
+                            row = (center_row + i) % N
+                            col = (center_col + j) % N
+                            index = row * N + col
+                            mutated[index] = 1 if mutated[index] == 0 else 0
+            return tuple(mutated)
 
-    def crossover_complex(self, parent1, parent2):
-        """
-        Create a child configuration by combining blocks from two parent configurations.
-
-        Crossover Process:
-            - Divide each parent's configuration into blocks of size `block_size`.
-            - Select blocks from each parent based on the ratio of living cells in each block.
-            - Combine selected blocks to form a new child configuration.
-            - If a block is not chosen from either parent, randomly select one parent for that block.
-
-        Args:
-            parent1 (tuple[int]): A flattened NxN configuration (first parent).
-            parent2 (tuple[int]): A flattened NxN configuration (second parent).
-
-        Returns:
-            tuple[int]: A new child configuration created by combining blocks from both parents.
-        """
-        N = self.grid_size
-        total_cells = N*N
-        reminder = N % 2
-
-        if len(parent1) != total_cells or len(parent2) != total_cells:
-            logging.info(f"""Parent configurations must be {total_cells}, but got sizes: {
-                         len(parent1)} and {len(parent2)}""")
-            raise ValueError(f"""Parent configurations must be {
-                             total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
-
-        block_size = N
-        blocks_parent1 = [
-            parent1[i*block_size:(i+1)*block_size] for i in range(N)]
-        blocks_parent2 = [
-            parent2[i*block_size:(i+1)*block_size] for i in range(N)]
-
-        block_alive_counts_parent1 = [sum(block) for block in blocks_parent1]
-        block_alive_counts_parent2 = [sum(block) for block in blocks_parent2]
-        max_alive_cells_parent1 = sum(block_alive_counts_parent1)
-        max_alive_cells_parent2 = sum(block_alive_counts_parent2)
-
-        # Probability assignment
-        if max_alive_cells_parent1 > 0:
-            probabilities_parent1 = [(alive_count / max_alive_cells_parent1) if alive_count > 0 else (1/total_cells)
-                                     for alive_count in block_alive_counts_parent1]
-        else:
-            probabilities_parent1 = [1/total_cells]*N
-
-        if max_alive_cells_parent2 > 0:
-            probabilities_parent2 = [(alive_count / max_alive_cells_parent2) if alive_count > 0 else (1/total_cells)
-                                     for alive_count in block_alive_counts_parent2]
-        else:
-            probabilities_parent2 = [1/total_cells]*N
-
-        selected_blocks_parent1 = random.choices(
-            range(N), weights=probabilities_parent1, k=(N//2)+reminder)
-        remaining_blocks_parent2 = [i for i in range(
-            N) if i not in selected_blocks_parent1]
-        selected_blocks_parent2 = random.choices(
-            remaining_blocks_parent2,
-            weights=[probabilities_parent2[i]
-                     for i in remaining_blocks_parent2],
-            k=N//2
-        )
-
-        child_blocks = []
-        for i in range(N):
-            if i in selected_blocks_parent1:
-                child_blocks.extend(blocks_parent1[i])
-            elif i in selected_blocks_parent2:
-                child_blocks.extend(blocks_parent2[i])
-            else:
-                # If not chosen from either, pick randomly
-                selected_parent = random.choices(
-                    [1, 2], weights=[0.5, 0.5], k=1)[0]
-                if selected_parent == 1:
-                    child_blocks.extend(blocks_parent1[i])
-                else:
-                    child_blocks.extend(blocks_parent2[i])
-
-        # Fix length if needed
-        if len(child_blocks) != total_cells:
-            logging.info(f"""Child size mismatch, expected {
-                         total_cells}, got {len(child_blocks)}""")
-            child_blocks = child_blocks + [0]*(total_cells - len(child_blocks))
-        return tuple(child_blocks)
+        mutation_methods = [mutate_basic, mutate_clusters, mutate_harsh]
+        mutate_func = random.choices(mutation_methods, [0.4, 0.4, 0.2], k=1)[0]
+        return mutate_func(configuration)
 
     def crossover(self, parent1, parent2):
-        crossover_methods = [self.crossover_basic,
-                             self.crossover_simple, self.crossover_complex]
+
+        def crossover_basic(parent1, parent2):
+            N = self.grid_size
+            total_cells = N * N
+            child = []
+            for i in range(total_cells):
+                if i % 2 == 0:
+                    child.append(parent1[i])
+                else:
+                    child.append(parent2[i])
+
+            return tuple(child)
+
+        def crossover_simple(parent1, parent2):
+            N = self.grid_size
+            total_cells = N * N
+
+            if len(parent1) != total_cells or len(parent2) != total_cells:
+                logging.error(f"""Parent configurations must be {total_cells}, but got sizes: {
+                    len(parent1)} and {len(parent2)}""")
+                raise ValueError(f"""Parent configurations must be {
+                    total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
+
+            blocks_parent1 = [
+                parent1[i * N: (i + 1) * N] for i in range(N)]
+            blocks_parent2 = [
+                parent2[i * N: (i + 1) * N] for i in range(N)]
+
+            child_blocks = []
+            for i in range(N):
+                if i % 2 == 0:
+                    child_blocks.extend(blocks_parent2[i])
+                else:
+                    child_blocks.extend(blocks_parent1[i])
+
+            if len(child_blocks) != total_cells:
+                logging.debug(f"""Child size mismatch, expected {
+                    total_cells}, got {len(child_blocks)}""")
+                child_blocks = child_blocks + [0] * \
+                    (total_cells - len(child_blocks))
+
+            return tuple(child_blocks)
+
+        def crossover_complex(parent1, parent2):
+            """
+            Create a child configuration by combining blocks from two parent configurations.
+
+            Crossover Process:
+                - Divide each parent's configuration into blocks of size `block_size`.
+                - Select blocks from each parent based on the ratio of living cells in each block.
+                - Combine selected blocks to form a new child configuration.
+                - If a block is not chosen from either parent, randomly select one parent for that block.
+
+            Args:
+                parent1 (tuple[int]): A flattened NxN configuration (first parent).
+                parent2 (tuple[int]): A flattened NxN configuration (second parent).
+
+            Returns:
+                tuple[int]: A new child configuration created by combining blocks from both parents.
+            """
+            N = self.grid_size
+            total_cells = N*N
+            reminder = N % 2
+
+            if len(parent1) != total_cells or len(parent2) != total_cells:
+                logging.info(f"""Parent configurations must be {total_cells}, but got sizes: {
+                    len(parent1)} and {len(parent2)}""")
+                raise ValueError(f"""Parent configurations must be {
+                    total_cells}, but got sizes: {len(parent1)} and {len(parent2)}""")
+
+            block_size = N
+            blocks_parent1 = [
+                parent1[i*block_size:(i+1)*block_size] for i in range(N)]
+            blocks_parent2 = [
+                parent2[i*block_size:(i+1)*block_size] for i in range(N)]
+
+            block_alive_counts_parent1 = [
+                sum(block) for block in blocks_parent1]
+            block_alive_counts_parent2 = [
+                sum(block) for block in blocks_parent2]
+            max_alive_cells_parent1 = sum(block_alive_counts_parent1)
+            max_alive_cells_parent2 = sum(block_alive_counts_parent2)
+
+            # Probability assignment
+            if max_alive_cells_parent1 > 0:
+                probabilities_parent1 = [(alive_count / max_alive_cells_parent1) if alive_count > 0 else (1/total_cells)
+                                         for alive_count in block_alive_counts_parent1]
+            else:
+                probabilities_parent1 = [1/total_cells]*N
+
+            if max_alive_cells_parent2 > 0:
+                probabilities_parent2 = [(alive_count / max_alive_cells_parent2) if alive_count > 0 else (1/total_cells)
+                                         for alive_count in block_alive_counts_parent2]
+            else:
+                probabilities_parent2 = [1/total_cells]*N
+
+            selected_blocks_parent1 = random.choices(
+                range(N), weights=probabilities_parent1, k=(N//2)+reminder)
+            remaining_blocks_parent2 = [i for i in range(
+                N) if i not in selected_blocks_parent1]
+            selected_blocks_parent2 = random.choices(
+                remaining_blocks_parent2,
+                weights=[probabilities_parent2[i]
+                         for i in remaining_blocks_parent2],
+                k=N//2
+            )
+
+            child_blocks = []
+            for i in range(N):
+                if i in selected_blocks_parent1:
+                    child_blocks.extend(blocks_parent1[i])
+                elif i in selected_blocks_parent2:
+                    child_blocks.extend(blocks_parent2[i])
+                else:
+                    # If not chosen from either, pick randomly
+                    selected_parent = random.choices(
+                        [1, 2], weights=[0.5, 0.5], k=1)[0]
+                    if selected_parent == 1:
+                        child_blocks.extend(blocks_parent1[i])
+                    else:
+                        child_blocks.extend(blocks_parent2[i])
+
+            # Fix length if needed
+            if len(child_blocks) != total_cells:
+                logging.info(f"""Child size mismatch, expected {
+                    total_cells}, got {len(child_blocks)}""")
+                child_blocks = child_blocks + \
+                    [0]*(total_cells - len(child_blocks))
+            return tuple(child_blocks)
+
+        crossover_methods = [crossover_basic,
+                             crossover_simple, crossover_complex]
         selected_crossover_method = random.choices(
             crossover_methods, [0.3, 0.3, 0.4], k=1)[0]
         return selected_crossover_method(parent1, parent2)
@@ -479,28 +486,24 @@ class GeneticAlgorithm:
         """
 
         total_cells = self.grid_size * self.grid_size
-        initial_live_cells = total_cells // 3
 
         # Adjust number of clusters based on grid size
-        max_cluster_amount = self.grid_size // 3
-        min_clusters_amount = 1
         max_cluster_size = self.grid_size
         min_cluster_size = min(2, self.grid_size)
 
-        max_scattered_cells = (initial_live_cells // 4) * 2
+        max_scattered_cells = total_cells // 3
         min_scattered_cells = 1
 
-        max_pattern_cells = (initial_live_cells // 4) * 2
+        max_pattern_cells = total_cells // 3
         min_pattern_cells = 1
-
+        population_pool = []
         # Generate Cluster Configurations
         for _ in range(clusters_type_amount):
             configuration = [0] * total_cells
-            num_clusters = random.randint(
-                min_clusters_amount, max_cluster_amount)
+
             cluster_size = random.randint(min_cluster_size, max_cluster_size)
 
-            for _ in range(num_clusters):
+            for _ in range(clusters_type_amount):
                 center_row = random.randint(0, self.grid_size - 1)
                 center_col = random.randint(0, self.grid_size - 1)
                 for _ in range(cluster_size):
@@ -511,7 +514,7 @@ class GeneticAlgorithm:
                     index = row * self.grid_size + col
                     configuration[index] = 1
 
-            self.population.add(tuple(configuration))
+                population_pool.append(tuple(configuration))
 
         # Generate Scattered Configurations
         for _ in range(scatter_type_amount):
@@ -523,7 +526,7 @@ class GeneticAlgorithm:
             for index in scattered_indices:
                 configuration[index] = 1
 
-            self.population.add(tuple(configuration))
+            population_pool.append(tuple(configuration))
 
         # Generate Simple Patterns Configuration
         for _ in range(basic_patterns_type_amount):
@@ -548,7 +551,9 @@ class GeneticAlgorithm:
                 for index in additional_cells:
                     configuration[index] = 1
 
-            self.population.add(tuple(configuration))
+            population_pool.append(tuple(configuration))
+
+        return population_pool
 
     def initialize(self):
         """
@@ -565,9 +570,11 @@ class GeneticAlgorithm:
 
         uniform_amount = self.population_size // 3
         rem_amount = self.population_size % 3
-        self.enrich_population_with_variety(clusters_type_amount=uniform_amount+rem_amount,
-                                            scatter_type_amount=uniform_amount, basic_patterns_type_amount=uniform_amount)
-        self.initial_population = list(self.population)
+        population = self.enrich_population_with_variety(clusters_type_amount=uniform_amount+rem_amount,
+                                                         scatter_type_amount=uniform_amount, basic_patterns_type_amount=uniform_amount)
+
+        self.initial_population = population
+        self.population = set(population)
         self.compute_generation(generation=0)
 
     def adjust_mutation_rate(self, generation):
@@ -622,19 +629,19 @@ class GeneticAlgorithm:
         # Calculate the number of unique fitness scores
         unique_fitness_scores = len(set(avg_fitness))
         total_generations = len(avg_fitness)
+        stagnation_score = total_generations/unique_fitness_scores
 
         # If fitness scores are stagnant (low diversity)
-        if unique_fitness_scores == 1:
-            logging.warning(f"""Stagnation detected in last {
-                            total_generations} generations.""")
+        if stagnation_score > 8:
             self.mutation_rate = min(
-                0.5, self.mutation_rate * 1.5)  # Increase mutation rate
+                self.initial_mutation_rate, self.mutation_rate * 1.5)  # Increase mutation rate
 
-        elif unique_fitness_scores < total_generations / 2:
+        elif stagnation_score > 4:
             # Partial stagnation - gentle increase
             logging.info(
                 f"""Partial stagnation detected. Increasing mutation rate slightly.""")
-            self.mutation_rate = min(0.5, self.mutation_rate * 1.2)
+            self.mutation_rate = min(
+                self.initial_mutation_rate, self.mutation_rate * 1.2)
 
         # Ensure mutation rate does not fall below the lower limit
         self.mutation_rate = max(
@@ -752,12 +759,12 @@ class GeneticAlgorithm:
         fitness_scores_initial_population.sort(
             key=lambda x: x[1], reverse=True)
 
-        top_ten_configs = fitness_scores[:min(10, len(fitness_scores))]
+        top_configs = fitness_scores[:self.population_size]
 
         results = []
 
         # Store their histories for later viewing
-        for config, _ in top_ten_configs:
+        for config, _ in top_configs:
 
             # logging.info("Top Configuration:")
             # logging.info(f"  Configuration: {config}")
