@@ -297,7 +297,7 @@ class GeneticAlgorithm:
 
                 # Combine penalties
                 uniqueness_score = (canonical_penalty *
-                                    cell_frequency_penalty) ** 3
+                                    cell_frequency_penalty) ** 2
 
                 # Adjust the fitness score
                 corrected_score = (
