@@ -742,7 +742,7 @@ class GeneticAlgorithm:
         configs, scores = zip(*corrected_scores)
         total_score = sum(scores)
         if total_score == 0:
-            logging.info("""Total score is 0, selecting parents randomly.""")
+            logging.debug("""Total score is 0, selecting parents randomly.""")
             return random.choices(configs, k=num_parents)
 
         probabilities = [score / total_score for score in scores]
@@ -1230,7 +1230,7 @@ class GeneticAlgorithm:
         fitness_scores_initial_population = [(config, self.configuration_cache[config]['fitness_score'])
                                              for config in self.initial_population]
 
-        logging.info("""Initial population size: {}""".format(
+        logging.debug("""Initial population size: {}""".format(
             len(fitness_scores_initial_population)))
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
         fitness_scores_initial_population.sort(

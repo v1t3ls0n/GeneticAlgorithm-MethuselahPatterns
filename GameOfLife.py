@@ -142,13 +142,13 @@ class GameOfLife:
         # Static check: No change from the previous generation
         if not self.is_static and current_state == new_state:
             self.is_static = True
-            logging.info("Grid has become static.")
+            logging.debug("Grid has become static.")
         # Periodic check: If the new state matches any previous state (excluding the immediate last)
         elif not self.is_periodic and new_state in self.history:
             self.is_periodic = True
             self.period_length = len(self.history) - self.history.index(new_state)
             self.max_stable_generations = self.period_length * 5
-            logging.info(f"""Grid has entered a periodic cycle. period length = {self.period_length}""")
+            logging.debug(f"""Grid has entered a periodic cycle. period length = {self.period_length}""")
 
         # Update the grid
         self.grid = next_grid
