@@ -176,7 +176,6 @@ class GeneticAlgorithm:
 
         return population
 
-    
     def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, stableness, initial_living_cells_count):
         """
         Calculate weighted fitness score combining multiple optimization objectives.
@@ -321,7 +320,8 @@ class GeneticAlgorithm:
         logging.info(
             """Initializing population with diverse configurations.""")
 
-        population_pool = self.generate_new_population_pool(amount = self.population_size)
+        population_pool = self.generate_new_population_pool(
+            amount=self.population_size)
 
         self.initial_population.update(population_pool)
         self.population.update(population_pool)
@@ -377,7 +377,8 @@ class GeneticAlgorithm:
             # Introduce fresh diversity
             logging.debug(
                 """Introducing fresh diversity for generation {}.""".format(generation + 1))
-            new_population = set(self.generate_new_population_pool(amount=self.population_size))
+            new_population = set(self.generate_new_population_pool(
+                amount=self.population_size))
 
         # Combine new and existing population
         combined = list(new_population) + list(self.population)
