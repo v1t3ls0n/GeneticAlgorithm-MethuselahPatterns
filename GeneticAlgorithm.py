@@ -613,16 +613,20 @@ class GeneticAlgorithm:
             avg_fitness_last_10 = [
                 self.generations_cache[g]['avg_fitness'] for g in range(generation-10, generation)
             ]
-            improvement_ratio = avg_fitness_last_10[-1] / max(1, avg_fitness_last_10[0])
+            improvement_ratio = avg_fitness_last_10[-1] / \
+                max(1, avg_fitness_last_10[0])
 
             if improvement_ratio < 1.01:
                 # Plateau detected, increase mutation rate
-                self.mutation_rate = min(self.initial_mutation_rate, self.mutation_rate * 1.2)
+                self.mutation_rate = min(
+                    self.initial_mutation_rate, self.mutation_rate * 1.2)
             else:
                 # Fitness improving, decrease mutation rate
-                self.mutation_rate = max(self.mutation_rate_lower_limit, self.mutation_rate * 0.9)
+                self.mutation_rate = max(
+                    self.mutation_rate_lower_limit, self.mutation_rate * 0.9)
 
-        logging.info(f"Adjusted mutation rate to {self.mutation_rate:.4f} at generation {generation}.")
+        logging.info(f"Adjusted mutation rate to {
+                     self.mutation_rate:.4f} at generation {generation}.")
 
     def check_for_stagnation(self, last_generation):
         """
@@ -780,7 +784,8 @@ class GeneticAlgorithm:
         fitness_scores_initial_population = [(config, self.configuration_cache[config]['fitness_score'])
                                              for config in self.initial_population]
 
-        logging.info(f""" initial population size : {len(fitness_scores_initial_population)}""")
+        logging.info(f""" initial population size : {
+                     len(fitness_scores_initial_population)}""")
         fitness_scores.sort(key=lambda x: x[1], reverse=True)
         fitness_scores_initial_population.sort(
             key=lambda x: x[1], reverse=True)
@@ -788,7 +793,6 @@ class GeneticAlgorithm:
         top_configs = fitness_scores[:self.population_size]
 
         results = []
-
 
         for config, _ in top_configs:
 
@@ -845,7 +849,6 @@ class GeneticAlgorithm:
             logging.info(f"""Initial Configuration Living Cells Count: {
                          self.configuration_cache[config]['initial_living_cells_count']}""")
             results.append(params_dict)
-
 
         initial_configurations_start_index = len(top_configs)
         return results, initial_configurations_start_index
