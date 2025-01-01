@@ -22,7 +22,7 @@ class InteractiveSimulation:
         grid_size,
         generations_cache,
         mutation_rate_history,
-         initial_configurations_start_index,
+        initial_configurations_start_index,
         run_params=None
     ):
         print("Initializing InteractiveSimulation with TWO windows.")
@@ -30,7 +30,7 @@ class InteractiveSimulation:
         self.grid_size = grid_size
         self.generations_cache = generations_cache
         self.mutation_rate_history = mutation_rate_history
-        self.initial_configurations_start_index =  initial_configurations_start_index
+        self.initial_configurations_start_index = initial_configurations_start_index
         self.run_params = run_params or {}
         # Navigation state
         self.current_config_index = 0
@@ -228,7 +228,8 @@ class InteractiveSimulation:
         """
         Advance one generation in the current config's history, if available.
         """
-        hist_len = len(self.configurations[self.current_config_index]['history'])
+        hist_len = len(
+            self.configurations[self.current_config_index]['history'])
         if self.current_generation + 1 < hist_len:
             self.current_generation += 1
             self.update_grid()
@@ -245,9 +246,13 @@ class InteractiveSimulation:
         """
         Redraw the NxN grid in the "Grid Window" for the current config/generation.
         """
-        
+
         param_dict = self.configurations[self.current_config_index]
-        fitness_score = param_dict.get('fitness_score',0) 
+
+        fitness_score = param_dict.get(
+            'fitness_score', 0)
+        normalized_fitness_score = param_dict.get(
+            'normalized_fitness_score', 0)
         lifespan = param_dict.get('lifespan', 0)
         max_alive = param_dict.get('max_alive_cells_count', 0)
         growth = param_dict.get('alive_growth', 1.0)
@@ -256,8 +261,8 @@ class InteractiveSimulation:
             'initial_living_cells_count', 0.0)
         is_first_generation = param_dict.get('is_first_generation')
 
-        title_txt = (f"""Config From First Generation #{self.current_config_index - self.initial_configurations_start_index  +1}""" if is_first_generation 
-        else  f"""Top Config #{self.current_config_index + 1}""")
+        title_txt = (f"""Config From First Generation #{self.current_config_index - self.initial_configurations_start_index + 1}""" if is_first_generation
+                     else f"""Top Config #{self.current_config_index + 1}""")
 
         # title_txt = "Config"
         grid_2d = [
@@ -275,7 +280,7 @@ class InteractiveSimulation:
         self.grid_ax.set_ylabel("ARROWS: UP/DOWN=configs, LEFT/RIGHT=gens")
 
         text_str = (
-            f"""fitness score = {fitness_score:.3f} | """
+            f"""fitness score = {fitness_score:.2f} | normalized fitness score = {normalized_fitness_score:.4f}\n"""
             f"""lifespan = {lifespan} | initial_size = {
                 initial_living_cells_count} | """
             f"""max_alive = {max_alive} | growth = {
@@ -322,7 +327,8 @@ class InteractiveSimulation:
             np.add(avg_initial_size, std_initial_size),
             color='cyan', alpha=0.2, label='Std Dev'
         )
-        self.standardized_initial_size_plot.set_title("Standardized Initial Size")
+        self.standardized_initial_size_plot.set_title(
+            "Standardized Initial Size")
 
         # ---------------- Lifespan ----------------
         avg_lifespan = [self.generations_cache[g]['avg_lifespan']
@@ -332,7 +338,7 @@ class InteractiveSimulation:
         self.standardized_lifespan_plot.clear()
         self.standardized_lifespan_plot.plot(
             gens, avg_lifespan, label='Standardized Lifespan', color='green')
-        
+
         self.standardized_lifespan_plot.fill_between(
             gens,
             np.subtract(avg_lifespan, std_lifespan),

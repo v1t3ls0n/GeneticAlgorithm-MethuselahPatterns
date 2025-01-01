@@ -1,4 +1,3 @@
-
 import logging
 from GameOfLife import GameOfLife
 import random
@@ -50,7 +49,7 @@ class GeneticAlgorithm:
             initial_living_cells_count_penalty_weight (float): Weight for penalizing large initial patterns.
             predefined_configurations (optional): Predefined Game of Life patterns to include.
         """
-        print("Initializing GeneticAlgorithm.""")
+        print("Initializing GeneticAlgorithm.")
         self.grid_size = grid_size
         self.population_size = population_size
         self.generations = generations
@@ -66,10 +65,18 @@ class GeneticAlgorithm:
             collections.defaultdict)
         self.generations_cache = collections.defaultdict(
             collections.defaultdict)
-        self.predefined_configurations = predefined_configurations
+        self.canonical_forms_cache = collections.defaultdict(
+            tuple)  # Cache for canonical forms
+        self.block_frequencies_cache = collections.defaultdict(
+            tuple)  # Cache for block frequencies
         self.population = set()
         self.initial_population = []
         self.mutation_rate_history = []
+        self.min_fitness = float('inf')  # Minimum fitness score
+        self.max_fitness = float('-inf')  # Maximum fitness score
+        self.min_uniqueness_score = float('inf')  # Minimum uniqueness score
+        self.max_uniqueness_score = float('-inf')  # Maximum uniqueness score
+        self.predefined_configurations = predefined_configurations
 
     def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, stableness, initial_living_cells_count):
         """
@@ -125,8 +132,20 @@ class GeneticAlgorithm:
         """
         configuration_tuple = tuple(configuration)
 
+        # Check if the configuration is already cached
         if configuration_tuple in self.configuration_cache:
+            # Recalculate normalized fitness if min/max fitness changed
+            self.configuration_cache[configuration_tuple]['normalized_fitness_score'] = (
+                (self.configuration_cache[configuration_tuple]['fitness_score'] - self.min_fitness) /
+                (self.max_fitness - self.min_fitness)
+                if self.max_fitness != self.min_fitness else 1.0
+            )
             return self.configuration_cache[configuration_tuple]
+
+        expected_size = self.grid_size * self.grid_size
+        if len(configuration_tuple) != expected_size:
+            raise ValueError(f"""Configuration size must be {
+                             expected_size}, but got {len(configuration_tuple)}""")
 
         def max_difference_with_distance(lst):
             max_value = float('-inf')
@@ -140,11 +159,6 @@ class GeneticAlgorithm:
                 if lst[j] < lst[min_index]:
                     min_index = j
             return max(max_value, 0) / dis
-
-        expected_size = self.grid_size * self.grid_size
-        if len(configuration_tuple) != expected_size:
-            raise ValueError(f"""Configuration size must be {
-                             expected_size}, but got {len(configuration_tuple)}""")
 
         game = GameOfLife(self.grid_size, configuration_tuple)
         game.run()
@@ -160,126 +174,31 @@ class GeneticAlgorithm:
             initial_living_cells_count=initial_living_cells_count
         )
 
+        # Update global min/max fitness values
+        self.min_fitness = min(self.min_fitness, fitness_score)
+        self.max_fitness = max(self.max_fitness, fitness_score)
+
+        # Calculate normalized fitness for this configuration
+        normalized_fitness = (
+            (fitness_score - self.min_fitness) /
+            (self.max_fitness - self.min_fitness)
+            if self.max_fitness != self.min_fitness else 1.0
+        )
+
         self.configuration_cache[configuration_tuple] = {
             'fitness_score': fitness_score,
+            'normalized_fitness_score': normalized_fitness,
             'history': tuple(game.history[:]),
             'lifespan': game.lifespan,
             'alive_growth': alive_growth,
             'max_alive_cells_count': max_alive_cells_count,
             'is_static': game.is_static,
-            'is periodic': game.is_periodic,
+            'is_periodic': game.is_periodic,
             'stableness': stableness,
             'initial_living_cells_count': initial_living_cells_count
         }
+
         return self.configuration_cache[configuration_tuple]
-
-    def calculate_corrected_scores(self):
-        """
-        Calculate corrected scores by combining canonical form and cell frequency penalties.
-        """
-        def canonical_form(config, grid_size):
-            """
-            Compute the canonical form of a configuration by normalizing its position and rotation.
-
-            Args:
-                config (list[int]): Flattened 1D representation of the grid.
-                grid_size (int): Size of the grid (NxN).
-
-            Returns:
-                tuple[int]: Canonical form of the configuration.
-            """
-            grid = np.array(config).reshape(grid_size, grid_size)
-            live_cells = np.argwhere(grid == 1)
-
-            if live_cells.size == 0:
-                return tuple(grid.flatten())  # Return empty grid as-is
-
-            min_row, min_col = live_cells.min(axis=0)
-            translated_grid = np.roll(grid, shift=-min_row, axis=0)
-            translated_grid = np.roll(translated_grid, shift=-min_col, axis=1)
-
-            # Generate all rotations and find the lexicographically smallest
-            rotations = [np.rot90(translated_grid, k).flatten()
-                         for k in range(4)]
-            canonical = tuple(min(rotations, key=lambda x: tuple(x)))
-
-            return canonical
-
-        def detect_recurrent_blocks(config, grid_size):
-            """
-            Detect recurring canonical blocks within the configuration, considering rotations.
-
-            Args:
-                config (list[int]): Flattened 1D representation of the grid.
-                grid_size (int): Size of the grid (NxN).
-
-            Returns:
-                dict: Frequency of each canonical block in the configuration.
-            """
-            block_size = grid_size // 2  # Define the block size
-            grid = np.array(config).reshape(grid_size, grid_size)
-            block_frequency = {}
-
-            for row in range(0, grid_size, block_size):
-                for col in range(0, grid_size, block_size):
-                    block = grid[row:row + block_size, col:col + block_size]
-                    block_canonical = canonical_form(
-                        block.flatten(), block_size)
-                    if block_canonical not in block_frequency:
-                        block_frequency[block_canonical] = 0
-                    block_frequency[block_canonical] += 1
-
-            return block_frequency
-
-        total_cells = self.grid_size * self.grid_size
-        frequency_vector = np.zeros(total_cells)
-        canonical_frequency = {}
-        block_frequencies = {}
-
-        for config in self.population:
-            frequency_vector += np.array(config)
-            canonical = canonical_form(config, self.grid_size)
-            if canonical not in canonical_frequency:
-                canonical_frequency[canonical] = 0
-            canonical_frequency[canonical] += 1
-
-            # Detect and update block frequencies
-            block_frequency = detect_recurrent_blocks(config, self.grid_size)
-            for block, count in block_frequency.items():
-                if block not in block_frequencies:
-                    block_frequencies[block] = 0
-                block_frequencies[block] += count
-
-        corrected_scores = []
-
-        for config in self.population:
-            fitness_score = self.configuration_cache[config]['fitness_score']
-            active_cells = [i for i, cell in enumerate(config) if cell == 1]
-
-            # Canonical form penalty
-            canonical = canonical_form(config, self.grid_size)
-            canonical_penalty = canonical_frequency.get(canonical, 1)
-
-            # Cell frequency penalty
-            if len(active_cells) == 0:
-                cell_frequency_penalty = 1  # Avoid division by zero
-            else:
-                total_frequency = sum(
-                    frequency_vector[i] for i in active_cells)
-                cell_frequency_penalty = (total_frequency / len(active_cells))
-
-            # Block recurrence penalty
-            block_frequency_penalty = 1
-            block_frequency = detect_recurrent_blocks(config, self.grid_size)
-            for block, count in block_frequency.items():
-                block_frequency_penalty *= block_frequencies.get(block, 1)
-
-            # Combine penalties
-            prevalence_score = (canonical_penalty * cell_frequency_penalty * block_frequency_penalty ) ** 5
-            corrected_score = fitness_score * 1/max(1, prevalence_score)
-            corrected_scores.append((config, corrected_score))
-
-        return corrected_scores
 
     def populate(self, generation):
         """
@@ -291,7 +210,7 @@ class GeneticAlgorithm:
         - Basic geometric patterns
 
         Other generations: Performs genetic operations:
-        - Selects parents based on fitness
+        - Selects parents based on normalized fitness
         - Applies crossover
         - Mutates offspring
         - Preserves top performers
@@ -300,8 +219,8 @@ class GeneticAlgorithm:
             generation (int): Current generation number.
         """
         new_population = set()
-        if generation % 5:
-            amount = self.population_size // 2
+        if generation % 10:
+            amount = self.population_size // 4
             for _ in range(amount):
                 parent1, parent2 = self.select_parents(generation=generation)
                 child = self.crossover(parent1, parent2)
@@ -317,13 +236,20 @@ class GeneticAlgorithm:
                 basic_patterns_type_amount=uniform_amount
             ))
 
+        # **Use normalized_fitness_score instead of fitness_score for sorting**
         combined = list(new_population) + list(self.population)
-        combined = [(config, self.evaluate(config)['fitness_score'])
+        combined = [(config, self.evaluate(config)['normalized_fitness_score'])
                     for config in combined]
         combined.sort(key=lambda x: x[1], reverse=True)
 
         self.population = set(
-            [config for config, _ in combined[:self.population_size]])
+            [config for config, _ in combined[:self.population_size]]
+        )
+
+        i = 0
+        while len(self.population) < self.population_size and i < len(combined) - self.population_size:
+            self.population.add(combined[self.population_size + i][0])
+            i += 1
 
     def select_parents(self, generation):
         """
@@ -343,18 +269,159 @@ class GeneticAlgorithm:
             tuple: Two parent configurations for crossover.
         """
 
+        def canonical_form(config, grid_size):
+            """
+            Compute the canonical form of a configuration by normalizing its position and rotation.
+
+            Args:
+                config (list[int]): Flattened 1D representation of the grid.
+                grid_size (int): Size of the grid (NxN).
+
+            Returns:
+                tuple[int]: Canonical form of the configuration.
+            """
+            if config in self.canonical_forms_cache:
+                return self.canonical_forms_cache[config]
+
+            grid = np.array(config).reshape(grid_size, grid_size)
+            live_cells = np.argwhere(grid == 1)
+
+            if live_cells.size == 0:
+                canonical = tuple(grid.flatten())  # Return empty grid as-is
+            else:
+                min_row, min_col = live_cells.min(axis=0)
+                translated_grid = np.roll(grid, shift=-min_row, axis=0)
+                translated_grid = np.roll(
+                    translated_grid, shift=-min_col, axis=1)
+
+                # Generate all rotations and find the lexicographically smallest
+                rotations = [np.rot90(translated_grid, k).flatten()
+                             for k in range(4)]
+                canonical = tuple(min(rotations, key=lambda x: tuple(x)))
+
+            self.canonical_forms_cache[config] = canonical
+            return canonical
+
+        def detect_recurrent_blocks(config, grid_size):
+            """
+            Detect recurring canonical blocks within the configuration, considering rotations.
+
+            Args:
+                config (list[int]): Flattened 1D representation of the grid.
+                grid_size (int): Size of the grid (NxN).
+
+            Returns:
+                dict: Frequency of each canonical block in the configuration.
+            """
+            if config in self.block_frequencies_cache:
+                return self.block_frequencies_cache[config]
+
+            block_size = grid_size // 2  # Define the block size
+            grid = np.array(config).reshape(grid_size, grid_size)
+            block_frequency = {}
+
+            for row in range(0, grid_size, block_size):
+                for col in range(0, grid_size, block_size):
+                    block = grid[row:row + block_size, col:col + block_size]
+                    block_canonical = canonical_form(
+                        block.flatten(), block_size)
+                    if block_canonical not in block_frequency:
+                        block_frequency[block_canonical] = 0
+                    block_frequency[block_canonical] += 1
+
+            self.block_frequencies_cache[config] = block_frequency
+            return block_frequency
+
+        def calculate_corrected_scores():
+            """
+            Calculate corrected scores by combining canonical form and cell frequency penalties.
+            """
+            total_cells = self.grid_size * self.grid_size
+            frequency_vector = np.zeros(total_cells)
+            canonical_frequency = {}
+            block_frequencies = {}
+
+            uniqueness_scores = []
+
+            for config in self.population:
+                frequency_vector += np.array(config)
+                canonical = canonical_form(config, self.grid_size)
+                if canonical not in canonical_frequency:
+                    canonical_frequency[canonical] = 0
+                canonical_frequency[canonical] += 1
+
+                # Detect and update block frequencies
+                block_frequency = detect_recurrent_blocks(
+                    config, self.grid_size)
+                for block, count in block_frequency.items():
+                    if block not in block_frequencies:
+                        block_frequencies[block] = 0
+                    block_frequencies[block] += count
+
+            corrected_scores = []
+
+            for config in self.population:
+                # **Use normalized_fitness_score instead of fitness_score**
+                normalized_fitness = self.configuration_cache[config]['normalized_fitness_score']
+                active_cells = [
+                    i for i, cell in enumerate(config) if cell == 1]
+
+                # Canonical form penalty
+                canonical = canonical_form(config, self.grid_size)
+                canonical_penalty = canonical_frequency.get(canonical, 1)
+
+                # Cell frequency penalty
+                if len(active_cells) == 0:
+                    cell_frequency_penalty = 1  # Avoid division by zero
+                else:
+                    total_frequency = sum(
+                        frequency_vector[i] for i in active_cells)
+                    cell_frequency_penalty = (
+                        total_frequency / len(active_cells)) ** 3
+
+                # Block recurrence penalty
+                block_frequency_penalty = 1
+                block_frequency = detect_recurrent_blocks(
+                    config, self.grid_size)
+                for block, count in block_frequency.items():
+                    block_frequency_penalty *= block_frequencies.get(block, 1)
+
+                # Combine penalties
+                uniqueness_score = (
+                    canonical_penalty * cell_frequency_penalty * block_frequency_penalty) ** 2
+                uniqueness_scores.append(uniqueness_score)
+
+            # Update min/max uniqueness scores globally
+            self.min_uniqueness_score = min(uniqueness_scores)
+            self.max_uniqueness_score = max(uniqueness_scores)
+
+            for config, uniqueness_score in zip(self.population, uniqueness_scores):
+                # Normalize uniqueness score
+                normalized_uniqueness = (uniqueness_score - self.min_uniqueness_score) / \
+                                        (self.max_uniqueness_score - self.min_uniqueness_score) \
+                    if self.max_uniqueness_score != self.min_uniqueness_score else 1.0
+
+                # **Use normalized_fitness in corrected_score**
+                corrected_score = (
+                    normalized_fitness if normalized_fitness is not None else 0) / max(1, normalized_uniqueness)
+                corrected_scores.append((config, corrected_score))
+
+            return corrected_scores
+
         # Use corrected scores every 10th generation
-        if generation % 2 == 0:
-            corrected_scores = self.calculate_corrected_scores()
+        if generation % 10 == 0:
+            corrected_scores = calculate_corrected_scores()
         else:
+            # **Use normalized_fitness_score instead of fitness_score**
             corrected_scores = [(config, self.configuration_cache[config]
-                                 ['fitness_score']) for config in self.population]
+                                 ['normalized_fitness_score']) for config in self.population]
 
         def normalized_probability_selection():
             configs, scores = zip(*corrected_scores)
             total_score = sum(scores)
             if total_score == 0:
-                logging.info("Total score is 0, selecting random parents.")
+                logging.info(
+                    f"""Total score is 0, selecting random parents.""")
                 return random.choices(configs, k=2)
 
             probabilities = [score / total_score for score in scores]
@@ -379,8 +446,8 @@ class GeneticAlgorithm:
 
         selection_methods = [normalized_probability_selection,
                              tournament_selection, rank_based_selection]
-        selected_method = random.choices(
-            selection_methods, weights=[0.4, 0.3, 0.3], k=1)[0]
+        selected_method = random.choices(selection_methods, weights=[
+                                         0.5, 0.25, 0.25], k=1)[0]
 
         return selected_method()
 
@@ -767,7 +834,7 @@ class GeneticAlgorithm:
         Args:
             generation (int): Current generation number
         """
-        print(f"""Computing Generation {generation+1} started.""")
+        print(f"Computing Generation {generation+1} started.")
         scores = []
         lifespans = []
         alive_growth_rates = []
@@ -893,6 +960,7 @@ class GeneticAlgorithm:
 
             params_dict = {
                 'fitness_score': self.configuration_cache[config]['fitness_score'],
+                'normalized_fitness_score': self.configuration_cache[config]['normalized_fitness_score'],
                 'lifespan': self.configuration_cache[config]['lifespan'],
                 'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
                 'alive_growth': self.configuration_cache[config]['alive_growth'],
@@ -904,23 +972,20 @@ class GeneticAlgorithm:
 
             }
 
-            logging.info("Top Configuration:")
-            logging.info(f"  Configuration: {config}")
-            logging.info(f"""Fitness Score: {
-                         self.configuration_cache[config]['fitness_score']}""")
-            logging.info(f"""Lifespan: {
-                         self.configuration_cache[config]['lifespan']}""")
-            logging.info(f"""Total Alive Cells: {
-                         self.configuration_cache[config]['max_alive_cells_count']}""")
-            logging.info(f"""Alive Growth: {
-                         self.configuration_cache[config]['alive_growth']}""")
-            logging.info(f"""Initial Configuration Living Cells Count: {
-                         self.configuration_cache[config]['initial_living_cells_count']}""")
+            logging.info(f"""Top Configuration:
+                Configuration: {config}
+                Fitness Score: {self.configuration_cache[config]['fitness_score']}
+                'normalized_fitness_score': self.configuration_cache[config]['normalized_fitness_score'],
+                Lifespan: {self.configuration_cache[config]['lifespan']}
+                Total Alive Cells: {self.configuration_cache[config]['max_alive_cells_count']}
+                Alive Growth: {self.configuration_cache[config]['alive_growth']}
+                Initial Configuration Living Cells Count: {self.configuration_cache[config]['initial_living_cells_count']}""")
             results.append(params_dict)
 
         for config, _ in fitness_scores_initial_population:
             params_dict = {
                 'fitness_score': self.configuration_cache[config]['fitness_score'],
+                'normalized_fitness_score': self.configuration_cache[config]['normalized_fitness_score'],
                 'lifespan': self.configuration_cache[config]['lifespan'],
                 'max_alive_cells_count': self.configuration_cache[config]['max_alive_cells_count'],
                 'alive_growth': self.configuration_cache[config]['alive_growth'],
@@ -931,18 +996,15 @@ class GeneticAlgorithm:
                 'is_first_generation': True
             }
 
-            logging.info("Initial Configuration:")
-            logging.info(f"  Configuration: {config}")
-            logging.info(f"""Fitness Score: {
-                         self.configuration_cache[config]['fitness_score']}""")
-            logging.info(f"""Lifespan: {
-                         self.configuration_cache[config]['lifespan']}""")
-            logging.info(f"""Total Alive Cells: {
-                         self.configuration_cache[config]['max_alive_cells_count']}""")
-            logging.info(f"""Alive Growth: {
-                         self.configuration_cache[config]['alive_growth']}""")
-            logging.info(f"""Initial Configuration Living Cells Count: {
-                         self.configuration_cache[config]['initial_living_cells_count']}""")
+            logging.info(f"""Initial Configuration:
+                Configuration: {config}
+                Fitness Score: {self.configuration_cache[config]['fitness_score']}
+                'normalized_fitness_score': self.configuration_cache[config]['normalized_fitness_score'],
+                Lifespan: {self.configuration_cache[config]['lifespan']}
+                Total Alive Cells: {self.configuration_cache[config]['max_alive_cells_count']}
+                Alive Growth: {self.configuration_cache[config]['alive_growth']}
+                Initial Configuration Living Cells Count: {self.configuration_cache[config]['initial_living_cells_count']}""")
+
             results.append(params_dict)
 
         initial_configurations_start_index = len(top_configs)
