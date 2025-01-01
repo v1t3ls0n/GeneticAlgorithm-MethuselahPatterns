@@ -1,3 +1,4 @@
+
 # Methuselah Pattern Finder for Conway's Game of Life
 
 A genetic algorithm implementation designed to discover Methuselah patterns in Conway's Game of Life. Methuselahs are rare, small initial patterns that evolve for many generations before stabilizing, making them particularly interesting configurations to study.
@@ -7,28 +8,56 @@ A genetic algorithm implementation designed to discover Methuselah patterns in C
 This project uses genetic algorithms to evolve and discover potential Methuselah patterns in Conway's Game of Life. It optimizes for:
 - Long lifespans (many generations before stabilization)
 - High maximum cell counts during evolution
-- Significant growth rates from initial state
+- Significant growth rates from the initial state
 - Small initial configurations that produce complex behavior
 
 ## 🚀 Features
 
 - **Genetic Algorithm Implementation**
-  - Custom fitness function balancing multiple objectives
-  - Dynamic mutation rate adjustment to prevent stagnation
-  - Block-based crossover strategy
-  - Configurable population size and generation count
+  - Custom fitness function balancing multiple objectives:
+    - Long lifespan
+    - Maximum alive cell count
+    - Significant growth ratio
+    - Penalties for large initial configurations
+  - Dynamic mutation rate adjustment to avoid early convergence:
+    - Increases mutation when stagnation is detected
+    - Decreases mutation when fitness improves
+  - Selection strategies:
+    - Normalized Probability (Roulette Wheel)
+    - Tournament Selection
+    - Rank-Based Selection
+  - Crossover methods:
+    - Basic crossover: Alternates cells between parents
+    - Simple crossover: Alternates rows between parents
+    - Complex crossover: Uses block-based selection based on fitness
+  - Mutation methods:
+    - Basic mutation: Random flips with probability
+    - Cluster mutation: Flips cells in small neighborhoods
+    - Harsh mutation: Flips large contiguous blocks of cells
+  - Detection of recurrent patterns:
+    - Identifies blocks of cells that recur within configurations, considering rotations and symmetries
+  - Dynamic penalty system:
+    - Penalizes configurations with large initial sizes
+    - Corrects fitness scores based on canonical form and block frequency
 
 - **Game of Life Simulator**
-  - Efficient implementation using 1D array mapped to 2D grid
-  - Detection of static and periodic states
-  - Comprehensive statistics tracking
+  - Optimized using a 1D array mapped to a 2D grid with NumPy for efficient state transitions.
+  - Detects static and periodic behavior (patterns that stop changing or repeat themselves).
+  - Tracks key statistics during the simulation, including:
+    - Lifespan
+    - Maximum alive cells
+    - Alive growth ratio
+    - Stability (whether the pattern stabilizes or enters a periodic cycle)
 
 - **Interactive Visualization**
   - Dual-window interface showing:
-    - Grid evolution of best patterns
-    - Statistical plots (fitness, lifespan, growth rates)
-    - Generation-by-generation playback
-  - Navigation controls for exploring discovered patterns
+    - **Grid Window**: Displays the NxN Game of Life grid and its evolution.
+    - **Stats Window**: Shows various metrics, including fitness, lifespan, growth rate, and mutation rate adaptation.
+    - **Run Parameters Window**: Displays the parameters used in the genetic algorithm run.
+  - Generation-by-generation playback and navigation controls:
+    - Switch between discovered configurations
+    - Step through generations
+    - Zoom into specific metrics
 
 ## 📋 Requirements
 
@@ -36,19 +65,22 @@ This project uses genetic algorithms to evolve and discover potential Methuselah
 - NumPy
 - Matplotlib
 - PyQt5
+- SciPy (for convolution in Game of Life simulation)
 
 ## 💻 Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/gameoflife-methuselah-finder.git
+git clone https://github.com/v1t3ls0n/Methuselah-Pattern-Finder-for-Conway-s-Game-of-Life
 
 # Install required packages
-pip install numpy matplotlib PyQt5
+pip install numpy matplotlib pyqt5 scipy
 ```
+
 ## 🎯 Usage
 
 Run the main script with default parameters:
+
 ```bash
 python main.py
 ```
@@ -74,33 +106,35 @@ When prompted, you can either:
 
 ## 🖥️ Interactive Visualization
 
-The visualization interface consists of two windows:
+The visualization interface consists of three windows:
 
-### Grid Window
+### 1. Grid Window
 - Displays the current Game of Life pattern
 - Navigation:
   - ↑/↓: Switch between best configurations
   - ←/→: Step through generations
   - Shows current configuration stats in the window title
 
-### Stats Window
+### 2. Stats Window
 - Multiple plots showing:
   - Fitness evolution
   - Pattern lifespan trends
   - Population growth rates
   - Alive cell counts
   - Mutation rate adaptation
+  - Diversity metrics (average Hamming distance between configurations)
 - Run parameters display
 - Focus control buttons for window management
 
+### 3. Run Parameters Window
+- Displays the parameters used in the GA run for reference.
 
 ## 🧬 Project Structure
 
-- `GameOfLife.py`: Core Game of Life simulation
-- `GeneticAlgorithm.py`: Evolution and optimization logic
-- `InteractiveSimulation.py`: Visualization interface
-- `main.py`: Program entry point and parameter handling
-
+- `GameOfLife.py`: Core Game of Life simulation with optimized performance.
+- `GeneticAlgorithm.py`: Evolution and optimization logic with diverse mutation strategies.
+- `InteractiveSimulation.py`: Visualization interface for pattern evolution and statistics.
+- `main.py`: Program entry point and parameter handling.
 
 ## Key Components
 
@@ -118,6 +152,7 @@ Handles the evolution of patterns through:
 - Mutation
 - Fitness evaluation
 - Population management
+- Dynamic penalties and frequency tracking
 
 ### InteractiveSimulation.py
 Provides visualization and analysis tools:
@@ -126,27 +161,14 @@ Provides visualization and analysis tools:
 - Interactive navigation
 - Performance metrics
 
-## Visualization Interface
-
-The program provides two windows:
-1. **Grid Window**: Shows the current pattern's evolution
-   - Use arrow keys to navigate patterns and generations
-   - Displays pattern statistics
-
-2. **Stats Window**: Shows evolution metrics
-   - Fitness trends
-   - Lifespan statistics
-   - Growth rates
-   - Mutation rate adaptation
-
-
 ## 📊 Understanding the Metrics
 
-- **Lifespan**: Number of unique states before stabilization
-- **Max Alive Cells**: Peak population achieved
-- **Growth Rate**: Ratio between maximum and minimum populations
-- **Stableness**: How quickly patterns reach stable or periodic states
-- **Initial Size**: Number of alive cells in the starting configuration
+- **Lifespan**: Number of unique states before stabilization.
+- **Max Alive Cells**: Peak population achieved.
+- **Growth Rate**: Ratio between maximum and minimum populations.
+- **Stableness**: How quickly patterns reach stable or periodic states.
+- **Initial Size**: Number of alive cells in the starting configuration.
+- **Diversity**: Measures the average Hamming distance between configurations over generations.
 
 ## 🎛️ Fine-tuning Tips
 
@@ -200,3 +222,4 @@ If you use this code in your research, please cite:
   url = https://github.com/v1t3ls0n/Methuselah-Pattern-Finder-for-Conway-s-Game-of-Life
 }
 ```
+

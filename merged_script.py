@@ -1,3 +1,197 @@
+
+# --- START OF GameOfLife.py ---
+
+
+"""
+Optimized_GameOfLife.py
+-----------------------
+    
+This module implements Conway's Game of Life, optimized for performance while maintaining a
+1D grid representation. It leverages NumPy's vectorized operations to efficiently compute
+state transitions and uses multithreading for parallel computations where applicable. The
+simulation retains the original logic, ensuring compatibility with the existing codebase.
+    
+Classes:
+    GameOfLife: Handles the simulation of Conway's Game of Life, including state transitions,
+    detecting static or periodic behavior, and tracking relevant statistics with optimized performance.
+"""
+
+import logging
+import numpy as np
+from scipy.signal import convolve2d
+from threading import Thread
+from queue import Queue
+
+
+class GameOfLife:
+    """
+    The GameOfLife class simulates Conway's Game of Life on a 1D flattened NxN grid, optimized
+    for large grids using NumPy for vectorized operations. It tracks the evolution of the grid
+    through multiple generations, stopping when the grid becomes static (unchanging) or periodic
+    (repeats a previously encountered state), or when a maximum iteration limit is exceeded.
+
+    Attributes:
+        grid_size (int): The dimension N of the NxN grid.
+        grid (numpy.ndarray): A 1D NumPy array of length N*N, representing the grid's cells (0=dead, 1=alive).
+        initial_state (tuple[int]): The initial configuration of the grid (immutable).
+        history (list[tuple[int]]): A record of all states encountered during the simulation.
+        game_iteration_limit (int): Maximum number of generations to simulate.
+        stable_count (int): Tracks consecutive generations where the state is static or periodic.
+        max_stable_generations (int): Threshold for terminating the simulation if stable_count is reached.
+        lifespan (int): Number of unique states the grid has passed through before stopping.
+        is_static (bool): Indicates whether the grid has become static.
+        is_periodic (bool): Indicates whether the grid has entered a periodic cycle.
+        max_alive_cells_count (int): Maximum number of alive cells observed during the simulation.
+        alive_growth (float): Ratio between the maximum and minimum alive cell counts across generations.
+        alive_history (list[int]): History of alive cell counts for each generation.
+        stableness (float): Ratio indicating how often the grid reached stable behavior (static or periodic).
+    """
+
+    def __init__(self, grid_size, initial_state=None):
+        """
+        Initializes the GameOfLife simulation with a given grid size and optional initial state.
+
+        Args:
+            grid_size (int): Size of the NxN grid.
+            initial_state (Iterable[int], optional): Flattened list of the grid's initial configuration.
+                If None, the grid is initialized to all zeros (dead cells).
+
+        The initial state is stored as an immutable tuple, and the simulation starts with
+        an empty history except for the initial configuration.
+        """
+        self.grid_size = grid_size
+        if initial_state is None:
+            self.grid = np.zeros(grid_size * grid_size, dtype=int)
+        else:
+            if len(initial_state) != grid_size * grid_size:
+                raise ValueError(f"Initial state must have {grid_size * grid_size} elements.")
+            self.grid = np.array(initial_state, dtype=int)
+
+        # Store the immutable initial state
+        self.initial_state = tuple(self.grid)
+        self.history = []
+        self.game_iteration_limit = 50000
+        self.stable_count = 0
+        self.max_stable_generations = 10
+        self.lifespan = 0
+        self.is_static = False
+        self.is_periodic = False
+        self.period_length = 1
+        self.alive_history = [np.sum(self.grid)]
+        self.unique_states = set()
+        self.is_methuselah = False
+
+
+    def _count_alive_neighbors(self, grid):
+        """
+        Counts the number of alive neighbors for each cell in the grid using convolution.
+
+        Args:
+            grid (numpy.ndarray): The current grid as a 1D NumPy array.
+
+        Returns:
+            numpy.ndarray: A 1D NumPy array with the count of alive neighbors for each cell.
+        """
+        # Reshape to 2D for convolution
+        grid_2d = grid.reshape((self.grid_size, self.grid_size))
+
+        # Define the convolution kernel to count alive neighbors
+        kernel = np.array([[1, 1, 1],
+                           [1, 0, 1],
+                           [1, 1, 1]])
+
+        # Count alive neighbors using convolution with periodic boundary conditions
+        neighbor_count_2d = convolve2d(grid_2d, kernel, mode='same', boundary='wrap')
+
+        # Flatten back to 1D
+        neighbor_count = neighbor_count_2d.flatten()
+
+        return neighbor_count
+
+    def _compute_next_generation(self, current_grid, neighbor_count):
+        """
+        Computes the next generation of the grid based on the current grid and neighbor counts.
+
+        Args:
+            current_grid (numpy.ndarray): The current grid as a 1D NumPy array.
+            neighbor_count (numpy.ndarray): A 1D NumPy array with the count of alive neighbors for each cell.
+
+        Returns:
+            numpy.ndarray: The next generation grid as a 1D NumPy array.
+        """
+        # Apply the Game of Life rules using NumPy's vectorized operations
+        # Rule 1: A living cell with 2 or 3 neighbors survives.
+        survive = (current_grid == 1) & ((neighbor_count == 2) | (neighbor_count == 3))
+        # Rule 2: A dead cell with exactly 3 neighbors becomes alive.
+        birth = (current_grid == 0) & (neighbor_count == 3)
+        # Rule 3: All other cells die or remain dead.
+        next_grid = np.where(survive | birth, 1, 0)
+        return next_grid
+
+    def step(self):
+        """
+        Executes one generation step in the Game of Life.
+        Updates the grid based on neighbor counts and applies the Game of Life rules.
+        Checks for static or periodic states after updating.
+        """
+        current_grid = self.grid.copy()
+        neighbor_count = self._count_alive_neighbors(current_grid)
+        next_grid = self._compute_next_generation(current_grid, neighbor_count)
+
+        # Convert to tuple for hashing and state tracking
+        new_state = tuple(next_grid.flatten())
+        current_state = tuple(current_grid.flatten())
+
+        
+        # Static check: No change from the previous generation
+        if not self.is_static and current_state == new_state:
+            self.is_static = True
+            logging.debug("Grid has become static.")
+        # Periodic check: If the new state matches any previous state (excluding the immediate last)
+        elif not self.is_periodic and new_state in self.history:
+            self.is_periodic = True
+            self.period_length = len(self.history) - self.history.index(new_state)
+            self.max_stable_generations = self.period_length * 5
+            logging.debug(f"""Grid has entered a periodic cycle. period length = {self.period_length}""")
+
+        # Update the grid
+        self.grid = next_grid
+
+    def run(self):
+        """
+        Runs the Game of Life simulation until one of the following conditions is met:
+            1. The grid becomes static.
+            2. The grid enters a periodic cycle.
+            3. The maximum number of iterations is exceeded.
+            4. The stable_count exceeds max_stable_generations.
+
+        During the simulation, the method tracks:
+            - Alive cells in each generation.
+            - Maximum alive cells observed.
+            - Alive growth (max/min alive cells ratio).
+            - Stableness (ratio of stable states to max_stable_generations).
+        """
+        limiter = self.game_iteration_limit
+
+        while limiter > 0 and ((not self.is_static and not self.is_periodic) or self.stable_count < self.max_stable_generations):
+            alive_cell_count = np.sum(self.grid)
+            self.alive_history.append(alive_cell_count)
+            self.history.append(tuple(self.grid))
+            if self.is_static or self.is_periodic:
+                self.stable_count += 1
+            else:
+                self.lifespan += 1
+            self.step()
+            limiter -= 1
+        
+        self.is_methuselah = self.lifespan > self.period_length
+        
+
+# --- END OF GameOfLife.py ---
+
+
+# --- START OF GeneticAlgorithm.py ---
+
 import logging
 from GameOfLife import GameOfLife
 import random
@@ -1307,3 +1501,649 @@ Initial Configuration Living Cells Count: {}""".format(
 
         initial_configurations_start_index = len(top_configs)
         return results, initial_configurations_start_index
+
+# --- END OF GeneticAlgorithm.py ---
+
+
+# --- START OF InteractiveSimulation.py ---
+
+
+import logging
+import numpy as np
+import matplotlib
+matplotlib.use("Qt5Agg")  # Ensure Qt5Agg is available
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+from PyQt5.QtWidgets import QPushButton
+
+
+class InteractiveSimulation:
+    """
+    InteractiveSimulation Class:
+    
+    Manages the visualization of GeneticAlgorithm results across three UI windows:
+        - Grid Window: Displays the NxN Game of Life grid.
+        - Stats Window: Shows various metrics including fitness, lifespan, growth rate, alive cells, and diversity.
+        - Run Parameters Window: Displays the parameters used in the GA run.
+    """
+
+    def __init__(
+        self,
+        configurations,
+        grid_size,
+        generations_cache,
+        mutation_rate_history,
+        diversity_history,  # New metric
+        initial_configurations_start_index,
+        run_params=None
+    ):
+        """
+        Initialize the InteractiveSimulation with necessary data.
+
+        Args:
+            configurations (list[tuple[int]]): Configurations to visualize.
+            grid_size (int): Size of the NxN grid.
+            generations_cache (dict): Fitness and other metrics per generation.
+            mutation_rate_history (list[float]): History of mutation rates.
+            diversity_history (list[float]): History of diversity metrics.
+            initial_configurations_start_index (int): Index to differentiate initial configurations.
+            run_params (dict, optional): Parameters used in the GA run.
+        """
+        logging.info("""Initializing InteractiveSimulation with THREE windows.""")
+        self.configurations = configurations
+        self.grid_size = grid_size
+        self.generations_cache = generations_cache
+        self.mutation_rate_history = mutation_rate_history
+        self.diversity_history = diversity_history  # New metric
+        self.initial_configurations_start_index = initial_configurations_start_index
+        self.run_params = run_params or {}
+        # Navigation state
+        self.current_config_index = 0
+        self.current_generation = 0
+
+        # Create the separate "Grid Window"
+        self.grid_fig = plt.figure(figsize=(5, 5))
+        self.grid_ax = self.grid_fig.add_subplot(111)
+        self.grid_ax.set_title("""Grid Window""")
+        # If user closes the grid window => close everything
+        self.grid_fig.canvas.mpl_connect("close_event", self.on_close)
+
+        # Create the separate "Run Parameters Window"
+        self.run_params_fig = plt.figure(figsize=(5, 5))
+        gs_run_params = GridSpec(1, 1, figure=self.run_params_fig)
+        self.run_params_plot = self.run_params_fig.add_subplot(gs_run_params[0, 0])
+        self.run_params_plot.set_title("""Run Parameters Window""")
+        # If user closes the run parameters window => close everything
+        self.run_params_fig.canvas.mpl_connect("close_event", self.on_close)
+
+        # Create the "Stats Window"
+        self.stats_fig = plt.figure(figsize=(18, 8))
+        gs = GridSpec(3, 3, figure=self.stats_fig)
+
+        # Connect close event => kill entire app if user closes stats
+        self.stats_fig.canvas.mpl_connect("close_event", self.on_close)
+
+        # Create subplots in row 0
+        self.standardized_initial_size_plot = self.stats_fig.add_subplot(gs[0, 0])
+        self.standardized_lifespan_plot = self.stats_fig.add_subplot(gs[0, 1])
+        self.standardized_growth_rate_plot = self.stats_fig.add_subplot(gs[0, 2])
+
+        # Create subplots in row 1
+        self.standardized_alive_cells_plot = self.stats_fig.add_subplot(gs[1, 0])
+        self.mutation_rate_plot = self.stats_fig.add_subplot(gs[1, 1])
+        self.standardized_fitness_plot = self.stats_fig.add_subplot(gs[1, 2])
+
+        # Create subplot in row 2 for diversity
+        self.diversity_plot = self.stats_fig.add_subplot(gs[2, :])
+        self.diversity_plot.set_title("""Diversity Over Generations""")
+
+        # Also connect arrow-key events in the grid figure
+        self.grid_fig.canvas.mpl_connect('key_press_event', self.on_key)
+
+        # Add buttons to Stats Window
+        self.add_focus_button_to_toolbar(
+            figure=self.stats_fig,
+            button_text="""Focus Grid Window""",
+            on_click=self.bring_grid_to_front
+        )
+
+        self.add_focus_button_to_toolbar(
+            figure=self.stats_fig,
+            button_text="""Focus Run Parameters Window""",
+            on_click=self.bring_run_parameters_to_front
+        )
+
+        # Add buttons to Grid Window
+        self.add_focus_button_to_toolbar(
+            figure=self.grid_fig,
+            button_text="""Focus Stats Window""",
+            on_click=self.bring_stats_to_front
+        )
+
+        self.add_focus_button_to_toolbar(
+            figure=self.grid_fig,
+            button_text="""Focus Run Parameters Window""",
+            on_click=self.bring_run_parameters_to_front
+        )
+
+        # Add buttons to Run Parameters Window
+        self.add_focus_button_to_toolbar(
+            figure=self.run_params_fig,
+            button_text="""Focus Stats Window""",
+            on_click=self.bring_stats_to_front
+        )
+
+        self.add_focus_button_to_toolbar(
+            figure=self.run_params_fig,
+            button_text="""Focus Grid Window""",
+            on_click=self.bring_grid_to_front
+        )
+
+        self.update_grid()
+        self.render_statistics()
+        self.update_run_params_window()
+
+    def on_close(self, event):
+        """
+        Called when ANY window is closed. Closes all plots and exits.
+        """
+        logging.info("""A window was closed. Exiting program.""")
+        plt.close('all')
+        exit()
+
+    def add_focus_button_to_toolbar(self, figure, button_text, on_click):
+        """
+        Insert a custom button in the given figure's Qt toolbar.
+
+        Args:
+            figure (matplotlib.figure.Figure): The figure to add the button to.
+            button_text (str): The text displayed on the button.
+            on_click (callable): The function to call when the button is clicked.
+        """
+        try:
+            toolbar = figure.canvas.manager.toolbar
+            button = QPushButton(button_text)
+            button.setStyleSheet(
+                """
+                QPushButton {
+                    margin: 8px;        /* space around the button in the toolbar */
+                    padding: 6px 10px;  /* inside spacing around the text */
+                    font-size: 12px;    /* bigger font */
+                    font-weight: bold;  /* make it stand out */
+                }
+                """
+            )
+            toolbar.addWidget(button)
+            button.clicked.connect(on_click)
+        except Exception as e:
+            logging.warning(f"""Could not add custom button '{button_text}' to toolbar: {e}""")
+
+    def bring_grid_to_front(self, e=None):
+        """
+        Attempt to bring the 'Grid Window' to the front (Qt-based).
+        Some OS/WM can block focus-stealing, so this may not always succeed.
+        """
+        try:
+            self.grid_fig.canvas.manager.window.activateWindow()
+            self.grid_fig.canvas.manager.window.raise_()
+            self.grid_fig.canvas.manager.window.showMaximized()
+        except Exception as e:
+            logging.warning(f"""Could not bring the Grid window to the front: {e}""")
+
+    def bring_stats_to_front(self, e=None):
+        """
+        Attempt to bring the 'Stats Window' to the front (Qt-based).
+        Some OS/WM can block focus-stealing, so this may not always succeed.
+        """
+        try:
+            self.stats_fig.canvas.manager.window.showNormal()
+            self.stats_fig.canvas.manager.window.activateWindow()
+            self.stats_fig.canvas.manager.window.raise_()
+        except Exception as e:
+            logging.warning(f"""Could not bring the Stats window to the front: {e}""")
+
+    def bring_run_parameters_to_front(self, e=None):
+        """
+        Attempt to bring the 'Run Parameters Window' to the front (Qt-based).
+        Some OS/WM can block focus-stealing, so this may not always succeed.
+        """
+        try:
+            self.run_params_fig.canvas.manager.window.showNormal()
+            self.run_params_fig.canvas.manager.window.activateWindow()
+            self.run_params_fig.canvas.manager.window.raise_()
+        except Exception as e:
+            logging.warning(f"""Could not bring the Run Parameters window to the front: {e}""")
+
+    def on_key(self, event):
+        """
+        Keyboard navigation for the Grid Window:
+            UP -> next configuration
+            DOWN -> previous configuration
+            RIGHT -> next generation
+            LEFT -> previous generation
+        """
+        if event.key == 'up':
+            self.next_configuration()
+        elif event.key == 'down':
+            self.previous_configuration()
+        elif event.key == 'right':
+            self.next_generation()
+        elif event.key == 'left':
+            self.previous_generation()
+
+    def next_configuration(self):
+        """Move to the next configuration."""
+        self.current_config_index = (
+            self.current_config_index + 1) % len(self.configurations)
+        self.current_generation = 0
+        self.update_grid()
+
+    def previous_configuration(self):
+        """Move to the previous configuration."""
+        self.current_config_index = (
+            self.current_config_index - 1) % len(self.configurations)
+        self.current_generation = 0
+        self.update_grid()
+
+    def next_generation(self):
+        """
+        Advance one generation in the current config's history, if available.
+        """
+        hist_len = len(
+            self.configurations[self.current_config_index]['history'])
+        if self.current_generation + 1 < hist_len:
+            self.current_generation += 1
+            self.update_grid()
+
+    def previous_generation(self):
+        """
+        Go back one generation in the current config's history, if possible.
+        """
+        if self.current_generation > 0:
+            self.current_generation -= 1
+            self.update_grid()
+
+    def update_grid(self):
+        """
+        Redraw the NxN grid in the "Grid Window" for the current config/generation.
+        """
+        param_dict = self.configurations[self.current_config_index]
+
+        fitness_score = param_dict.get('fitness_score', 0)
+        normalized_fitness_score = param_dict.get('normalized_fitness_score', 0)
+        lifespan = param_dict.get('lifespan', 0)
+        max_alive = param_dict.get('max_alive_cells_count', 0)
+        growth = param_dict.get('alive_growth', 1.0)
+        stableness = param_dict.get('stableness', 0.0)
+        initial_living_cells_count = param_dict.get('initial_living_cells_count', 0.0)
+        is_first_generation = param_dict.get('is_first_generation')
+
+        title_txt = (f"""Config From First Generation #{self.current_config_index - self.initial_configurations_start_index + 1}""" 
+                     if is_first_generation 
+                     else f"""Top Config #{self.current_config_index + 1}""")
+
+        grid_2d = [
+            self.configurations[self.current_config_index]['history'][self.current_generation][
+                i * self.grid_size:(i+1) * self.grid_size
+            ]
+            for i in range(self.grid_size)
+        ]
+        self.grid_ax.clear()
+        self.grid_ax.imshow(grid_2d, cmap="binary")
+        self.grid_ax.set_title(
+            f"""{title_txt} Day (Of Game Of Life) {self.current_generation}"""
+        )
+        self.grid_ax.set_ylabel("""ARROWS: UP/DOWN=configs, LEFT/RIGHT=gens""")
+
+        text_str = (
+            f"""fitness score = {fitness_score:.2f} | normalized fitness score = {normalized_fitness_score:.4f}\n"""
+            f"""lifespan = {lifespan} | initial_size = {initial_living_cells_count} | """
+            f"""max_alive = {max_alive} | growth = {growth:.2f} | stableness = {stableness:.2f}"""
+        )
+
+        self.grid_ax.set_xlabel(text_str)
+        self.grid_fig.canvas.draw_idle()
+
+    def render_statistics(self):
+        """
+        Fill in each subplot with the relevant data, including the run_params in self.run_params_plot.
+        Also includes the diversity metric.
+        """
+        gens = sorted(self.generations_cache.keys())
+
+        # ---------------- Fitness ----------------
+        avg_fitness = [self.generations_cache[g]['avg_fitness'] for g in gens]
+        std_fitness = [self.generations_cache[g]['std_fitness'] for g in gens]
+        self.standardized_fitness_plot.clear()
+        self.standardized_fitness_plot.plot(
+            gens, avg_fitness, label="""Standardized Fitness""", color='blue')
+        self.standardized_fitness_plot.fill_between(
+            gens,
+            np.subtract(avg_fitness, std_fitness),
+            np.add(avg_fitness, std_fitness),
+            color='blue', alpha=0.2, label="""Std Dev"""
+        )
+        self.standardized_fitness_plot.set_title("""Standardized Fitness""")
+        self.standardized_fitness_plot.legend()
+
+        # ---------------- Initial Size (initial living cells count) ----------------
+        avg_initial_size = [self.generations_cache[g]['avg_initial_living_cells_count']
+                            for g in gens]
+        std_initial_size = [self.generations_cache[g]['std_initial_living_cells_count']
+                            for g in gens]
+
+        self.standardized_initial_size_plot.clear()
+        self.standardized_initial_size_plot.plot(
+            gens, avg_initial_size, label="""Standardized Initial Size""", color='cyan')
+        self.standardized_initial_size_plot.fill_between(
+            gens,
+            np.subtract(avg_initial_size, std_initial_size),
+            np.add(avg_initial_size, std_initial_size),
+            color='cyan', alpha=0.2, label="""Std Dev"""
+        )
+        self.standardized_initial_size_plot.set_title("""Standardized Initial Size""")
+
+        # ---------------- Lifespan ----------------
+        avg_lifespan = [self.generations_cache[g]['avg_lifespan']
+                        for g in gens]
+        std_lifespan = [self.generations_cache[g]['std_lifespan']
+                        for g in gens]
+        self.standardized_lifespan_plot.clear()
+        self.standardized_lifespan_plot.plot(
+            gens, avg_lifespan, label="""Standardized Lifespan""", color='green')
+
+        self.standardized_lifespan_plot.fill_between(
+            gens,
+            np.subtract(avg_lifespan, std_lifespan),
+            np.add(avg_lifespan, std_lifespan),
+            color='green', alpha=0.2, label="""Std Dev"""
+        )
+        self.standardized_lifespan_plot.set_title("""Standardized Lifespan""")
+
+        # ---------------- Growth Rate ----------------
+        avg_growth = [self.generations_cache[g]['avg_alive_growth_rate'] for g in gens]
+        std_growth = [self.generations_cache[g]['std_alive_growth_rate'] for g in gens]
+        self.standardized_growth_rate_plot.clear()
+        self.standardized_growth_rate_plot.plot(
+            gens, avg_growth, label="""Std Growth""", color='red')
+        self.standardized_growth_rate_plot.fill_between(
+            gens,
+            np.subtract(avg_growth, std_growth),
+            np.add(avg_growth, std_growth),
+            color='red', alpha=0.2, label="""Std Dev"""
+        )
+        self.standardized_growth_rate_plot.set_title("""Standardized Growth Rate""")
+
+        # ---------------- Alive Cells ----------------
+        avg_alive_cells = [self.generations_cache[g]['avg_max_alive_cells_count'] for g in gens]
+        std_alive_cells = [self.generations_cache[g]['std_max_alive_cells_count'] for g in gens]
+        self.standardized_alive_cells_plot.clear()
+        self.standardized_alive_cells_plot.plot(
+            gens, avg_alive_cells, label="""Std Alive""", color='purple')
+        self.standardized_alive_cells_plot.fill_between(
+            gens,
+            np.subtract(avg_alive_cells, std_alive_cells),
+            np.add(avg_alive_cells, std_alive_cells),
+            color='purple', alpha=0.2, label="""Std Dev"""
+        )
+        self.standardized_alive_cells_plot.set_title("""Standardized Alive Cells""")
+
+        # ---------------- Mutation Rate ----------------
+        self.mutation_rate_plot.clear()
+        self.mutation_rate_plot.plot(
+            gens, self.mutation_rate_history, label="""Mutation Rate""", color='orange')
+        self.mutation_rate_plot.set_title("""Mutation Rate""")
+        self.mutation_rate_plot.legend()
+
+        # ---------------- Diversity ----------------
+        self.diversity_plot.clear()
+        self.diversity_plot.plot(
+            gens, self.diversity_history, label="""Diversity""", color='magenta')
+        self.diversity_plot.set_title("""Genetic Diversity Over Generations""")
+        self.diversity_plot.set_xlabel("""Generation""")
+        self.diversity_plot.set_ylabel("""Average Hamming Distance""")
+        self.diversity_plot.legend()
+
+        # Optionally adjust spacing:
+        self.stats_fig.tight_layout()
+
+    def update_run_params_window(self):
+        """
+        Update the Run Parameters Window with the parameters used in the GA run.
+        """
+        # ---------------- Params (text) ----------------
+        self.run_params_plot.clear()
+        self.run_params_plot.set_title("""Run Parameters""")
+        self.run_params_plot.axis("off")
+
+        lines = ["Genetic Algorithm Custom Parameters used in this run:"]
+        for k, v in self.run_params.items():
+            lines.append(f"""• {k} = {v}""")
+        text_str = "\n".join(lines)
+
+        self.run_params_plot.text(
+            0.0, 1.0,
+            text_str,
+            transform=self.run_params_plot.transAxes,
+            fontsize=10,
+            va='top'
+        )
+
+        # Optionally adjust spacing:
+        self.run_params_fig.tight_layout()
+
+    def run(self):
+        """
+        Show all three windows. plt.show() blocks until user closes them.
+        """
+        logging.info("""Running interactive simulation with separate Grid, Stats, and Run Parameters windows.""")
+        plt.show()
+# --- END OF InteractiveSimulation.py ---
+
+
+# --- START OF main.py ---
+
+"""
+main.py
+-------
+
+Defines the main entry point of the program. It sets up logging, runs the GeneticAlgorithm
+with specified parameters, and then launches the InteractiveSimulation to visualize results.
+
+Modules and Functions:
+    - `main`: Drives the Genetic Algorithm process and launches the visualization.
+    - `get_user_param`: Simplifies user interaction for parameter input with default values.
+    - `run_main_interactively`: Allows users to either use default values or input custom parameters interactively.
+    - `if __name__ == '__main__'`: Entry point to launch the program interactively.
+"""
+
+import logging
+from GeneticAlgorithm import GeneticAlgorithm
+from InteractiveSimulation import InteractiveSimulation
+
+# Configure logging to append to a log file with triple-quoted messages
+logging.basicConfig(
+    filename="simulation.log",
+    filemode='a',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+
+class Configuration:
+    def __init__(
+        self,
+        grid_size=10,
+        population_size=64,
+        generations=400,
+        initial_mutation_rate=0.3,
+        alive_cells_weight=0.12,
+        mutation_rate_lower_limit=0.1,
+        lifespan_weight=100.0,
+        alive_growth_weight=2,
+        initial_living_cells_count_penalty_weight=2,
+        predefined_configurations=None
+    ):
+        self.grid_size = grid_size
+        self.population_size = population_size
+        self.generations = generations
+        self.initial_mutation_rate = initial_mutation_rate
+        self.alive_cells_weight = alive_cells_weight
+        self.mutation_rate_lower_limit = mutation_rate_lower_limit
+        self.lifespan_weight = lifespan_weight
+        self.alive_growth_weight = alive_growth_weight
+        self.initial_living_cells_count_penalty_weight = initial_living_cells_count_penalty_weight
+        self.predefined_configurations = predefined_configurations
+
+    def as_dict(self):
+        """Convert configuration attributes to a dictionary."""
+        return vars(self)
+
+
+default_config = Configuration()
+default_params = default_config.as_dict()  # Fetch default values as a dictionary
+
+
+def main(grid_size,
+         population_size,
+         generations,
+         initial_mutation_rate,
+         alive_cells_weight,
+         mutation_rate_lower_limit,
+         lifespan_weight,
+         alive_growth_weight,
+         initial_living_cells_count_penalty_weight,
+         predefined_configurations):
+    """
+    Main function that drives the process:
+    1. Instantiates the GeneticAlgorithm with the given parameters.
+    2. Runs the GA to completion, returning the top configurations.
+    3. Passes those configurations to InteractiveSimulation for visualization and analysis.
+
+    Args:
+        grid_size (int): NxN dimension of the grid.
+        population_size (int): Number of individuals in each GA generation.
+        generations (int): Number of generations to run in the GA.
+        initial_mutation_rate (float): Probability of mutating a cell at the start.
+        mutation_rate_lower_limit (float): The minimum bound on mutation rate.
+        alive_cells_weight (float): Fitness weight for maximum alive cells.
+        lifespan_weight (float): Fitness weight for lifespan.
+        alive_growth_weight (float): Fitness weight for growth ratio.
+        initial_living_cells_count_penalty_weight (float): Weight for penalizing large initial patterns.
+        predefined_configurations (None or iterable): Optional, known patterns for initialization.
+    """
+    logging.info(f"""Starting run with parameters: 
+    grid_size={grid_size}, 
+    population_size={population_size}, 
+    generations={generations}, 
+    initial_mutation_rate={initial_mutation_rate}, 
+    alive_cells_weight={alive_cells_weight}, 
+    mutation_rate_lower_limit={mutation_rate_lower_limit}, 
+    lifespan_weight={lifespan_weight}, 
+    alive_growth_weight={alive_growth_weight}, 
+    initial_living_cells_count_penalty_weight={initial_living_cells_count_penalty_weight}, 
+    predefined_configurations={predefined_configurations}""")
+
+    # Instantiate the GeneticAlgorithm
+    algorithm = GeneticAlgorithm(
+        grid_size=grid_size,
+        population_size=population_size,
+        generations=generations,
+        initial_mutation_rate=initial_mutation_rate,
+        mutation_rate_lower_limit=mutation_rate_lower_limit,
+        alive_cells_weight=alive_cells_weight,
+        lifespan_weight=lifespan_weight,
+        alive_growth_weight=alive_growth_weight,
+        initial_living_cells_count_penalty_weight=initial_living_cells_count_penalty_weight,
+        predefined_configurations=predefined_configurations
+    )
+
+    # Run the algorithm and retrieve top configurations and their parameters
+    results, initial_configurations_start_index = algorithm.run()
+    
+    # Extract only the 'config' from the results for visualization
+    
+    run_params = {
+        "grid_size": grid_size,
+        "population_size": population_size,
+        "generations": generations,
+        "initial_mutation_rate": initial_mutation_rate,
+        "mutation_rate_lower_limit": mutation_rate_lower_limit,
+        "alive_cells_weight": alive_cells_weight,
+        "lifespan_weight": lifespan_weight,
+        "alive_growth_weight": alive_growth_weight,
+        "initial_living_cells_count_penalty_weight": initial_living_cells_count_penalty_weight,
+        "predefined_configurations": predefined_configurations,
+    }
+
+    # Launch interactive simulation with the best configurations
+    simulation = InteractiveSimulation(
+        configurations=results,
+        initial_configurations_start_index=initial_configurations_start_index,
+        grid_size=grid_size,
+        generations_cache=algorithm.generations_cache,
+        mutation_rate_history=algorithm.mutation_rate_history,
+        diversity_history=algorithm.diversity_history,  # Pass the new diversity metric
+        run_params=run_params
+    )
+    simulation.run()
+
+
+def get_user_param(prompt: str, default_value: str) -> str:
+    """
+    Prompt the user for a parameter with a default fallback.
+    If the user just presses Enter, the default is returned.
+
+    Args:
+        prompt (str): The text shown to the user.
+        default_value (str): The default string if the user does not provide input.
+
+    Returns:
+        str: The user-entered string or the default if empty.
+    """
+    user_input = input(f"""{prompt} [{default_value}]: """).strip()
+    return user_input if user_input else default_value
+
+
+def run_main_interactively():
+    """
+    Interactive function that asks the user whether to use all default parameters or
+    to input custom values for each parameter individually.
+
+    Functionality:
+        - If the user opts for default values, the `main` function is invoked directly.
+        - Otherwise, the user is prompted for each parameter, with defaults available for convenience.
+    """
+    # Create a default configuration instance
+    default_config = Configuration()
+    default_params = default_config.as_dict()  # Fetch default values as a dictionary
+
+    # Ask if the user wants to use all defaults
+    use_defaults = input("""Use default values for ALL parameters? (y/N): """).strip().lower()
+    if use_defaults.startswith('y') or use_defaults == "":
+        main(**default_params)
+        return
+
+    else:
+        # Interactively get parameters, falling back on the defaults dynamically
+        updated_params = {}
+        for key, value in default_params.items():
+            user_input = input(f"""{key} [{value}]: """).strip()
+            if user_input == "":
+                updated_params[key] = value  # Use the default
+            else:
+                try:
+                    # Attempt to cast the user input to the type of the default value
+                    updated_params[key] = type(value)(user_input)
+                except ValueError:
+                    logging.warning(f"""Invalid input for {key}. Using default value: {value}""")
+                    updated_params[key] = value
+
+        # Pass the updated parameters to main
+        main(**updated_params)
+
+
+if __name__ == '__main__':
+    run_main_interactively()
+# --- END OF main.py ---
+

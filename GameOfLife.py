@@ -73,9 +73,10 @@ class GameOfLife:
         self.lifespan = 0
         self.is_static = False
         self.is_periodic = False
-        self.period_length = 0
+        self.period_length = 1
         self.alive_history = [np.sum(self.grid)]
         self.unique_states = set()
+        self.is_methuselah = False
 
 
     def _count_alive_neighbors(self, grid):
@@ -135,8 +136,8 @@ class GameOfLife:
         next_grid = self._compute_next_generation(current_grid, neighbor_count)
 
         # Convert to tuple for hashing and state tracking
-        new_state = tuple(next_grid.flatten())
-        current_state = tuple(current_grid.flatten())
+        new_state = tuple(next_grid)
+        current_state = tuple(current_grid)
 
         
         # Static check: No change from the previous generation
@@ -172,14 +173,13 @@ class GameOfLife:
         while limiter > 0 and ((not self.is_static and not self.is_periodic) or self.stable_count < self.max_stable_generations):
             alive_cell_count = np.sum(self.grid)
             self.alive_history.append(alive_cell_count)
-            # Append the current state to history
             self.history.append(tuple(self.grid))
-
             if self.is_static or self.is_periodic:
                 self.stable_count += 1
             else:
                 self.lifespan += 1
-
             self.step()
             limiter -= 1
+        
+        self.is_methuselah = self.lifespan > self.period_length
         
