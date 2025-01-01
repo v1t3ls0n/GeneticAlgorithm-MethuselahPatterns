@@ -69,7 +69,7 @@ class GameOfLife:
         self.history = []
         self.game_iteration_limit = 500000
         self.stable_count = 0
-        self.max_stable_generations = 100
+        self.max_stable_generations = 10
         self.lifespan = 0
         self.is_static = False
         self.is_periodic = False
@@ -77,17 +77,6 @@ class GameOfLife:
         self.alive_history = [np.sum(self.grid)]
         self.unique_states = set()
 
-    def _grid_to_hashable(self, grid):
-        """
-        Converts a NumPy grid to a hashable tuple for state comparison.
-
-        Args:
-            grid (numpy.ndarray): The grid to convert.
-
-        Returns:
-            tuple: A tuple representation of the grid.
-        """
-        return tuple(grid.flatten())
 
     def _count_alive_neighbors(self, grid):
         """
@@ -146,8 +135,8 @@ class GameOfLife:
         next_grid = self._compute_next_generation(current_grid, neighbor_count)
 
         # Convert to tuple for hashing and state tracking
-        new_state = tuple(next_grid)
-        current_state = tuple(current_grid)
+        new_state = tuple(next_grid.flatten())
+        current_state = tuple(current_grid.flatten())
 
         
         # Static check: No change from the previous generation
@@ -158,6 +147,7 @@ class GameOfLife:
         elif not self.is_periodic and new_state in self.history:
             self.is_periodic = True
             self.period_length = len(self.history) - self.history.index(new_state)
+            self.max_stable_generations+ = self.period_length
             logging.info(f"""Grid has entered a periodic cycle. period length = {self.period_length}""")
 
         # Update the grid
@@ -181,12 +171,6 @@ class GameOfLife:
 
         while limiter > 0 and ((not self.is_static and not self.is_periodic) or self.stable_count < self.max_stable_generations):
             alive_cell_count = np.sum(self.grid)
-            # If no cells are alive, mark as static
-            if alive_cell_count == 0:
-                self.is_static = True
-                logging.info("All cells are dead. Grid has become static.")
-                self.alive_history.append(0)
-
             self.alive_history.append(alive_cell_count)
             # Append the current state to history
             self.history.append(tuple(self.grid))
