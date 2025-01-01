@@ -67,15 +67,15 @@ class GameOfLife:
         # Store the immutable initial state
         self.initial_state = tuple(self.grid)
         self.history = []
-        self.game_iteration_limit = 150000
+        self.game_iteration_limit = 500000
         self.stable_count = 0
-        self.max_stable_generations = 10
+        self.max_stable_generations = 100
         self.lifespan = 0
         self.is_static = False
         self.is_periodic = False
+        self.period_length = 0
         self.alive_history = [np.sum(self.grid)]
         self.unique_states = set()
-        self.unique_states.add(self.initial_state)
 
     def _grid_to_hashable(self, grid):
         """
@@ -149,20 +149,19 @@ class GameOfLife:
         new_state = tuple(next_grid)
         current_state = tuple(current_grid)
 
+        
         # Static check: No change from the previous generation
-        if np.array_equal(next_grid, current_grid):
+        if not self.is_static and current_state == new_state:
             self.is_static = True
             logging.info("Grid has become static.")
         # Periodic check: If the new state matches any previous state (excluding the immediate last)
-        elif new_state in self.unique_states:
+        elif not self.is_periodic and new_state in self.history:
             self.is_periodic = True
-            logging.info("Grid has entered a periodic cycle.")
-        else:
-            # Update the grid
-            self.grid = next_grid
-            # Add the new state to history and unique states
-            self.history.append(current_state)
-            self.unique_states.add(new_state)
+            self.period_length = len(self.history) - self.history.index(new_state)
+            logging.info(f"""Grid has entered a periodic cycle. period length = {self.period_length}""")
+
+        # Update the grid
+        self.grid = next_grid
 
     def run(self):
         """
@@ -187,16 +186,16 @@ class GameOfLife:
                 self.is_static = True
                 logging.info("All cells are dead. Grid has become static.")
                 self.alive_history.append(0)
-                break
 
             self.alive_history.append(alive_cell_count)
             # Append the current state to history
             self.history.append(tuple(self.grid))
 
-            if self.is_periodic or self.is_static:
+            if self.is_static or self.is_periodic:
                 self.stable_count += 1
             else:
                 self.lifespan += 1
 
             self.step()
             limiter -= 1
+        

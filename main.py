@@ -29,14 +29,13 @@ class Configuration:
     def __init__(
         self,
         grid_size=10,
-        population_size=64,
+        population_size=20,
         generations=100,
         initial_mutation_rate=0.3,
         alive_cells_weight=0.12,
         mutation_rate_lower_limit=0.1,
         lifespan_weight=100.0,
         alive_growth_weight=2,
-        stableness_weight=1.0,
         initial_living_cells_count_penalty_weight=2,
         predefined_configurations=None
     ):
@@ -48,7 +47,6 @@ class Configuration:
         self.mutation_rate_lower_limit = mutation_rate_lower_limit
         self.lifespan_weight = lifespan_weight
         self.alive_growth_weight = alive_growth_weight
-        self.stableness_weight = stableness_weight
         self.initial_living_cells_count_penalty_weight = initial_living_cells_count_penalty_weight
         self.predefined_configurations = predefined_configurations
 
@@ -69,7 +67,6 @@ def main(grid_size,
          mutation_rate_lower_limit,
          lifespan_weight,
          alive_growth_weight,
-         stableness_weight,
          initial_living_cells_count_penalty_weight,
          predefined_configurations):
     """
@@ -87,7 +84,6 @@ def main(grid_size,
         alive_cells_weight (float): Fitness weight for maximum alive cells.
         lifespan_weight (float): Fitness weight for lifespan.
         alive_growth_weight (float): Fitness weight for growth ratio.
-        stableness_weight (float): Fitness weight for how quickly a pattern stabilizes or not.
         initial_living_cells_count_penalty_weight (float): Weight for penalizing large initial patterns.
         predefined_configurations (None or iterable): Optional, known patterns for initialization.
     """
@@ -100,7 +96,6 @@ def main(grid_size,
     mutation_rate_lower_limit={mutation_rate_lower_limit}, 
     lifespan_weight={lifespan_weight}, 
     alive_growth_weight={alive_growth_weight}, 
-    stableness_weight={stableness_weight}, 
     initial_living_cells_count_penalty_weight={initial_living_cells_count_penalty_weight}, 
     predefined_configurations={predefined_configurations}""")
 
@@ -114,7 +109,6 @@ def main(grid_size,
         alive_cells_weight=alive_cells_weight,
         lifespan_weight=lifespan_weight,
         alive_growth_weight=alive_growth_weight,
-        stableness_weight=stableness_weight,
         initial_living_cells_count_penalty_weight=initial_living_cells_count_penalty_weight,
         predefined_configurations=predefined_configurations
     )
@@ -133,7 +127,6 @@ def main(grid_size,
         "alive_cells_weight": alive_cells_weight,
         "lifespan_weight": lifespan_weight,
         "alive_growth_weight": alive_growth_weight,
-        "stableness_weight": stableness_weight,
         "initial_living_cells_count_penalty_weight": initial_living_cells_count_penalty_weight,
         "predefined_configurations": predefined_configurations,
     }

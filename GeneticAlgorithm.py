@@ -22,7 +22,6 @@ class GeneticAlgorithm:
         alive_cells_weight (float): Fitness weight for maximum number of living cells.
         lifespan_weight (float): Fitness weight for configuration lifespan.
         alive_growth_weight (float): Fitness weight for cell growth ratio.
-        stableness_weight (float): Fitness weight for pattern stability.
         initial_living_cells_count_penalty_weight (float): Penalty weight for large initial configurations.
         predefined_configurations (optional): Pre-made Game of Life patterns to include.
         population (set[tuple]): Current generation's configurations.
@@ -33,7 +32,7 @@ class GeneticAlgorithm:
     """
 
     def __init__(self, grid_size, population_size, generations, initial_mutation_rate, mutation_rate_lower_limit,
-                 alive_cells_weight, lifespan_weight, alive_growth_weight, stableness_weight,
+                 alive_cells_weight, lifespan_weight, alive_growth_weight,
                  initial_living_cells_count_penalty_weight, predefined_configurations=None):
         """
         Initialize the genetic algorithm with configuration parameters.
@@ -47,7 +46,6 @@ class GeneticAlgorithm:
             alive_cells_weight (float): Weight for maximum living cells in fitness.
             lifespan_weight (float): Weight for configuration lifespan in fitness.
             alive_growth_weight (float): Weight for cell growth ratio in fitness.
-            stableness_weight (float): Weight for pattern stability in fitness.
             initial_living_cells_count_penalty_weight (float): Weight for penalizing large initial patterns.
             predefined_configurations (optional): Predefined Game of Life patterns to include.
         """
@@ -62,7 +60,6 @@ class GeneticAlgorithm:
         self.lifespan_weight = lifespan_weight
         self.initial_living_cells_count_penalty_weight = initial_living_cells_count_penalty_weight
         self.alive_growth_weight = alive_growth_weight
-        self.stableness_weight = stableness_weight
         self.configuration_cache = collections.defaultdict(dict)
         self.generations_cache = collections.defaultdict(dict)
         self.canonical_forms_cache = collections.defaultdict(
@@ -174,14 +171,13 @@ class GeneticAlgorithm:
         - Configuration longevity through lifespan
         - Peak population through maximum alive cells
         - Growth dynamics through alive growth ratio
-        - Pattern stability through stableness score
         - Efficiency through initial size penalty
 
         Args:
             lifespan (int): Number of unique states before stopping.
             max_alive_cells_count (int): Maximum living cells in any generation.
             alive_growth (float): Ratio of max to min living cells.
-            stableness (float): Measure of pattern stability.
+            stableness (int): 1 for configuration that stablizes and 0 for one who do not
             initial_living_cells_count (int): Starting number of living cells.
 
         Returns:
@@ -190,11 +186,9 @@ class GeneticAlgorithm:
         lifespan_score = lifespan * self.lifespan_weight
         alive_cells_score = max_alive_cells_count * self.alive_cells_weight
         growth_score = alive_growth * self.alive_growth_weight
-        stableness_score = stableness * self.stableness_weight
         large_configuration_penalty = (
             1 / max(1, initial_living_cells_count * self.initial_living_cells_count_penalty_weight))
-        fitness = ((lifespan_score + alive_cells_score + growth_score +
-                   stableness_score) * (large_configuration_penalty))
+        fitness = ((lifespan_score + alive_cells_score + growth_score) * (large_configuration_penalty) * stableness)
         return fitness
 
     def evaluate(self, configuration):
@@ -261,8 +255,7 @@ class GeneticAlgorithm:
         initial_living_cells_count = sum(configuration_tuple)
         alive_growth = max_difference_with_distance(
             game.alive_history) if game.alive_history else 0
-        stableness = game.stable_count / \
-            game.max_stable_generations if game.max_stable_generations > 0 else 0
+        stableness = 1 if (game.is_static or game.is_periodic) else 0
         fitness_score = self.calc_fitness(
             lifespan=game.lifespan,
             max_alive_cells_count=max_alive_cells_count,
@@ -356,7 +349,7 @@ class GeneticAlgorithm:
         logging.debug(f"Elitism: Preserved top {elitism_count} configurations.")
 
         
-        if generation % 20 != 0:
+        if generation % 10 != 0:
             amount = self.population_size // 4
             for _ in range(amount):
                 try:
