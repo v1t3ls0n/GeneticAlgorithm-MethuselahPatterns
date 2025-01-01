@@ -625,7 +625,7 @@ class GeneticAlgorithm:
             return
 
         avg_fitness = [
-            self.generations_cache[g]['avg_fitness']
+            int(self.generations_cache[g]['avg_fitness'])
             for g in range(last_generation - 10, last_generation)
         ]
 
@@ -781,18 +781,6 @@ class GeneticAlgorithm:
         # Store their histories for later viewing
         for config, _ in top_configs:
 
-            # logging.info("Top Configuration:""")
-            # logging.info(f"""  Configuration: {config}""")
-            # logging.info(f"""Fitness Score: {
-            #              self.configuration_cache[config]['fitness_score']}""")
-            # logging.info(f"""Lifespan: {
-            #              self.configuration_cache[config]['lifespan']}""")
-            # logging.info(f"""Total Alive Cells: {
-            #              self.configuration_cache[config]['max_alive_cells_count']}""")
-            # logging.info(f"""Alive Growth: {
-            #              self.configuration_cache[config]['alive_growth']}""")
-            # logging.info(f"""Initial Configuration Living Cells Count: {
-            #              self.configuration_cache[config]['initial_living_cells_count']}""")
             params_dict = {
                 'fitness_score': self.configuration_cache[config]['fitness_score'],
                 'lifespan': self.configuration_cache[config]['lifespan'],
@@ -808,19 +796,6 @@ class GeneticAlgorithm:
             results.append(params_dict)
 
         for config, _ in fitness_scores_initial_population:
-
-            # logging.info("Top Configuration:""")
-            # logging.info(f"""  Configuration: {config}""")
-            # logging.info(f"""Fitness Score: {
-            #              self.configuration_cache[config]['fitness_score']}""")
-            # logging.info(f"""Lifespan: {
-            #              self.configuration_cache[config]['lifespan']}""")
-            # logging.info(f"""Total Alive Cells: {
-            #              self.configuration_cache[config]['max_alive_cells_count']}""")
-            # logging.info(f"""Alive Growth: {
-            #              self.configuration_cache[config]['alive_growth']}""")
-            # logging.info(f"""Initial Configuration Living Cells Count: {
-            #              self.configuration_cache[config]['initial_living_cells_count']}""")
             params_dict = {
                 'fitness_score': self.configuration_cache[config]['fitness_score'],
                 'lifespan': self.configuration_cache[config]['lifespan'],
