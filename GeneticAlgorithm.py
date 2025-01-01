@@ -166,149 +166,6 @@ class GeneticAlgorithm:
         logging.debug("""Enriched population with variety.""")
         return population_pool
 
-    def get_canonical_form(self, config):
-        """
-        Compute the canonical form of a configuration by normalizing its position and rotation.
-
-        Args:
-            config (tuple[int]): Flattened 1D representation of the grid.
-
-        Returns:
-            tuple[int]: Canonical form of the configuration.
-        """
-        if config in self.canonical_forms_cache:
-            return self.canonical_forms_cache[config]
-
-        grid = np.array(config).reshape(self.grid_size, self.grid_size)
-        live_cells = np.argwhere(grid == 1)
-
-        if live_cells.size == 0:
-            canonical = tuple(grid.flatten())  # Return empty grid as-is
-        else:
-            min_row, min_col = live_cells.min(axis=0)
-            translated_grid = np.roll(grid, shift=-min_row, axis=0)
-            translated_grid = np.roll(
-                translated_grid, shift=-min_col, axis=1)
-
-            # Generate all rotations and find the lexicographically smallest
-            rotations = [np.rot90(translated_grid, k).flatten()
-                         for k in range(4)]
-            canonical = tuple(min(rotations, key=lambda x: tuple(x)))
-
-        self.canonical_forms_cache[config] = canonical
-        return canonical
-
-    def detect_recurrent_blocks(self, config):
-        """
-        Detect recurring canonical blocks within the configuration, considering rotations.
-
-        Args:
-            config (tuple[int]): Flattened 1D representation of the grid.
-
-        Returns:
-            dict: Frequency of each canonical block in the configuration.
-        """
-        if config in self.block_frequencies_cache:
-            return self.block_frequencies_cache[config]
-
-        block_size = self.grid_size // 2  # Define the block size
-        grid = np.array(config).reshape(self.grid_size, self.grid_size)
-        block_frequency = {}
-
-        for row in range(0, self.grid_size, block_size):
-            for col in range(0, self.grid_size, block_size):
-                block = grid[row:row + block_size, col:col + block_size]
-                if block.size == 0:
-                    continue
-                block_canonical = self.get_canonical_form(
-                    tuple(block.flatten()))
-                if block_canonical not in block_frequency:
-                    block_frequency[block_canonical] = 0
-                block_frequency[block_canonical] += 1
-
-        self.block_frequencies_cache[config] = block_frequency
-        return block_frequency
-
-    def calculate_corrected_scores(self):
-        """
-        Calculate corrected scores by combining canonical form and cell frequency penalties.
-
-        Returns:
-            list[tuple[int, float]]: List of configurations with corrected scores.
-        """
-        total_cells = self.grid_size * self.grid_size
-        frequency_vector = np.zeros(total_cells)
-        canonical_frequency = {}
-        block_frequencies = {}
-
-        uniqueness_scores = []
-
-        for config in self.population:
-            frequency_vector += np.array(config)
-            canonical = self.get_canonical_form(config)
-            if canonical not in canonical_frequency:
-                canonical_frequency[canonical] = 0
-            canonical_frequency[canonical] += 1
-
-            # Detect and update block frequencies
-            block_frequency = self.detect_recurrent_blocks(config)
-            for block, count in block_frequency.items():
-                if block not in block_frequencies:
-                    block_frequencies[block] = 0
-                block_frequencies[block] += count
-
-        corrected_scores = []
-
-        for config in self.population:
-            # Use normalized_fitness_score
-            normalized_fitness = self.configuration_cache[config]['normalized_fitness_score']
-            active_cells = [
-                i for i, cell in enumerate(config) if cell == 1]
-
-            # Canonical form penalty
-            canonical = self.get_canonical_form(config)
-            canonical_penalty = canonical_frequency.get(canonical, 1)
-
-            # Cell frequency penalty
-            if len(active_cells) == 0:
-                cell_frequency_penalty = 1  # Avoid division by zero
-            else:
-                total_frequency = sum(
-                    frequency_vector[i] for i in active_cells)
-                cell_frequency_penalty = (
-                    total_frequency / len(active_cells)) ** 3
-
-            # Block recurrence penalty
-            block_frequency_penalty = 1
-            block_frequency = self.detect_recurrent_blocks(config)
-            for block, count in block_frequency.items():
-                block_frequency_penalty *= block_frequencies.get(block, 1)
-
-            # Combine penalties
-            uniqueness_score = (
-                canonical_penalty * cell_frequency_penalty * block_frequency_penalty) ** 2
-            uniqueness_scores.append(uniqueness_score)
-
-        # Update min/max uniqueness scores globally
-        self.min_uniqueness_score = min(
-            uniqueness_scores) if uniqueness_scores else 0
-        self.max_uniqueness_score = max(
-            uniqueness_scores) if uniqueness_scores else 1
-
-        for config, uniqueness_score in zip(self.population, uniqueness_scores):
-            # Normalize uniqueness score
-            normalized_uniqueness = (uniqueness_score - self.min_uniqueness_score) / \
-                                    (self.max_uniqueness_score - self.min_uniqueness_score) \
-                if self.max_uniqueness_score != self.min_uniqueness_score else 1.0
-
-            # Use normalized_fitness in corrected_score
-            corrected_score = (
-                normalized_fitness if normalized_fitness is not None else 0) / max(1, normalized_uniqueness)
-            corrected_scores.append((config, corrected_score))
-
-        logging.debug("""Calculated corrected scores for parent selection.""")
-        return corrected_scores
-
     def calc_fitness(self, lifespan, max_alive_cells_count, alive_growth, stableness, initial_living_cells_count):
         """
         Calculate weighted fitness score combining multiple optimization objectives.
@@ -338,7 +195,6 @@ class GeneticAlgorithm:
             1 / max(1, initial_living_cells_count * self.initial_living_cells_count_penalty_weight))
         fitness = ((lifespan_score + alive_cells_score + growth_score +
                    stableness_score) * (large_configuration_penalty))
-        logging.debug("""Calculated fitness: {}""".format(fitness))
         return fitness
 
     def evaluate(self, configuration):
@@ -487,10 +343,20 @@ class GeneticAlgorithm:
             generation (int): Current generation number.
         """
         new_population = set()
-        if generation % 10 != 0:
-            # Perform genetic operations
-            logging.debug(
-                """Performing genetic operations for generation {}.""".format(generation + 1))
+
+        # **Elitism**: Preserve top 5% configurations unchanged
+        elitism_count = max(1, int(0.05 * self.population_size))
+        sorted_population = sorted(
+            self.population,
+            key=lambda config: self.configuration_cache[config]['fitness_score'],
+            reverse=True
+        )
+        elites = sorted_population[:elitism_count]
+        new_population.update(elites)
+        logging.debug(f"Elitism: Preserved top {elitism_count} configurations.")
+
+        
+        if generation % 20 != 0:
             amount = self.population_size // 4
             for _ in range(amount):
                 try:
@@ -538,17 +404,7 @@ class GeneticAlgorithm:
 
     def select_parents(self, generation):
         """
-        Select two parent configurations using one of three selection methods.
-
-        Combines canonical forms and cell frequency analysis to adjust fitness scores dynamically.
-        Penalizes configurations that are both frequent in canonical form and have highly common active cells.
-
-        Additionally considers recurring canonical blocks across configurations with rotational equivalence.
-
-        Methods:
-            1. Normalized probability (50% chance): Fitness proportional to adjusted score.
-            2. Tournament selection (25% chance): Random subsets competition.
-            3. Rank-based selection (25% chance): Based on fitness ranking.
+        main parent selection integrating all selection strategies.
 
         Args:
             generation (int): Current generation number.
@@ -556,9 +412,15 @@ class GeneticAlgorithm:
         Returns:
             tuple: Two parent configurations for crossover.
         """
-        parents = self.select_parents_final(generation)
-        logging.debug("""Selected parents: {} and {}""".format(
-            parents[0], parents[1]))
+        if generation % 10 == 0 and generation != 0:
+            # Every 10th generation, use corrected scores with penalties
+            corrected_scores = self.calculate_corrected_scores()
+        else:
+            # Use normalized_fitness_score for selection
+            corrected_scores = [(config, self.configuration_cache[config]
+                                 ['normalized_fitness_score']) for config in self.population]
+
+        parents = self.select_parents_method(corrected_scores)
         return parents
 
     def crossover(self, parent1, parent2):
@@ -971,130 +833,148 @@ class GeneticAlgorithm:
         parents = selected_method(corrected_scores, num_parents=2)
         return parents
 
-    def select_parents_final(self, generation):
+    def get_canonical_form(self, config):
         """
-        Final parent selection integrating all selection strategies.
+        Compute the canonical form of a configuration by normalizing its position and rotation.
 
         Args:
-            generation (int): Current generation number.
+            config (tuple[int]): Flattened 1D representation of the grid.
 
         Returns:
-            tuple: Two parent configurations for crossover.
+            tuple[int]: Canonical form of the configuration.
         """
-        if generation % 10 == 0 and generation != 0:
-            # Every 10th generation, use corrected scores with penalties
-            corrected_scores = self.calculate_corrected_scores()
+        if config in self.canonical_forms_cache:
+            return self.canonical_forms_cache[config]
+
+        grid = np.array(config).reshape(self.grid_size, self.grid_size)
+        live_cells = np.argwhere(grid == 1)
+
+        if live_cells.size == 0:
+            canonical = tuple(grid.flatten())  # Return empty grid as-is
         else:
-            # Use normalized_fitness_score for selection
-            corrected_scores = [(config, self.configuration_cache[config]
-                                 ['normalized_fitness_score']) for config in self.population]
+            min_row, min_col = live_cells.min(axis=0)
+            translated_grid = np.roll(grid, shift=-min_row, axis=0)
+            translated_grid = np.roll(
+                translated_grid, shift=-min_col, axis=1)
 
-        parents = self.select_parents_method(corrected_scores)
-        return parents
+            # Generate all rotations and find the lexicographically smallest
+            rotations = [np.rot90(translated_grid, k).flatten()
+                         for k in range(4)]
+            canonical = tuple(min(rotations, key=lambda x: tuple(x)))
 
-    def track_diversity(self):
+        self.canonical_forms_cache[config] = canonical
+        return canonical
+
+    def detect_recurrent_blocks(self, config):
         """
-        Track genetic diversity within the population.
-
-        Calculates diversity metrics such as average Hamming distance between configurations.
-        """
-        if not self.population:
-            self.diversity_history.append(0)
-            return
-
-        population_list = list(self.population)
-        total_pairs = len(population_list) * (len(population_list) - 1) / 2
-        if total_pairs == 0:
-            average_hamming_distance = 0
-        else:
-            hamming_distances = [
-                self.hamming_distance(population_list[i], population_list[j])
-                for i in range(len(population_list))
-                for j in range(i + 1, len(population_list))
-            ]
-            average_hamming_distance = sum(hamming_distances) / total_pairs
-
-        self.diversity_history.append(average_hamming_distance)
-        logging.debug("""Tracked diversity: Average Hamming Distance = {}""".format(
-            average_hamming_distance))
-    @staticmethod
-    def hamming_distance(config1, config2):
-        """
-        Calculate the Hamming distance between two configurations.
+        Detect recurring canonical blocks within the configuration, considering rotations.
 
         Args:
-            config1 (tuple[int]): First configuration.
-            config2 (tuple[int]): Second configuration.
+            config (tuple[int]): Flattened 1D representation of the grid.
 
         Returns:
-            int: Hamming distance.
+            dict: Frequency of each canonical block in the configuration.
         """
-        return sum(c1 != c2 for c1, c2 in zip(config1, config2))
+        if config in self.block_frequencies_cache:
+            return self.block_frequencies_cache[config]
 
-    def get_diversity_trend(self):
+        block_size = self.grid_size // 2  # Define the block size
+        grid = np.array(config).reshape(self.grid_size, self.grid_size)
+        block_frequency = {}
+
+        for row in range(0, self.grid_size, block_size):
+            for col in range(0, self.grid_size, block_size):
+                block = grid[row:row + block_size, col:col + block_size]
+                if block.size == 0:
+                    continue
+                block_canonical = self.get_canonical_form(
+                    tuple(block.flatten()))
+                if block_canonical not in block_frequency:
+                    block_frequency[block_canonical] = 0
+                block_frequency[block_canonical] += 1
+
+        self.block_frequencies_cache[config] = block_frequency
+        return block_frequency
+
+    def calculate_corrected_scores(self):
         """
-        Retrieve the history of diversity metrics.
+        Calculate corrected scores by combining canonical form and cell frequency penalties.
 
         Returns:
-            list[float]: List of average Hamming distances per generation.
+            list[tuple[int, float]]: List of configurations with corrected scores.
         """
-        return self.diversity_history
+        total_cells = self.grid_size * self.grid_size
+        frequency_vector = np.zeros(total_cells)
+        canonical_frequency = {}
+        block_frequencies = {}
 
-    def get_mutation_rate_trend(self):
-        """
-        Retrieve the history of mutation rates.
+        uniqueness_scores = []
 
-        Returns:
-            list[float]: List of mutation rates per generation.
-        """
-        return self.mutation_rate_history
-    
-    def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, max_alive_cells_count, stableness, initial_living_cells_count):
-        """
-        Calculate and store population statistics for the current generation.
+        for config in self.population:
+            frequency_vector += np.array(config)
+            canonical = self.get_canonical_form(config)
+            if canonical not in canonical_frequency:
+                canonical_frequency[canonical] = 0
+            canonical_frequency[canonical] += 1
 
-        Computes and records:
-        - Mean and standard deviation for all fitness metrics
-        - Population dynamics measures
-        - Configuration characteristics
+            # Detect and update block frequencies
+            block_frequency = self.detect_recurrent_blocks(config)
+            for block, count in block_frequency.items():
+                if block not in block_frequencies:
+                    block_frequencies[block] = 0
+                block_frequencies[block] += count
 
-        Args:
-            generation (int): Current generation number
-            scores (list[float]): Fitness scores for all configurations
-            lifespans (list[int]): Lifespan values for all configurations
-            alive_growth_rates (list[float]): Growth rates for all configurations
-            stableness (list[float]): Stability measures for all configurations
-            max_alive_cells_count (list[int]): Peak populations for all configurations
-            initial_living_cells_count (list[int]): Initial sizes for all configurations
-        """
-        scores = np.array(scores)
-        lifespans = np.array(lifespans)
-        alive_growth_rates = np.array(alive_growth_rates)
-        stableness = np.array(stableness)
-        max_alive_cells_count = np.array(max_alive_cells_count)
+        corrected_scores = []
 
-        self.generations_cache[generation]['avg_fitness'] = np.mean(scores)
-        self.generations_cache[generation]['avg_lifespan'] = np.mean(lifespans)
-        self.generations_cache[generation]['avg_alive_growth_rate'] = np.mean(
-            alive_growth_rates)
-        self.generations_cache[generation]['avg_max_alive_cells_count'] = np.mean(
-            max_alive_cells_count)
-        self.generations_cache[generation]['avg_stableness'] = np.mean(
-            stableness)
-        self.generations_cache[generation]['avg_initial_living_cells_count'] = np.mean(
-            initial_living_cells_count)
+        for config in self.population:
+            # Use normalized_fitness_score
+            normalized_fitness = self.configuration_cache[config]['normalized_fitness_score']
+            active_cells = [
+                i for i, cell in enumerate(config) if cell == 1]
 
-        self.generations_cache[generation]['std_fitness'] = np.std(scores)
-        self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
-        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(
-            alive_growth_rates)
-        self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
-            max_alive_cells_count)
-        self.generations_cache[generation]['std_initial_living_cells_count'] = np.std(
-            initial_living_cells_count)
+            # Canonical form penalty
+            canonical = self.get_canonical_form(config)
+            canonical_penalty = canonical_frequency.get(canonical, 1)
 
-        logging.debug(
-            """Calculated statistics for generation {}.""".format(generation + 1))
+            # Cell frequency penalty
+            if len(active_cells) == 0:
+                cell_frequency_penalty = 1  # Avoid division by zero
+            else:
+                total_frequency = sum(
+                    frequency_vector[i] for i in active_cells)
+                cell_frequency_penalty = (
+                    total_frequency / len(active_cells)) ** 3
+
+            # Block recurrence penalty
+            block_frequency_penalty = 1
+            block_frequency = self.detect_recurrent_blocks(config)
+            for block, count in block_frequency.items():
+                block_frequency_penalty *= block_frequencies.get(block, 1)
+
+            # Combine penalties
+            uniqueness_score = (
+                canonical_penalty * cell_frequency_penalty * block_frequency_penalty) ** 3
+            uniqueness_scores.append(uniqueness_score)
+
+        # Update min/max uniqueness scores globally
+        self.min_uniqueness_score = min(
+            uniqueness_scores) if uniqueness_scores else 0
+        self.max_uniqueness_score = max(
+            uniqueness_scores) if uniqueness_scores else 1
+
+        for config, uniqueness_score in zip(self.population, uniqueness_scores):
+            # Normalize uniqueness score
+            normalized_uniqueness = (uniqueness_score - self.min_uniqueness_score) / \
+                                    (self.max_uniqueness_score - self.min_uniqueness_score) \
+                if self.max_uniqueness_score != self.min_uniqueness_score else 1.0
+
+            # Use normalized_fitness in corrected_score
+            corrected_score = (
+                normalized_fitness if normalized_fitness is not None else 0) / max(1, normalized_uniqueness)
+            corrected_scores.append((config, corrected_score))
+
+        logging.debug("""Calculated corrected scores for parent selection.""")
+        return corrected_scores
 
     def adjust_mutation_rate(self, generation):
         """
@@ -1221,32 +1101,6 @@ class GeneticAlgorithm:
         # Track diversity after statistics calculation
         self.track_diversity()
 
-    def run(self):
-        """
-        Execute the complete evolutionary process.
-
-        Performs the following steps:
-        1. Initializes random population
-        2. Iterates through specified generations:
-           - Generates new configurations
-           - Evaluates fitness
-           - Updates statistics
-           - Adjusts parameters
-           - Checks for stagnation
-        3. Returns results of evolution
-
-        Returns:
-            tuple: (results list, initial_configurations_start_index)
-        """
-        self.initialize()
-        for generation in range(1, self.generations):
-            self.populate(generation=generation)
-            self.compute_generation(generation=generation)
-            self.adjust_mutation_rate(generation)
-            self.check_for_stagnation(generation)
-
-        return self.get_experiment_results()
-
     def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, max_alive_cells_count, stableness, initial_living_cells_count):
         """
         Calculate and store population statistics for the current generation.
@@ -1293,6 +1147,81 @@ class GeneticAlgorithm:
 
         logging.debug(
             """Calculated statistics for generation {}.""".format(generation + 1))
+
+    def track_diversity(self):
+        """
+        Track genetic diversity within the population.
+
+        Calculates diversity metrics such as average Hamming distance between configurations.
+        """
+        if not self.population:
+            self.diversity_history.append(0)
+            return
+
+        population_list = list(self.population)
+        total_pairs = len(population_list) * (len(population_list) - 1) / 2
+        if total_pairs == 0:
+            average_hamming_distance = 0
+        else:
+            hamming_distances = [
+                self.hamming_distance(population_list[i], population_list[j])
+                for i in range(len(population_list))
+                for j in range(i + 1, len(population_list))
+            ]
+            average_hamming_distance = sum(hamming_distances) / total_pairs
+
+        self.diversity_history.append(average_hamming_distance)
+        logging.debug("""Tracked diversity: Average Hamming Distance = {}""".format(
+            average_hamming_distance))
+
+    @staticmethod
+    def hamming_distance(config1, config2):
+        """
+        Calculate the Hamming distance between two configurations.
+
+        Args:
+            config1 (tuple[int]): First configuration.
+            config2 (tuple[int]): Second configuration.
+
+        Returns:
+            int: Hamming distance.
+        """
+        return sum(c1 != c2 for c1, c2 in zip(config1, config2))
+
+    def get_diversity_trend(self):
+        """
+        Retrieve the history of diversity metrics.
+
+        Returns:
+            list[float]: List of average Hamming distances per generation.
+        """
+        return self.diversity_history
+
+    def run(self):
+        """
+        Execute the complete evolutionary process.
+
+        Performs the following steps:
+        1. Initializes random population
+        2. Iterates through specified generations:
+           - Generates new configurations
+           - Evaluates fitness
+           - Updates statistics
+           - Adjusts parameters
+           - Checks for stagnation
+        3. Returns results of evolution
+
+        Returns:
+            tuple: (results list, initial_configurations_start_index)
+        """
+        self.initialize()
+        for generation in range(1, self.generations):
+            self.populate(generation=generation)
+            self.compute_generation(generation=generation)
+            self.adjust_mutation_rate(generation)
+            self.check_for_stagnation(generation)
+
+        return self.get_experiment_results()
 
     def get_experiment_results(self):
         """
