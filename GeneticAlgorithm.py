@@ -101,11 +101,11 @@ class GeneticAlgorithm:
             list[tuple[int]]: Collection of diverse initial configurations
         """
         total_cells = self.grid_size * self.grid_size
-        max_cluster_size = self.grid_size ** 2
+        max_cluster_size = total_cells
         min_cluster_size = self.grid_size
-        max_scattered_cells = total_cells
+        max_scattered_cells = total_cells // 3
         min_scattered_cells = self.grid_size
-        max_pattern_cells = total_cells
+        max_pattern_cells = total_cells // 3
         min_pattern_cells = self.grid_size
         population_pool = []
 
