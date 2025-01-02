@@ -78,27 +78,19 @@ class GeneticAlgorithm:
 
     def enrich_population_with_variety(self, clusters_type_amount, scatter_type_amount, basic_patterns_type_amount):
         """
-        Generate diverse configurations using three distinct pattern types:
+        Generate diverse configurations using three distinct pattern types, ensuring uniqueness:
 
-        1. Clustered: Groups of adjacent living cells
-        - Creates naturalistic patterns
-        - Variable cluster sizes based on grid dimensions
-
-        2. Scattered: Randomly distributed living cells
-        - Ensures broad pattern coverage
-        - Controlled density distribution
-
-        3. Basic patterns: Simple geometric arrangements
-        - Creates structured initial patterns
-        - Balanced random variations
+        1. Clustered: Groups of adjacent living cells with potential holes.
+        2. Scattered: Randomly distributed living cells.
+        3. Basic patterns: Structured geometric arrangements.
 
         Args:
-            clusters_type_amount (int): Number of cluster-based configurations
-            scatter_type_amount (int): Number of scattered configurations
-            basic_patterns_type_amount (int): Number of basic pattern configurations
+            clusters_type_amount (int): Number of cluster-based configurations.
+            scatter_type_amount (int): Number of scattered configurations.
+            basic_patterns_type_amount (int): Number of basic pattern configurations.
 
         Returns:
-            list[tuple[int]]: Collection of diverse initial configurations
+            list[tuple[int]]: Collection of unique initial configurations.
         """
         total_cells = self.grid_size * self.grid_size
         max_cluster_size = self.grid_size
@@ -108,83 +100,102 @@ class GeneticAlgorithm:
         max_pattern_cells = self.grid_size * 2
         min_pattern_cells = 0
         population_pool = []
+        unique_canonical_forms = set()
 
         # Generate Cluster Configurations
         for _ in range(clusters_type_amount):
-            configuration = [0] * total_cells
-            cluster_size = random.randint(min_cluster_size, max_cluster_size)
+            while True:
+                configuration = [0] * total_cells
+                cluster_size = random.randint(
+                    min_cluster_size, max_cluster_size)
 
-            # Start with a random central point
-            center_row = random.randint(0, self.grid_size - 1)
-            center_col = random.randint(0, self.grid_size - 1)
+                # Start with a random central point
+                center_row = random.randint(0, self.grid_size - 1)
+                center_col = random.randint(0, self.grid_size - 1)
 
-            # Define a set for added cells to ensure they are unique
-            added_cells = set()
-            # Starting with the center cell
-            cells_to_expand = [(center_row, center_col)]
+                # Define a set for added cells to ensure they are unique
+                added_cells = set()
+                cells_to_expand = [(center_row, center_col)]
 
-            # Expand the cluster with potential "holes"
-            while len(added_cells) < cluster_size and cells_to_expand:
-                current_row, current_col = cells_to_expand.pop(
-                    random.randint(0, len(cells_to_expand) - 1))
+                # Expand the cluster with potential "holes"
+                while len(added_cells) < cluster_size and cells_to_expand:
+                    current_row, current_col = cells_to_expand.pop(
+                        random.randint(0, len(cells_to_expand) - 1))
 
-                # Try to add neighboring cells
-                for offset_row, offset_col in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                    new_row = (current_row + offset_row) % self.grid_size
-                    new_col = (current_col + offset_col) % self.grid_size
-                    new_index = new_row * self.grid_size + new_col
+                    # Try to add neighboring cells
+                    for offset_row, offset_col in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                        new_row = (current_row + offset_row) % self.grid_size
+                        new_col = (current_col + offset_col) % self.grid_size
+                        new_index = new_row * self.grid_size + new_col
 
-                    if new_index not in added_cells:
-                        added_cells.add(new_index)
-                        cells_to_expand.append((new_row, new_col))
+                        if new_index not in added_cells:
+                            added_cells.add(new_index)
+                            cells_to_expand.append((new_row, new_col))
 
-            # Apply the holes logic - some cells inside the cluster will remain dead
-            for index in added_cells:
-                # Randomly decide whether to leave a hole (dead cell) in the cluster
-                if random.uniform(0, 1) < 0.8:
-                    configuration[index] = 1  # Set to alive cell
-                else:
-                    configuration[index] = 0  # Set to dead cell (hole)
+                for index in added_cells:
+                    if random.uniform(0, 1) < 0.8:
+                        configuration[index] = 1
 
-            population_pool.append(tuple(configuration))
+                # Check for uniqueness
+                canonical_form = self.get_canonical_form(tuple(configuration))
+                if canonical_form not in unique_canonical_forms:
+                    unique_canonical_forms.add(canonical_form)
+                    population_pool.append(tuple(configuration))
+                    break
 
         # Generate Scattered Configurations
         for _ in range(scatter_type_amount):
-            configuration = [0] * total_cells
-            scattered_cells = random.randint(
-                min_scattered_cells, max_scattered_cells)
-            scattered_indices = random.sample(
-                range(total_cells), scattered_cells)
-            for index in scattered_indices:
-                configuration[index] = 1
-            population_pool.append(tuple(configuration))
-
-        # Generate Simple Patterns Configuration
-        for _ in range(basic_patterns_type_amount):
-            configuration = [0] * total_cells
-            pattern_cells = random.randint(
-                min_pattern_cells, max_pattern_cells)
-            start_row = random.randint(0, self.grid_size - 3)
-            start_col = random.randint(0, self.grid_size - 3)
-
-            for i in range(self.grid_size):
-                for j in range(self.grid_size):
-                    if random.uniform(0, 1) < 0.5:
-                        row = (start_row + i) % self.grid_size
-                        col = (start_col + j) % self.grid_size
-                        index = row * self.grid_size + col
-                        configuration[index] = 1
-
-            current_live_cells = sum(configuration)
-            if current_live_cells < pattern_cells:
-                additional_cells = random.sample([i for i in range(total_cells) if configuration[i] == 0],
-                                                 pattern_cells - current_live_cells)
-                for index in additional_cells:
+            while True:
+                configuration = [0] * total_cells
+                scattered_cells = random.randint(
+                    min_scattered_cells, max_scattered_cells)
+                scattered_indices = random.sample(
+                    range(total_cells), scattered_cells)
+                for index in scattered_indices:
                     configuration[index] = 1
 
-            population_pool.append(tuple(configuration))
+                # Check for uniqueness
+                canonical_form = self.get_canonical_form(tuple(configuration))
+                if canonical_form not in unique_canonical_forms:
+                    unique_canonical_forms.add(canonical_form)
+                    population_pool.append(tuple(configuration))
+                    break
 
-        logging.debug("""Enriched population with variety.""")
+        # Generate Basic Patterns Configuration
+        for _ in range(basic_patterns_type_amount):
+            while True:
+                configuration = [0] * total_cells
+                pattern_cells = random.randint(
+                    min_pattern_cells, max_pattern_cells)
+                start_row = random.randint(0, self.grid_size - 3)
+                start_col = random.randint(0, self.grid_size - 3)
+
+                for i in range(self.grid_size):
+                    for j in range(self.grid_size):
+                        if random.uniform(0, 1) < 0.5:
+                            row = (start_row + i) % self.grid_size
+                            col = (start_col + j) % self.grid_size
+                            index = row * self.grid_size + col
+                            configuration[index] = 1
+
+                current_live_cells = sum(configuration)
+                if current_live_cells < pattern_cells:
+                    additional_cells = random.sample(
+                        [i for i in range(total_cells)
+                         if configuration[i] == 0],
+                        pattern_cells - current_live_cells
+                    )
+                    for index in additional_cells:
+                        configuration[index] = 1
+
+                # Check for uniqueness
+                canonical_form = self.get_canonical_form(tuple(configuration))
+                if canonical_form not in unique_canonical_forms:
+                    unique_canonical_forms.add(canonical_form)
+                    population_pool.append(tuple(configuration))
+                    break
+
+        logging.debug("Enriched population with variety.")
         return population_pool
 
     def generate_new_population_pool(self, amount):
@@ -355,44 +366,27 @@ class GeneticAlgorithm:
         """
         Generate the next generation of configurations for the genetic algorithm.
 
-        This function determines how the population evolves for the next generation.
-        Depending on the generation number, it either performs genetic operations (selection, crossover, mutation)
-        or introduces fresh diversity into the population. A diversity threshold is used to ensure that offspring
-        significantly differ from their parents.
+        This function determines how the population evolves based on the current generation.
+        Depending on the generation number, it alternates between:
+        - Performing genetic operations (selection, crossover, mutation) to produce offspring.
+        - Introducing fresh diversity into the population every 10th generation.
 
         Args:
             generation (int): The current generation number.
 
-        Steps:
-            1. If not a diversity-injection generation (generation % 10 != 0):
-            - Generate offspring by selecting parents, applying crossover, and optionally mutating.
-            - Check the diversity of the offspring using Hamming distance against their parents.
-            - Add offspring to the new population if they meet the diversity threshold.
-
-            2. If a diversity-injection generation (generation % 10 == 0):
-            - Generate an entirely new population pool to increase diversity.
-
-            3. Combine the new population with the existing one, evaluate fitness, and retain the top individuals
-            based on normalized fitness scores.
-
         Updates:
             self.population (set): The updated population for the next generation.
-
-        Notes:
-            - The diversity threshold ensures offspring are sufficiently different from their parents.
-            - Diversity-injection occurs every 10th generation to prevent stagnation.
-            - Combined populations are filtered to retain the best configurations based on fitness.
-
-        Raises:
-            - No specific exceptions, but ensure proper handling of edge cases in parent selection and child generation.
-
         """
         new_population = set()
-        diversity_threshold = 0.1  # Minimum average normalized Hamming distance to consider offspring as diverse
+        # Minimum average normalized Hamming distance to consider offspring as diverse
+        diversity_threshold = 0.1
 
         if generation % 10 != 0:
             # Generate offspring for the current generation
             num_children = self.population_size // 4
+            existing_canonical_forms = {self.get_canonical_form(
+                config) for config in self.population}
+
             for _ in range(num_children):
                 parent1, parent2 = self.select_parents(generation=generation)
                 child = self.crossover(parent1, parent2)
@@ -405,24 +399,44 @@ class GeneticAlgorithm:
                 parent2_cannonical = self.get_canonical_form(parent2)
 
                 # Calculate normalized Hamming distances to parents
-                diff_parent1 = self.hamming_distance(child_cannonical, parent1_cannonical)
-                diff_parent2 = self.hamming_distance(child_cannonical, parent2_cannonical)
+                dis_parent1 = self.hamming_distance(
+                    child_cannonical, parent1_cannonical)
+                dis_parent2 = self.hamming_distance(
+                    child_cannonical, parent2_cannonical)
+                dist = (dis_parent1 + dis_parent2) / 2
+
+                if dist == 0:
+                    logging.debug("""Found 2 identical canonical forms""")
 
                 # Add child to the new population if diversity criteria are met
-                if (diff_parent1 + diff_parent2) / 2 > diversity_threshold:
+                # and if its canonical form is not already in the population
+                if dist > diversity_threshold and child_cannonical not in existing_canonical_forms:
                     new_population.add(child)
+                    existing_canonical_forms.add(child_cannonical)
         else:
             # Introduce fresh diversity by generating a new population
-            logging.debug(f"""Introducing fresh diversity for generation {generation + 1}.""")
-            new_population = set(self.generate_new_population_pool(amount=self.population_size))
+            logging.debug(f"""Introducing fresh diversity for generation {
+                          generation + 1}.""")
+            new_population_pool = self.generate_new_population_pool(
+                amount=self.population_size)
+            # Filter by unique canonical forms, including the existing population
+            existing_canonical_forms = {self.get_canonical_form(
+                config) for config in self.population}
+            for candidate in new_population_pool:
+                canonical_form = self.get_canonical_form(candidate)
+                if canonical_form not in existing_canonical_forms:
+                    new_population.add(candidate)
+                    existing_canonical_forms.add(canonical_form)
 
         # Combine new and existing population, then filter based on fitness
         combined = list(new_population) + list(self.population)
-        combined = [(config, self.evaluate(config)['normalized_fitness_score']) for config in combined]
+        combined = [(config, self.evaluate(config)['normalized_fitness_score'])
+                    for config in combined]
         combined.sort(key=lambda x: x[1], reverse=True)
 
         # Retain the top configurations to form the new population
-        self.population = set([config for config, _ in combined[:self.population_size]])
+        self.population = set(
+            [config for config, _ in combined[:self.population_size]])
 
     def select_parents(self, generation):
         """
@@ -866,30 +880,50 @@ class GeneticAlgorithm:
             tuple[int]: Canonical form of the configuration.
         """
         if config in self.canonical_forms_cache:
+            logging.debug("Configuration found in cache.")
             return self.canonical_forms_cache[config]
 
-        # Reshape dynamically based on config size
         grid_size = int(np.sqrt(len(config)))
         grid = np.array(config).reshape(grid_size, grid_size)
-        live_cells = np.argwhere(grid == 1)
 
-        if live_cells.size == 0:
-            canonical = tuple(grid.flatten())  # Return empty grid as-is
+        logging.debug(f"Initial Grid:\n{grid}")
+
+        # Step 1: Trim empty rows and columns
+        non_empty_rows = np.any(grid, axis=1)
+        non_empty_cols = np.any(grid, axis=0)
+        trimmed_grid = grid[non_empty_rows][:, non_empty_cols]
+
+        logging.debug(f"Trimmed Grid:\n{trimmed_grid}")
+
+        if trimmed_grid.size == 0:
+            # Empty configuration
+            canonical = tuple(grid.flatten())
+            logging.debug("Grid is empty after trimming.")
         else:
-            # Normalize position: Shift live cells to top-left corner
-            min_row, min_col = live_cells.min(axis=0)
-            translated_grid = np.zeros_like(grid)
-            for cell in live_cells:
-                normalized_row = cell[0] - min_row
-                normalized_col = cell[1] - min_col
-                translated_grid[normalized_row, normalized_col] = 1
+            # Step 2: Generate all rotations
+            rotations = [np.rot90(trimmed_grid, k) for k in range(4)]
 
-            # Generate all rotations
-            rotations = [np.rot90(translated_grid, k).flatten()
-                         for k in range(4)]
+            logging.debug("All Rotations:")
+            for i, rot in enumerate(rotations):
+                logging.debug(f"Rotation {i}:\n{rot}")
 
-            # Find lexicographically smallest rotation
-            canonical = tuple(min(rotations, key=lambda x: tuple(x)))
+            # Normalize all rotations to top-left
+            normalized_rotations = []
+            for i, rot in enumerate(rotations):
+                live_cells = np.argwhere(rot == 1)
+                min_row, min_col = live_cells.min(axis=0)
+                normalized_grid = np.zeros_like(rot)
+                for cell in live_cells:
+                    normalized_row = cell[0] - min_row
+                    normalized_col = cell[1] - min_col
+                    normalized_grid[normalized_row, normalized_col] = 1
+                normalized_rotations.append(tuple(normalized_grid.flatten()))
+
+                logging.debug(f"Normalized Rotation {i}:\n{normalized_grid}")
+
+            # Step 3: Select the lexicographically smallest configuration
+            canonical = min(normalized_rotations)
+            logging.debug(f"Canonical Form: {canonical}")
 
         # Cache the result for future use
         self.canonical_forms_cache[config] = canonical
