@@ -101,36 +101,51 @@ class GeneticAlgorithm:
             list[tuple[int]]: Collection of diverse initial configurations
         """
         total_cells = self.grid_size * self.grid_size
-        max_cluster_size = total_cells
-        min_cluster_size = self.grid_size
-        max_scattered_cells = total_cells // 3
-        min_scattered_cells = self.grid_size
-        max_pattern_cells = total_cells // 3
-        min_pattern_cells = self.grid_size
+        max_cluster_size = 5
+        min_cluster_size = 2
+        max_scattered_cells = self.grid_size * 2
+        min_scattered_cells = 0
+        max_pattern_cells = self.grid_size * 2
+        min_pattern_cells = 0
         population_pool = []
 
         # Generate Cluster Configurations
         for _ in range(clusters_type_amount):
             configuration = [0] * total_cells
             cluster_size = random.randint(min_cluster_size, max_cluster_size)
+                    
+            # Start with a random central point
             center_row = random.randint(0, self.grid_size - 1)
             center_col = random.randint(0, self.grid_size - 1)
-            # Define a set for the added cells, to avoid repetition
+
+            # Define a set for added cells to ensure they are unique
             added_cells = set()
+            cells_to_expand = [(center_row, center_col)]  # Starting with the center cell
 
-            for _ in range(cluster_size):
-                # Randomly select an offset to create a "cluster"
-                offset_row = random.randint(-1, 1)
-                offset_col = random.randint(-1, 1)
-                row = (center_row + offset_row) % self.grid_size
-                col = (center_col + offset_col) % self.grid_size
-                index = row * self.grid_size + col
-                added_cells.add(index)
+            # Expand the cluster with potential "holes"
+            while len(added_cells) < cluster_size and cells_to_expand:
+                current_row, current_col = cells_to_expand.pop(random.randint(0, len(cells_to_expand) - 1))
 
+                # Try to add neighboring cells
+                for offset_row, offset_col in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    new_row = (current_row + offset_row) % self.grid_size
+                    new_col = (current_col + offset_col) % self.grid_size
+                    new_index = new_row * self.grid_size + new_col
+
+                    if new_index not in added_cells:
+                        added_cells.add(new_index)
+                        cells_to_expand.append((new_row, new_col))
+
+            # Apply the holes logic - some cells inside the cluster will remain dead
             for index in added_cells:
-                configuration[index] = 1
+                # Randomly decide whether to leave a hole (dead cell) in the cluster
+                if random.uniform(0, 1) < 0.8:
+                    configuration[index] = 1  # Set to alive cell
+                else:
+                    configuration[index] = 0  # Set to dead cell (hole)
 
             population_pool.append(tuple(configuration))
+
 
         # Generate Scattered Configurations
         for _ in range(scatter_type_amount):
