@@ -30,7 +30,7 @@ class Configuration:
         self,
         grid_size=15,
         population_size = 32,
-        generations=500,
+        generations=100,
         max_mutation_rate=0.3,
         alive_cells_weight=0.12,
         mutation_rate_lower_limit=0.1,
