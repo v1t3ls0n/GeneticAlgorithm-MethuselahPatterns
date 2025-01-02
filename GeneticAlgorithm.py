@@ -113,18 +113,20 @@ class GeneticAlgorithm:
         for _ in range(clusters_type_amount):
             configuration = [0] * total_cells
             cluster_size = random.randint(min_cluster_size, max_cluster_size)
-                    
+
             # Start with a random central point
             center_row = random.randint(0, self.grid_size - 1)
             center_col = random.randint(0, self.grid_size - 1)
 
             # Define a set for added cells to ensure they are unique
             added_cells = set()
-            cells_to_expand = [(center_row, center_col)]  # Starting with the center cell
+            # Starting with the center cell
+            cells_to_expand = [(center_row, center_col)]
 
             # Expand the cluster with potential "holes"
             while len(added_cells) < cluster_size and cells_to_expand:
-                current_row, current_col = cells_to_expand.pop(random.randint(0, len(cells_to_expand) - 1))
+                current_row, current_col = cells_to_expand.pop(
+                    random.randint(0, len(cells_to_expand) - 1))
 
                 # Try to add neighboring cells
                 for offset_row, offset_col in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
@@ -146,12 +148,13 @@ class GeneticAlgorithm:
 
             population_pool.append(tuple(configuration))
 
-
         # Generate Scattered Configurations
         for _ in range(scatter_type_amount):
             configuration = [0] * total_cells
-            scattered_cells = random.randint(min_scattered_cells, max_scattered_cells)
-            scattered_indices = random.sample(range(total_cells), scattered_cells)
+            scattered_cells = random.randint(
+                min_scattered_cells, max_scattered_cells)
+            scattered_indices = random.sample(
+                range(total_cells), scattered_cells)
             for index in scattered_indices:
                 configuration[index] = 1
             population_pool.append(tuple(configuration))
@@ -159,7 +162,8 @@ class GeneticAlgorithm:
         # Generate Simple Patterns Configuration
         for _ in range(basic_patterns_type_amount):
             configuration = [0] * total_cells
-            pattern_cells = random.randint(min_pattern_cells, max_pattern_cells)
+            pattern_cells = random.randint(
+                min_pattern_cells, max_pattern_cells)
             start_row = random.randint(0, self.grid_size - 3)
             start_col = random.randint(0, self.grid_size - 3)
 
@@ -174,7 +178,7 @@ class GeneticAlgorithm:
             current_live_cells = sum(configuration)
             if current_live_cells < pattern_cells:
                 additional_cells = random.sample([i for i in range(total_cells) if configuration[i] == 0],
-                                                pattern_cells - current_live_cells)
+                                                 pattern_cells - current_live_cells)
                 for index in additional_cells:
                     configuration[index] = 1
 
@@ -380,9 +384,10 @@ class GeneticAlgorithm:
                       elitism_count} configurations.""")
 
         # Calculate number of generations before introducing fresh diversity based on mutation rate
-        generations_before_diversity = max(2, int(self.generations * (1 / (self.diversity_history[-1] + 1))))
-        
-        if generation % (generations_before_diversity if generations_before_diversity > 0 else self.generations) != 0:
+        generations_before_diversity = max(2, int(
+            self.generations * ((self.diversity_history[-1] / np.max(self.diversity_history)) ** 2)))
+
+        if generation % generations_before_diversity != 0:
             amount = self.population_size // 4
             for _ in range(amount):
                 try:
