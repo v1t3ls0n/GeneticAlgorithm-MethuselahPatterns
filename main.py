@@ -29,9 +29,9 @@ class Configuration:
     def __init__(
         self,
         grid_size=15,
-        population_size = 32,
+        population_size = 64,
         generations=100,
-        max_mutation_rate=0.3,
+        max_mutation_rate=0.5,
         alive_cells_weight=0.12,
         mutation_rate_lower_limit=0.1,
         lifespan_weight=100.0,
