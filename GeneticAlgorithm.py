@@ -1,10 +1,8 @@
 import logging
 from GameOfLife import GameOfLife
 import random
-import math
 import numpy as np
 import collections
-from itertools import combinations
 
 
 class GeneticAlgorithm:
