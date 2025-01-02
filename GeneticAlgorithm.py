@@ -955,7 +955,7 @@ class GeneticAlgorithm:
 
             # Combine penalties
             uniqueness_score = (
-                canonical_penalty * cell_frequency_penalty * block_frequency_penalty) ** 3
+                canonical_penalty * cell_frequency_penalty * block_frequency_penalty) ** 5
             uniqueness_scores.append(uniqueness_score)
 
         # Update min/max uniqueness scores globally
