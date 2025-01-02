@@ -353,35 +353,12 @@ class GeneticAlgorithm:
 
     def populate(self, generation):
         """
-        Generate the next generation of configurations using one of two strategies.
-
-        Every generation: 
-        - Introduce fresh configurations if needed based on diversity.
-        - Otherwise, perform genetic operations: Select parents, apply crossover, mutate, and preserve top performers.
-
-        Args:
-            generation (int): Current generation number.
+        Generate the next generation of configurations.
         """
         new_population = set()
-            # **Elitism**: Preserve top 5% configurations unchanged
-        elitism_count = max(1, int(0.2 * self.population_size))
-        sorted_population = sorted(
-                self.population,
-                key=lambda config: self.configuration_cache[config]['fitness_score'],
-                reverse=True
-            )
-        elites = sorted_population[:elitism_count]
-        new_population.update(elites)
 
-        # If fresh diversity is needed, inject new configurations
-        if np.random.uniform(0, 1) < (0.5 - (self.diversity_history[-1] / np.max(self.diversity_history))):
-            # Introduce fresh diversity
-            logging.debug(f"Introducing fresh diversity for generation {generation + 1}.")
-            new_population.update(self.generate_new_population_pool(
-                amount=self.population_size - elitism_count))
-
-        else:
-            # Perform genetic operations: Select parents, crossover, and mutate
+        if generation % 10 != 0:
+            # Generate offspring
             amount = self.population_size // 4
             for _ in range(amount):
                 parent1, parent2 = self.select_parents(generation=generation)
@@ -389,22 +366,17 @@ class GeneticAlgorithm:
                 if random.uniform(0, 1) < self.mutation_rate:
                     child = self.mutate(child)
                 new_population.add(child)
+        else:
+            # Introduce fresh diversity
+            logging.debug(f"""Introducing fresh diversity for generation {generation + 1}.""")
+            new_population = set(self.generate_new_population_pool(amount=self.population_size))
 
-            # Combine new and existing population
-            combined = list(new_population) + list(self.population)
-            
-            # Evaluate and retrieve normalized fitness scores for all configurations
-            combined = [(config, self.evaluate(config)['normalized_fitness_score']) for config in combined]
-            
-            # Sort based on normalized fitness and update the population
-            combined.sort(key=lambda x: x[1], reverse=True)
-            self.population = set([config for config, _ in combined[:self.population_size]])
+        # Combine and filter based on fitness
+        combined = list(new_population) + list(self.population)
+        combined = [(config, self.evaluate(config)['normalized_fitness_score']) for config in combined]
+        combined.sort(key=lambda x: x[1], reverse=True)
+        self.population = set([config for config, _ in combined[:self.population_size]])
 
-            # Fill remaining slots if any
-            i = 0
-            while len(self.population) < self.population_size and i < len(combined) - self.population_size:
-                self.population.add(combined[self.population_size + i][0])
-                i += 1
 
     def select_parents(self, generation):
         """
@@ -851,7 +823,8 @@ class GeneticAlgorithm:
         if config in self.canonical_forms_cache:
             return self.canonical_forms_cache[config]
 
-        grid = np.array(config).reshape(int(np.sqrt(len(config))), int(np.sqrt(len(config))))  # Reshape dynamically based on config size
+        grid = np.array(config).reshape(int(np.sqrt(len(config))), int(
+            np.sqrt(len(config))))  # Reshape dynamically based on config size
         live_cells = np.argwhere(grid == 1)
 
         if live_cells.size == 0:
@@ -862,7 +835,8 @@ class GeneticAlgorithm:
             translated_grid = np.roll(translated_grid, shift=-min_col, axis=1)
 
             # Generate all rotations and find the lexicographically smallest
-            rotations = [np.rot90(translated_grid, k).flatten() for k in range(4)]
+            rotations = [np.rot90(translated_grid, k).flatten()
+                         for k in range(4)]
             canonical = tuple(min(rotations, key=lambda x: tuple(x)))
 
         self.canonical_forms_cache[config] = canonical
@@ -871,7 +845,7 @@ class GeneticAlgorithm:
     def detect_recurrent_blocks(self, config):
         """
         Detect recurring canonical blocks within the configuration, considering rotations.
-        
+
         Args:
             config (tuple[int]): Flattened 1D representation of the grid.
 
@@ -881,7 +855,7 @@ class GeneticAlgorithm:
         if config in self.block_frequencies_cache:
             return self.block_frequencies_cache[config]
 
-        block_size = self.grid_size // 2  # Define the block size
+        block_size = 4   # Define the block size
         padded_block_size = block_size + (block_size % 2)  # Ensure even size
         grid = np.array(config).reshape(self.grid_size, self.grid_size)
         block_frequency = {}
@@ -889,19 +863,20 @@ class GeneticAlgorithm:
         for row in range(0, self.grid_size, block_size):
             for col in range(0, self.grid_size, block_size):
                 block = grid[row:row + block_size, col:col + block_size]
-                
+
                 # Add padding if block is smaller than expected
-                padded_block = np.zeros((padded_block_size, padded_block_size), dtype=int)
+                padded_block = np.zeros(
+                    (padded_block_size, padded_block_size), dtype=int)
                 padded_block[:block.shape[0], :block.shape[1]] = block
-                
-                block_canonical = self.get_canonical_form(tuple(padded_block.flatten()))
+
+                block_canonical = self.get_canonical_form(
+                    tuple(padded_block.flatten()))
                 if block_canonical not in block_frequency:
                     block_frequency[block_canonical] = 0
                 block_frequency[block_canonical] += 1
 
         self.block_frequencies_cache[config] = block_frequency
         return block_frequency
-
 
     def calculate_corrected_scores(self):
         """
@@ -957,10 +932,10 @@ class GeneticAlgorithm:
             block_frequency = self.detect_recurrent_blocks(config)
             for block, count in block_frequency.items():
                 block_frequency_penalty *= block_frequencies.get(block, 1)
-
+            block_frequency_penalty = block_frequency_penalty ** 3
             # Combine penalties
             uniqueness_score = (
-                canonical_penalty * cell_frequency_penalty * block_frequency_penalty) ** 5
+                canonical_penalty * cell_frequency_penalty * block_frequency_penalty) ** 2
             uniqueness_scores.append(uniqueness_score)
 
         # Update min/max uniqueness scores globally
