@@ -139,7 +139,7 @@ class GeneticAlgorithm:
             # Apply the holes logic - some cells inside the cluster will remain dead
             for index in added_cells:
                 # Randomly decide whether to leave a hole (dead cell) in the cluster
-                if random.uniform(0, 1) < 0.9:
+                if random.uniform(0, 1) < 0.8:
                     configuration[index] = 1  # Set to alive cell
                 else:
                     configuration[index] = 0  # Set to dead cell (hole)
