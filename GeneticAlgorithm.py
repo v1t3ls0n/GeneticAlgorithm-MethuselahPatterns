@@ -379,7 +379,9 @@ class GeneticAlgorithm:
         logging.debug(f"""Elitism: Preserved top {
                       elitism_count} configurations.""")
 
-        if generation % 10 != 0:
+        # Calculate number of generations before introducing fresh diversity based on mutation rate
+        generations_before_diversity = int(100 * max(self.mutation_rate_lower_limit, self.mutation_rate))
+        if generation % generations_before_diversity != 0:
             amount = self.population_size // 4
             for _ in range(amount):
                 try:
