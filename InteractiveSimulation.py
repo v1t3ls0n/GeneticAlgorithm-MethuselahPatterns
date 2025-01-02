@@ -22,7 +22,7 @@ class InteractiveSimulation:
         self,
         configurations,
         grid_size,
-        generations_cache,
+        generations_statistics,
         mutation_rate_history,
         diversity_history,  # New metric
         initial_configurations_start_index,
@@ -34,7 +34,7 @@ class InteractiveSimulation:
         Args:
             configurations (list[tuple[int]]): Configurations to visualize.
             grid_size (int): Size of the NxN grid.
-            generations_cache (dict): Fitness and other metrics per generation.
+            generations_statistics (dict): Fitness and other metrics per generation.
             mutation_rate_history (list[float]): History of mutation rates.
             diversity_history (list[float]): History of diversity metrics.
             initial_configurations_start_index (int): Index to differentiate initial configurations.
@@ -43,7 +43,7 @@ class InteractiveSimulation:
         logging.info("""Initializing InteractiveSimulation with THREE windows.""")
         self.configurations = configurations
         self.grid_size = grid_size
-        self.generations_cache = generations_cache
+        self.generations_statistics = generations_statistics
         self.mutation_rate_history = mutation_rate_history
         self.diversity_history = diversity_history  # New metric
         self.initial_configurations_start_index = initial_configurations_start_index
@@ -300,11 +300,11 @@ class InteractiveSimulation:
         Fill in each subplot with the relevant data, including the run_params in self.run_params_plot.
         Also includes the diversity metric.
         """
-        gens = sorted(self.generations_cache.keys())
+        gens = sorted(self.generations_statistics.keys())
 
         # ---------------- Fitness ----------------
-        avg_fitness = [self.generations_cache[g]['avg_fitness'] for g in gens]
-        std_fitness = [self.generations_cache[g]['std_fitness'] for g in gens]
+        avg_fitness = [self.generations_statistics[g]['avg_fitness'] for g in gens]
+        std_fitness = [self.generations_statistics[g]['std_fitness'] for g in gens]
         self.standardized_fitness_plot.clear()
         self.standardized_fitness_plot.plot(
             gens, avg_fitness, label="""Standardized Fitness""", color='blue')
@@ -318,9 +318,9 @@ class InteractiveSimulation:
         self.standardized_fitness_plot.legend()
 
         # ---------------- Initial Size (initial living cells count) ----------------
-        avg_initial_size = [self.generations_cache[g]['avg_initial_living_cells_count']
+        avg_initial_size = [self.generations_statistics[g]['avg_initial_living_cells_count']
                             for g in gens]
-        std_initial_size = [self.generations_cache[g]['std_initial_living_cells_count']
+        std_initial_size = [self.generations_statistics[g]['std_initial_living_cells_count']
                             for g in gens]
 
         self.standardized_initial_size_plot.clear()
@@ -335,9 +335,9 @@ class InteractiveSimulation:
         self.standardized_initial_size_plot.set_title("""Standardized Initial Size""")
 
         # ---------------- Lifespan ----------------
-        avg_lifespan = [self.generations_cache[g]['avg_lifespan']
+        avg_lifespan = [self.generations_statistics[g]['avg_lifespan']
                         for g in gens]
-        std_lifespan = [self.generations_cache[g]['std_lifespan']
+        std_lifespan = [self.generations_statistics[g]['std_lifespan']
                         for g in gens]
         self.standardized_lifespan_plot.clear()
         self.standardized_lifespan_plot.plot(
@@ -352,8 +352,8 @@ class InteractiveSimulation:
         self.standardized_lifespan_plot.set_title("""Standardized Lifespan""")
 
         # ---------------- Growth Rate ----------------
-        avg_growth = [self.generations_cache[g]['avg_alive_growth_rate'] for g in gens]
-        std_growth = [self.generations_cache[g]['std_alive_growth_rate'] for g in gens]
+        avg_growth = [self.generations_statistics[g]['avg_alive_growth_rate'] for g in gens]
+        std_growth = [self.generations_statistics[g]['std_alive_growth_rate'] for g in gens]
         self.standardized_growth_rate_plot.clear()
         self.standardized_growth_rate_plot.plot(
             gens, avg_growth, label="""Std Growth""", color='red')
@@ -366,8 +366,8 @@ class InteractiveSimulation:
         self.standardized_growth_rate_plot.set_title("""Standardized Growth Rate""")
 
         # ---------------- Alive Cells ----------------
-        avg_alive_cells = [self.generations_cache[g]['avg_max_alive_cells_count'] for g in gens]
-        std_alive_cells = [self.generations_cache[g]['std_max_alive_cells_count'] for g in gens]
+        avg_alive_cells = [self.generations_statistics[g]['avg_max_alive_cells_count'] for g in gens]
+        std_alive_cells = [self.generations_statistics[g]['std_max_alive_cells_count'] for g in gens]
         self.standardized_alive_cells_plot.clear()
         self.standardized_alive_cells_plot.plot(
             gens, avg_alive_cells, label="""Std Alive""", color='purple')

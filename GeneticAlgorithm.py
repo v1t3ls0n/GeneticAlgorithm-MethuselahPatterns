@@ -24,7 +24,7 @@ class GeneticAlgorithm:
         predefined_configurations (optional): Pre-made Game of Life patterns to include.
         population (set[tuple]): Current generation's configurations.
         configuration_cache (dict): Cache of evaluated configurations and their metrics.
-        generations_cache (dict): Statistics for each generation.
+        generations_statistics (dict): Statistics for each generation.
         mutation_rate_history (list): Track mutation rate changes over time.
         diversity_history (list): Track diversity metrics over time.
     """
@@ -59,7 +59,7 @@ class GeneticAlgorithm:
         self.initial_living_cells_count_penalty_weight = initial_living_cells_count_penalty_weight
         self.alive_growth_weight = alive_growth_weight
         self.configuration_cache = collections.defaultdict(dict)
-        self.generations_cache = collections.defaultdict(dict)
+        self.generations_statistics = collections.defaultdict(dict)
         self.canonical_forms_cache = collections.defaultdict(
             tuple)  # Cache for canonical forms
         self.block_frequencies_cache = collections.defaultdict(
@@ -369,6 +369,9 @@ class GeneticAlgorithm:
         - Performing genetic operations (selection, crossover, mutation) to produce offspring.
         - Introducing fresh diversity into the population every 10th generation.
 
+        The diversity threshold is dynamically adjusted using the normalized diversity metric
+        based on `self.diversity_history`.
+
         Args:
             generation (int): The current generation number.
 
@@ -376,12 +379,20 @@ class GeneticAlgorithm:
             self.population (set): The updated population for the next generation.
         """
         new_population = set()
-        
+
+        # Calculate diversity threshold based on normalized diversity metric
+        if self.diversity_history:
+            normalized_diversity = self.diversity_history[-1] / max(self.diversity_history)
+            diversity_threshold = max(0.05, 0.3 - normalized_diversity)
+        else:
+            diversity_threshold = 0.2
+
+        logging.debug(f"""Generation {generation}: Diversity threshold set to {diversity_threshold:.3f}""")
+
         if generation % 10 != 0:
             # Generate offspring for the current generation
             num_children = self.population_size // 4
-            existing_canonical_forms = {self.get_canonical_form(
-                config) for config in self.population}
+            existing_canonical_forms = {self.get_canonical_form(config) for config in self.population}
 
             for _ in range(num_children):
                 parent1, parent2 = self.select_parents(generation=generation)
@@ -393,46 +404,47 @@ class GeneticAlgorithm:
                 child_cannonical = self.get_canonical_form(child)
                 parent1_cannonical = self.get_canonical_form(parent1)
                 parent2_cannonical = self.get_canonical_form(parent2)
+
                 # Calculate normalized Hamming distances to parents
-                dis_parent1 = self.hamming_distance(
-                    child_cannonical, parent1_cannonical)
-                dis_parent2 = self.hamming_distance(
-                    child_cannonical, parent2_cannonical)
+                dis_parent1 = self.hamming_distance(child_cannonical, parent1_cannonical)
+                dis_parent2 = self.hamming_distance(child_cannonical, parent2_cannonical)
 
                 avg_dis = (dis_parent1 + dis_parent2) / 2
 
-                if not dis_parent1 or not dis_parent2:
-                    logging.debug("""Found 2 identical canonical forms""")
+                logging.debug(f"""Child avg_dis: {avg_dis:.3f}, dis_parent1: {dis_parent1:.3f}, dis_parent2: {dis_parent2:.3f}""")
 
                 # Add child to the new population if diversity criteria are met
                 # and if its canonical form is not already in the population
-                if dis_parent1 and dis_parent2 and child_cannonical not in existing_canonical_forms:
+                if avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
                     new_population.add(child)
                     existing_canonical_forms.add(child_cannonical)
+                else:
+                    logging.debug("""Child rejected due to low diversity or duplication.""")
         else:
             # Introduce fresh diversity by generating a new population
-            logging.debug(f"""Introducing fresh diversity for generation {
-                          generation + 1}.""")
-            new_population_pool = self.generate_new_population_pool(
-                amount=self.population_size)
+            logging.debug(f"""Introducing fresh diversity for generation {generation + 1}.""")
+            new_population_pool = self.generate_new_population_pool(amount=self.population_size)
+
             # Filter by unique canonical forms, including the existing population
-            existing_canonical_forms = {self.get_canonical_form(
-                config) for config in self.population}
+            existing_canonical_forms = {self.get_canonical_form(config) for config in self.population}
             for candidate in new_population_pool:
                 canonical_form = self.get_canonical_form(candidate)
                 if canonical_form not in existing_canonical_forms:
                     new_population.add(candidate)
                     existing_canonical_forms.add(canonical_form)
+                else:
+                    logging.debug("""Candidate rejected due to duplication.""")
 
         # Combine new and existing population, then filter based on fitness
         combined = list(new_population) + list(self.population)
-        combined = [(config, self.evaluate(config)['normalized_fitness_score'])
-                    for config in combined]
+        combined = [(config, self.evaluate(config)['normalized_fitness_score']) for config in combined]
         combined.sort(key=lambda x: x[1], reverse=True)
 
         # Retain the top configurations to form the new population
-        self.population = set(
-            [config for config, _ in combined[:self.population_size]])
+        self.population = set([config for config, _ in combined[:self.population_size]])
+
+        logging.debug(f"""Generation {generation}: Population updated with {len(self.population)} configurations.""")
+
 
     def select_parents(self, generation):
         """
@@ -1057,8 +1069,8 @@ class GeneticAlgorithm:
             if generation == 0:
                 return  # No previous generation to compare
             # Use basic improvement ratio
-            improvement_ratio = self.generations_cache[generation]['avg_fitness'] / max(
-                1, self.generations_cache[generation - 1]['avg_fitness'])
+            improvement_ratio = self.generations_statistics[generation]['avg_fitness'] / max(
+                1, self.generations_statistics[generation - 1]['avg_fitness'])
             self.mutation_rate = max(self.mutation_rate_lower_limit, min(
                 self.mutation_rate_upper_limit, improvement_ratio * self.mutation_rate))
             logging.debug("""Generation {}: Mutation rate adjusted to {} based on improvement ratio.""".format(
@@ -1066,7 +1078,7 @@ class GeneticAlgorithm:
         else:
             # Calculate improvement over the last 10 generations
             last_10_fitness = [
-                self.generations_cache[g]['avg_fitness'] for g in range(generation - 10, generation)
+                self.generations_statistics[g]['avg_fitness'] for g in range(generation - 10, generation)
             ]
             improvement_ratio = last_10_fitness[-1] / \
                 max(1, last_10_fitness[0])
@@ -1100,7 +1112,7 @@ class GeneticAlgorithm:
             return
 
         avg_fitness = [
-            self.generations_cache[g]['avg_fitness']
+            self.generations_statistics[g]['avg_fitness']
             for g in range(generation - 10, generation)
         ]
 
@@ -1190,24 +1202,24 @@ class GeneticAlgorithm:
         stableness = np.array(stableness)
         max_alive_cells_count = np.array(max_alive_cells_count)
 
-        self.generations_cache[generation]['avg_fitness'] = np.mean(scores)
-        self.generations_cache[generation]['avg_lifespan'] = np.mean(lifespans)
-        self.generations_cache[generation]['avg_alive_growth_rate'] = np.mean(
+        self.generations_statistics[generation]['avg_fitness'] = np.mean(scores)
+        self.generations_statistics[generation]['avg_lifespan'] = np.mean(lifespans)
+        self.generations_statistics[generation]['avg_alive_growth_rate'] = np.mean(
             alive_growth_rates)
-        self.generations_cache[generation]['avg_max_alive_cells_count'] = np.mean(
+        self.generations_statistics[generation]['avg_max_alive_cells_count'] = np.mean(
             max_alive_cells_count)
-        self.generations_cache[generation]['avg_stableness'] = np.mean(
+        self.generations_statistics[generation]['avg_stableness'] = np.mean(
             stableness)
-        self.generations_cache[generation]['avg_initial_living_cells_count'] = np.mean(
+        self.generations_statistics[generation]['avg_initial_living_cells_count'] = np.mean(
             initial_living_cells_count)
 
-        self.generations_cache[generation]['std_fitness'] = np.std(scores)
-        self.generations_cache[generation]['std_lifespan'] = np.std(lifespans)
-        self.generations_cache[generation]['std_alive_growth_rate'] = np.std(
+        self.generations_statistics[generation]['std_fitness'] = np.std(scores)
+        self.generations_statistics[generation]['std_lifespan'] = np.std(lifespans)
+        self.generations_statistics[generation]['std_alive_growth_rate'] = np.std(
             alive_growth_rates)
-        self.generations_cache[generation]['std_max_alive_cells_count'] = np.std(
+        self.generations_statistics[generation]['std_max_alive_cells_count'] = np.std(
             max_alive_cells_count)
-        self.generations_cache[generation]['std_initial_living_cells_count'] = np.std(
+        self.generations_statistics[generation]['std_initial_living_cells_count'] = np.std(
             initial_living_cells_count)
 
         logging.debug(

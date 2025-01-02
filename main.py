@@ -137,7 +137,7 @@ def main(grid_size,
         configurations=results,
         initial_configurations_start_index=initial_configurations_start_index,
         grid_size=grid_size,
-        generations_cache=algorithm.generations_cache,
+        generations_statistics=algorithm.generations_statistics,
         mutation_rate_history=algorithm.mutation_rate_history,
         diversity_history=algorithm.diversity_history,  # Pass the new diversity metric
         run_params=run_params
