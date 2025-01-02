@@ -28,15 +28,15 @@ logging.basicConfig(
 class Configuration:
     def __init__(
         self,
-        grid_size=20,
-        population_size = 100,
+        grid_size=15,
+        population_size = 64,
         generations=500,
         initial_mutation_rate=0.3,
         alive_cells_weight=0.12,
         mutation_rate_lower_limit=0.1,
         lifespan_weight=100.0,
         alive_growth_weight=2,
-        initial_living_cells_count_penalty_weight=10,
+        initial_living_cells_count_penalty_weight=100,
         predefined_configurations=None
     ):
         self.grid_size = grid_size
