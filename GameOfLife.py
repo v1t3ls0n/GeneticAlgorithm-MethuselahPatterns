@@ -5,7 +5,7 @@ from scipy.signal import convolve2d
 
 class GameOfLife:
 
-    def __init__(self, grid_size, initial_state=None):
+    def __init__(self, grid_size, initial_state=None, boundary_type = "wrap"):
         """
         Initializes the GameOfLife simulation with a given grid size and optional initial state.
 
@@ -36,6 +36,7 @@ class GameOfLife:
         self.alive_history = [np.sum(self.grid)]
         self.unique_states = set()
         self.is_methuselah = False
+        self.boundary_type = boundary_type
 
     def _count_alive_neighbors(self, grid):
         """
@@ -56,8 +57,7 @@ class GameOfLife:
                            [1, 1, 1]])
 
         # Count alive neighbors using convolution with periodic boundary conditions
-        neighbor_count_2d = convolve2d(
-            grid_2d, kernel, mode='same', boundary='wrap')
+        neighbor_count_2d =  convolve2d(grid_2d, kernel, mode='same', boundary=self.boundary_type, fillvalue=0 if self.boundary_type == 'fill' else None)
 
         # Flatten back to 1D
         neighbor_count = neighbor_count_2d.flatten()

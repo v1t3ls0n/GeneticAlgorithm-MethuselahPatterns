@@ -48,6 +48,9 @@ This project uses genetic algorithms to evolve and discover potential Methuselah
 - **Core Simulation**:
   - Efficient implementation using a 1D array mapped to a 2D grid with NumPy
   - Supports Conway's Game of Life rules for state transitions
+  - Configurable boundary types:
+    - `wrap`: Periodic boundaries (cells wrap around edges)
+    - `fixed`: Fixed boundaries (edges remain static and dead)
 - **Pattern Analysis**:
   - Detects static and periodic behavior
   - Tracks lifespan, population dynamics, and stability
@@ -108,6 +111,7 @@ When prompted, you can either:
 - `lifespan_weight`: Fitness weight for pattern longevity (default: 200.0)
 - `alive_growth_weight`: Fitness weight for population growth (default: 0.1)
 - `initial_living_cells_count_penalty_weight`: Penalty for large initial patterns (default: 0.7)
+- `boundary_type`: Type of boundary to use for the Game of Life grid (`wrap` or `fixed`, default: `wrap`)
 
 ## 🔄 Interactive Visualization
 

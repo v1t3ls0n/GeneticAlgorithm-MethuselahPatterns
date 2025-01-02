@@ -31,7 +31,7 @@ class GeneticAlgorithm:
 
     def __init__(self, grid_size, population_size, generations, mutation_rate_upper_limit, mutation_rate_lower_limit,
                  alive_cells_weight, lifespan_weight, alive_growth_weight,
-                 initial_living_cells_count_penalty_weight, predefined_configurations=None):
+                 initial_living_cells_count_penalty_weight, boundary_type, predefined_configurations=None):
         """
         Initialize the genetic algorithm with configuration parameters.
 
@@ -72,6 +72,7 @@ class GeneticAlgorithm:
         self.max_fitness = float('-inf')  # Maximum fitness score
         self.min_uniqueness_score = float('inf')  # Minimum uniqueness score
         self.max_uniqueness_score = float('-inf')  # Maximum uniqueness score
+        self.boundary_type = boundary_type
         self.predefined_configurations = predefined_configurations
 
     def enrich_population_with_variety(self, clusters_type_amount, scatter_type_amount, basic_patterns_type_amount):
@@ -295,7 +296,7 @@ class GeneticAlgorithm:
                     min_index = j
             return max(max_value, 0) / dis if dis != 0 else 0
 
-        game = GameOfLife(self.grid_size, configuration_tuple)
+        game = GameOfLife(self.grid_size, configuration_tuple, boundary_type=self.boundary_type)
         game.run()
         max_alive_cells_count = max(
             game.alive_history) if game.alive_history else 0
