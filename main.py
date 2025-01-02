@@ -31,7 +31,7 @@ class Configuration:
         grid_size=15,
         population_size = 32,
         generations=500,
-        initial_mutation_rate=0.3,
+        max_mutation_rate=0.3,
         alive_cells_weight=0.12,
         mutation_rate_lower_limit=0.1,
         lifespan_weight=100.0,
@@ -42,7 +42,7 @@ class Configuration:
         self.grid_size = grid_size
         self.population_size = population_size
         self.generations = generations
-        self.initial_mutation_rate = initial_mutation_rate
+        self.max_mutation_rate = max_mutation_rate
         self.alive_cells_weight = alive_cells_weight
         self.mutation_rate_lower_limit = mutation_rate_lower_limit
         self.lifespan_weight = lifespan_weight
@@ -63,7 +63,7 @@ default_params = default_config.as_dict()
 def main(grid_size,
          population_size,
          generations,
-         initial_mutation_rate,
+         max_mutation_rate,
          alive_cells_weight,
          mutation_rate_lower_limit,
          lifespan_weight,
@@ -80,7 +80,7 @@ def main(grid_size,
         grid_size (int): NxN dimension of the grid.
         population_size (int): Number of individuals in each GA generation.
         generations (int): Number of generations to run in the GA.
-        initial_mutation_rate (float): Probability of mutating a cell at the start.
+        max_mutation_rate (float): Probability of mutating a cell at the start.
         mutation_rate_lower_limit (float): The minimum bound on mutation rate.
         alive_cells_weight (float): Fitness weight for maximum alive cells.
         lifespan_weight (float): Fitness weight for lifespan.
@@ -92,7 +92,7 @@ def main(grid_size,
     grid_size={grid_size},
     population_size={population_size},
     generations={generations},
-    initial_mutation_rate={initial_mutation_rate},
+    max_mutation_rate={max_mutation_rate},
     alive_cells_weight={alive_cells_weight},
     mutation_rate_lower_limit={mutation_rate_lower_limit},
     lifespan_weight={lifespan_weight},
@@ -105,7 +105,7 @@ def main(grid_size,
         grid_size=grid_size,
         population_size=population_size,
         generations=generations,
-        initial_mutation_rate=initial_mutation_rate,
+        max_mutation_rate=max_mutation_rate,
         mutation_rate_lower_limit=mutation_rate_lower_limit,
         alive_cells_weight=alive_cells_weight,
         lifespan_weight=lifespan_weight,
@@ -123,7 +123,7 @@ def main(grid_size,
         "grid_size": grid_size,
         "population_size": population_size,
         "generations": generations,
-        "initial_mutation_rate": initial_mutation_rate,
+        "max_mutation_rate": max_mutation_rate,
         "mutation_rate_lower_limit": mutation_rate_lower_limit,
         "alive_cells_weight": alive_cells_weight,
         "lifespan_weight": lifespan_weight,

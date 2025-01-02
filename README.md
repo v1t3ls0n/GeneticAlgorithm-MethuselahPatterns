@@ -94,7 +94,7 @@ When prompted, you can either:
 - `grid_size`: Dimension of the NxN grid (default: 20)
 - `population_size`: Number of configurations per generation (default: 20)
 - `generations`: Number of evolutionary generations (default: 100)
-- `initial_mutation_rate`: Starting mutation probability (default: 1.0)
+- `max_mutation_rate`: Starting mutation probability (default: 1.0)
 - `mutation_rate_lower_limit`: Minimum mutation rate (default: 0.2)
 - `alive_cells_weight`: Fitness weight for maximum population (default: 0.12)
 - `lifespan_weight`: Fitness weight for pattern longevity (default: 200.0)
