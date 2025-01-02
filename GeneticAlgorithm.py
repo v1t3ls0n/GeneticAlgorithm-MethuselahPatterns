@@ -397,20 +397,18 @@ class GeneticAlgorithm:
         else:
             amount = self.population_size // 4
             for _ in range(amount):
-                try:
-                    parent1, parent2 = self.select_parents(
-                        generation=generation)
-                    child = self.crossover(parent1, parent2)
-                    if len(child) != self.grid_size * self.grid_size:
-                        logging.debug(
+                parent1, parent2 = self.select_parents(
+                    generation=generation)
+                child = self.crossover(parent1, parent2)
+                if len(child) != self.grid_size * self.grid_size:
+                    logging.debug(
                         """child size mismatch: {}""".format(len(child)))
-                    if random.uniform(0, 1) < self.mutation_rate:
-                        child = self.mutate(child)
-                    new_population.add(child)
-                except ValueError as ve:
-                    logging.error(
-                        """Error during selection and crossover: {}""".format(ve))
-                    continue
+                if random.uniform(0, 1) < self.mutation_rate:
+                    child = self.mutate(child)
+                if len(child) != self.grid_size * self.grid_size:
+                    logging.debug(
+                        """child size mismatch: {}""".format(len(child)))
+                new_population.add(child)
 
         # Combine new and existing population
         combined = list(new_population) + list(self.population)
@@ -867,7 +865,8 @@ class GeneticAlgorithm:
         Compute the canonical form of a configuration by normalizing its position and rotation.
 
         Args:
-            config (tuple[int]): Flattened 1D representation of the grid.
+            config (tuple[int]): Flattened 1D representation of the grid or a sub-grid.
+            expected_size (int, optional): The expected size for reshaping. If not provided, uses grid_size * grid_size.
 
         Returns:
             tuple[int]: Canonical form of the configuration.
@@ -875,7 +874,7 @@ class GeneticAlgorithm:
         if config in self.canonical_forms_cache:
             return self.canonical_forms_cache[config]
 
-        grid = np.array(config).reshape(self.grid_size, self.grid_size)
+        grid = np.array(config).reshape(int(np.sqrt(len(config))), int(np.sqrt(len(config))))  # Reshape dynamically based on config size
         live_cells = np.argwhere(grid == 1)
 
         if live_cells.size == 0:
@@ -883,12 +882,10 @@ class GeneticAlgorithm:
         else:
             min_row, min_col = live_cells.min(axis=0)
             translated_grid = np.roll(grid, shift=-min_row, axis=0)
-            translated_grid = np.roll(
-                translated_grid, shift=-min_col, axis=1)
+            translated_grid = np.roll(translated_grid, shift=-min_col, axis=1)
 
             # Generate all rotations and find the lexicographically smallest
-            rotations = [np.rot90(translated_grid, k).flatten()
-                         for k in range(4)]
+            rotations = [np.rot90(translated_grid, k).flatten() for k in range(4)]
             canonical = tuple(min(rotations, key=lambda x: tuple(x)))
 
         self.canonical_forms_cache[config] = canonical
