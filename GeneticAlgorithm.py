@@ -363,19 +363,18 @@ class GeneticAlgorithm:
             generation (int): Current generation number.
         """
         new_population = set()
-
-        # If fresh diversity is needed, inject new configurations
-        if np.random.uniform(0, 1) < (0.5 - (self.diversity_history[-1] / np.max(self.diversity_history))):
             # **Elitism**: Preserve top 5% configurations unchanged
-            elitism_count = max(1, int(0.2 * self.population_size))
-            sorted_population = sorted(
+        elitism_count = max(1, int(0.2 * self.population_size))
+        sorted_population = sorted(
                 self.population,
                 key=lambda config: self.configuration_cache[config]['fitness_score'],
                 reverse=True
             )
-            elites = sorted_population[:elitism_count]
-            new_population.update(elites)
+        elites = sorted_population[:elitism_count]
+        new_population.update(elites)
 
+        # If fresh diversity is needed, inject new configurations
+        if np.random.uniform(0, 1) < (0.5 - (self.diversity_history[-1] / np.max(self.diversity_history))):
             # Introduce fresh diversity
             logging.debug(f"Introducing fresh diversity for generation {generation + 1}.")
             new_population.update(self.generate_new_population_pool(
@@ -872,7 +871,7 @@ class GeneticAlgorithm:
     def detect_recurrent_blocks(self, config):
         """
         Detect recurring canonical blocks within the configuration, considering rotations.
-
+        
         Args:
             config (tuple[int]): Flattened 1D representation of the grid.
 
@@ -883,22 +882,26 @@ class GeneticAlgorithm:
             return self.block_frequencies_cache[config]
 
         block_size = self.grid_size // 2  # Define the block size
+        padded_block_size = block_size + (block_size % 2)  # Ensure even size
         grid = np.array(config).reshape(self.grid_size, self.grid_size)
         block_frequency = {}
 
         for row in range(0, self.grid_size, block_size):
             for col in range(0, self.grid_size, block_size):
                 block = grid[row:row + block_size, col:col + block_size]
-                if block.size == 0:
-                    continue
-                block_canonical = self.get_canonical_form(
-                    tuple(block.flatten()))
+                
+                # Add padding if block is smaller than expected
+                padded_block = np.zeros((padded_block_size, padded_block_size), dtype=int)
+                padded_block[:block.shape[0], :block.shape[1]] = block
+                
+                block_canonical = self.get_canonical_form(tuple(padded_block.flatten()))
                 if block_canonical not in block_frequency:
                     block_frequency[block_canonical] = 0
                 block_frequency[block_canonical] += 1
 
         self.block_frequencies_cache[config] = block_frequency
         return block_frequency
+
 
     def calculate_corrected_scores(self):
         """
