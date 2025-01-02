@@ -380,17 +380,30 @@ class GeneticAlgorithm:
         )
         elites = sorted_population[:elitism_count]
         new_population.update(elites)
+
         # Calculate number of generations before introducing fresh diversity based on mutation rate
         generations_before_diversity = max(2, int(
-            self.generations * ((self.diversity_history[-1] / np.max(self.diversity_history)) ** 2)))
-        logging.info(f"""generations_before_diversity : {generations_before_diversity} generation % generations_before_diversity = {generation % generations_before_diversity}""")
-        if generation % generations_before_diversity != 0:
+            self.generations * ((self.diversity_history[-1] / np.max(self.diversity_history)) ** 4)))
+        logging.info(f"""generations_before_diversity : {generations_before_diversity} generation % generations_before_diversity = {
+                     generation % generations_before_diversity}""")
+
+        if np.random.uniform(0, 1) < (0.5 - (self.diversity_history[-1] / np.max(self.diversity_history))):
+            # Introduce fresh diversity
+            logging.debug(
+                """Introducing fresh diversity for generation {}.""".format(generation + 1))
+            new_population = set(self.generate_new_population_pool(
+                amount=self.population_size))
+
+        else:
             amount = self.population_size // 4
             for _ in range(amount):
                 try:
                     parent1, parent2 = self.select_parents(
                         generation=generation)
                     child = self.crossover(parent1, parent2)
+                    if len(child) != self.grid_size * self.grid_size:
+                        logging.debug(
+                        """child size mismatch: {}""".format(len(child)))
                     if random.uniform(0, 1) < self.mutation_rate:
                         child = self.mutate(child)
                     new_population.add(child)
@@ -398,12 +411,6 @@ class GeneticAlgorithm:
                     logging.error(
                         """Error during selection and crossover: {}""".format(ve))
                     continue
-        else:
-            # Introduce fresh diversity
-            logging.debug(
-                """Introducing fresh diversity for generation {}.""".format(generation + 1))
-            new_population = set(self.generate_new_population_pool(
-                amount=self.population_size))
 
         # Combine new and existing population
         combined = list(new_population) + list(self.population)
