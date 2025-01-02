@@ -17,7 +17,7 @@ class GeneticAlgorithm:
         grid_size (int): Dimensions of the NxN grid for Game of Life configurations.
         population_size (int): Number of configurations in each generation.
         generations (int): Total number of generations to simulate.
-        max_mutation_rate (float): Starting mutation probability.
+        mutation_rate_upper_limit (float): Starting mutation probability.
         mutation_rate_lower_limit (float): Minimum allowed mutation rate.
         alive_cells_weight (float): Fitness weight for maximum number of living cells.
         lifespan_weight (float): Fitness weight for configuration lifespan.
@@ -31,7 +31,7 @@ class GeneticAlgorithm:
         diversity_history (list): Track diversity metrics over time.
     """
 
-    def __init__(self, grid_size, population_size, generations, max_mutation_rate, mutation_rate_lower_limit,
+    def __init__(self, grid_size, population_size, generations, mutation_rate_upper_limit, mutation_rate_lower_limit,
                  alive_cells_weight, lifespan_weight, alive_growth_weight,
                  initial_living_cells_count_penalty_weight, predefined_configurations=None):
         """
@@ -41,7 +41,7 @@ class GeneticAlgorithm:
             grid_size (int): Size of the NxN grid.
             population_size (int): Number of configurations per generation.
             generations (int): Number of generations to evolve.
-            max_mutation_rate (float): Starting mutation probability.
+            mutation_rate_upper_limit (float): Starting mutation probability.
             mutation_rate_lower_limit (float): Minimum mutation rate.
             alive_cells_weight (float): Weight for maximum living cells in fitness.
             lifespan_weight (float): Weight for configuration lifespan in fitness.
@@ -54,8 +54,8 @@ class GeneticAlgorithm:
         self.population_size = population_size
         self.generations = generations
         self.mutation_rate_lower_limit = mutation_rate_lower_limit
-        self.mutation_rate = max_mutation_rate
-        self.max_mutation_rate = max_mutation_rate
+        self.mutation_rate = mutation_rate_upper_limit
+        self.mutation_rate_upper_limit = mutation_rate_upper_limit
         self.alive_cells_weight = alive_cells_weight
         self.lifespan_weight = lifespan_weight
         self.initial_living_cells_count_penalty_weight = initial_living_cells_count_penalty_weight
@@ -380,13 +380,10 @@ class GeneticAlgorithm:
         )
         elites = sorted_population[:elitism_count]
         new_population.update(elites)
-        logging.debug(f"""Elitism: Preserved top {
-                      elitism_count} configurations.""")
-
         # Calculate number of generations before introducing fresh diversity based on mutation rate
         generations_before_diversity = max(2, int(
             self.generations * ((self.diversity_history[-1] / np.max(self.diversity_history)) ** 2)))
-
+        logging.info(f"""generations_before_diversity : {generations_before_diversity} generation % generations_before_diversity = {generation % generations_before_diversity}""")
         if generation % generations_before_diversity != 0:
             amount = self.population_size // 4
             for _ in range(amount):
@@ -1020,7 +1017,7 @@ class GeneticAlgorithm:
             improvement_ratio = self.generations_cache[generation]['avg_fitness'] / max(
                 1, self.generations_cache[generation - 1]['avg_fitness'])
             self.mutation_rate = max(self.mutation_rate_lower_limit, min(
-                self.max_mutation_rate, improvement_ratio * self.mutation_rate))
+                self.mutation_rate_upper_limit, improvement_ratio * self.mutation_rate))
             logging.debug("""Generation {}: Mutation rate adjusted to {} based on improvement ratio.""".format(
                 generation + 1, self.mutation_rate))
         else:
@@ -1034,7 +1031,7 @@ class GeneticAlgorithm:
             if improvement_ratio < 1.01:
                 # Plateau detected, increase mutation rate
                 self.mutation_rate = min(
-                    self.max_mutation_rate, self.mutation_rate * 1.2)
+                    self.mutation_rate_upper_limit, self.mutation_rate * 1.2)
                 logging.debug("""Generation {}: Plateau detected. Increasing mutation rate to {}.""".format(
                     generation + 1, self.mutation_rate))
             else:
@@ -1072,12 +1069,12 @@ class GeneticAlgorithm:
 
         if stagnation_score > 5:
             self.mutation_rate = min(
-                self.max_mutation_rate, self.mutation_rate * 1.5)
+                self.mutation_rate_upper_limit, self.mutation_rate * 1.5)
             logging.debug("""Generation {}: High stagnation detected (score: {}). Increasing mutation rate to {}.""".format(
                 generation + 1, stagnation_score, self.mutation_rate))
         elif stagnation_score > 2:
             self.mutation_rate = min(
-                self.max_mutation_rate, self.mutation_rate * 1.2)
+                self.mutation_rate_upper_limit, self.mutation_rate * 1.2)
             logging.debug("""Generation {}: Moderate stagnation detected (score: {}). Increasing mutation rate to {}.""".format(
                 generation + 1, stagnation_score, self.mutation_rate))
 
