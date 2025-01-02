@@ -20,7 +20,7 @@ from InteractiveSimulation import InteractiveSimulation
 logging.basicConfig(
     filename="simulation.log",
     filemode='a',
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
