@@ -355,79 +355,57 @@ class GeneticAlgorithm:
         """
         Generate the next generation of configurations using one of two strategies.
 
-        Every 10th generation: Creates fresh configurations using three pattern types:
-        - Clustered cells
-        - Scattered cells  
-        - Basic geometric patterns
-
-        Other generations: Performs genetic operations:
-        - Selects parents based on normalized fitness
-        - Applies crossover
-        - Mutates offspring
-        - Preserves top performers
+        Every generation: 
+        - Introduce fresh configurations if needed based on diversity.
+        - Otherwise, perform genetic operations: Select parents, apply crossover, mutate, and preserve top performers.
 
         Args:
             generation (int): Current generation number.
         """
         new_population = set()
 
-        # **Elitism**: Preserve top 5% configurations unchanged
-        elitism_count = max(1, int(0.05 * self.population_size))
-        sorted_population = sorted(
-            self.population,
-            key=lambda config: self.configuration_cache[config]['fitness_score'],
-            reverse=True
-        )
-        elites = sorted_population[:elitism_count]
-        new_population.update(elites)
-
-        # Calculate number of generations before introducing fresh diversity based on mutation rate
-        generations_before_diversity = max(2, int(
-            self.generations * ((self.diversity_history[-1] / np.max(self.diversity_history)) ** 4)))
-        logging.info(f"""generations_before_diversity : {generations_before_diversity} generation % generations_before_diversity = {
-                     generation % generations_before_diversity}""")
-
+        # If fresh diversity is needed, inject new configurations
         if np.random.uniform(0, 1) < (0.5 - (self.diversity_history[-1] / np.max(self.diversity_history))):
+            # **Elitism**: Preserve top 5% configurations unchanged
+            elitism_count = max(1, int(0.2 * self.population_size))
+            sorted_population = sorted(
+                self.population,
+                key=lambda config: self.configuration_cache[config]['fitness_score'],
+                reverse=True
+            )
+            elites = sorted_population[:elitism_count]
+            new_population.update(elites)
+
             # Introduce fresh diversity
-            logging.debug(
-                """Introducing fresh diversity for generation {}.""".format(generation + 1))
-            new_population = set(self.generate_new_population_pool(
-                amount=self.population_size))
+            logging.debug(f"Introducing fresh diversity for generation {generation + 1}.")
+            new_population.update(self.generate_new_population_pool(
+                amount=self.population_size - elitism_count))
 
         else:
+            # Perform genetic operations: Select parents, crossover, and mutate
             amount = self.population_size // 4
             for _ in range(amount):
-                parent1, parent2 = self.select_parents(
-                    generation=generation)
+                parent1, parent2 = self.select_parents(generation=generation)
                 child = self.crossover(parent1, parent2)
-                if len(child) != self.grid_size * self.grid_size:
-                    logging.debug(
-                        """child size mismatch: {}""".format(len(child)))
                 if random.uniform(0, 1) < self.mutation_rate:
                     child = self.mutate(child)
-                if len(child) != self.grid_size * self.grid_size:
-                    logging.debug(
-                        """child size mismatch: {}""".format(len(child)))
                 new_population.add(child)
 
-        # Combine new and existing population
-        combined = list(new_population) + list(self.population)
-        # Evaluate and retrieve normalized fitness scores
-        combined = [(config, self.evaluate(config)['normalized_fitness_score'])
-                    for config in combined]
-        # Sort based on normalized fitness
-        combined.sort(key=lambda x: x[1], reverse=True)
+            # Combine new and existing population
+            combined = list(new_population) + list(self.population)
+            
+            # Evaluate and retrieve normalized fitness scores for all configurations
+            combined = [(config, self.evaluate(config)['normalized_fitness_score']) for config in combined]
+            
+            # Sort based on normalized fitness and update the population
+            combined.sort(key=lambda x: x[1], reverse=True)
+            self.population = set([config for config, _ in combined[:self.population_size]])
 
-        # Update population with top performers
-        self.population = set(
-            [config for config, _ in combined[:self.population_size]]
-        )
-
-        # Fill remaining slots if any
-        i = 0
-        while len(self.population) < self.population_size and i < len(combined) - self.population_size:
-            self.population.add(combined[self.population_size + i][0])
-            i += 1
+            # Fill remaining slots if any
+            i = 0
+            while len(self.population) < self.population_size and i < len(combined) - self.population_size:
+                self.population.add(combined[self.population_size + i][0])
+                i += 1
 
     def select_parents(self, generation):
         """
