@@ -101,7 +101,7 @@ class GeneticAlgorithm:
             list[tuple[int]]: Collection of diverse initial configurations
         """
         total_cells = self.grid_size * self.grid_size
-        max_cluster_size = 5
+        max_cluster_size = self.grid_size
         min_cluster_size = 2
         max_scattered_cells = self.grid_size * 2
         min_scattered_cells = 0
@@ -139,7 +139,7 @@ class GeneticAlgorithm:
             # Apply the holes logic - some cells inside the cluster will remain dead
             for index in added_cells:
                 # Randomly decide whether to leave a hole (dead cell) in the cluster
-                if random.uniform(0, 1) < 0.8:
+                if random.uniform(0, 1) < 0.9:
                     configuration[index] = 1  # Set to alive cell
                 else:
                     configuration[index] = 0  # Set to dead cell (hole)
