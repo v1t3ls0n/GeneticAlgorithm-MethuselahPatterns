@@ -353,30 +353,76 @@ class GeneticAlgorithm:
 
     def populate(self, generation):
         """
-        Generate the next generation of configurations.
+        Generate the next generation of configurations for the genetic algorithm.
+
+        This function determines how the population evolves for the next generation.
+        Depending on the generation number, it either performs genetic operations (selection, crossover, mutation)
+        or introduces fresh diversity into the population. A diversity threshold is used to ensure that offspring
+        significantly differ from their parents.
+
+        Args:
+            generation (int): The current generation number.
+
+        Steps:
+            1. If not a diversity-injection generation (generation % 10 != 0):
+            - Generate offspring by selecting parents, applying crossover, and optionally mutating.
+            - Check the diversity of the offspring using Hamming distance against their parents.
+            - Add offspring to the new population if they meet the diversity threshold.
+
+            2. If a diversity-injection generation (generation % 10 == 0):
+            - Generate an entirely new population pool to increase diversity.
+
+            3. Combine the new population with the existing one, evaluate fitness, and retain the top individuals
+            based on normalized fitness scores.
+
+        Updates:
+            self.population (set): The updated population for the next generation.
+
+        Notes:
+            - The diversity threshold ensures offspring are sufficiently different from their parents.
+            - Diversity-injection occurs every 10th generation to prevent stagnation.
+            - Combined populations are filtered to retain the best configurations based on fitness.
+
+        Raises:
+            - No specific exceptions, but ensure proper handling of edge cases in parent selection and child generation.
+
         """
         new_population = set()
+        diversity_threshold = 0.1  # Minimum average normalized Hamming distance to consider offspring as diverse
 
         if generation % 10 != 0:
-            # Generate offspring
-            amount = self.population_size // 4
-            for _ in range(amount):
+            # Generate offspring for the current generation
+            num_children = self.population_size // 4
+            for _ in range(num_children):
                 parent1, parent2 = self.select_parents(generation=generation)
                 child = self.crossover(parent1, parent2)
                 if random.uniform(0, 1) < self.mutation_rate:
                     child = self.mutate(child)
-                new_population.add(child)
+
+                # Compute canonical forms for diversity check
+                child_cannonical = self.get_canonical_form(child)
+                parent1_cannonical = self.get_canonical_form(parent1)
+                parent2_cannonical = self.get_canonical_form(parent2)
+
+                # Calculate normalized Hamming distances to parents
+                diff_parent1 = self.hamming_distance(child_cannonical, parent1_cannonical)
+                diff_parent2 = self.hamming_distance(child_cannonical, parent2_cannonical)
+
+                # Add child to the new population if diversity criteria are met
+                if (diff_parent1 + diff_parent2) / 2 > diversity_threshold:
+                    new_population.add(child)
         else:
-            # Introduce fresh diversity
+            # Introduce fresh diversity by generating a new population
             logging.debug(f"""Introducing fresh diversity for generation {generation + 1}.""")
             new_population = set(self.generate_new_population_pool(amount=self.population_size))
 
-        # Combine and filter based on fitness
+        # Combine new and existing population, then filter based on fitness
         combined = list(new_population) + list(self.population)
         combined = [(config, self.evaluate(config)['normalized_fitness_score']) for config in combined]
         combined.sort(key=lambda x: x[1], reverse=True)
-        self.population = set([config for config, _ in combined[:self.population_size]])
 
+        # Retain the top configurations to form the new population
+        self.population = set([config for config, _ in combined[:self.population_size]])
 
     def select_parents(self, generation):
         """
@@ -815,7 +861,6 @@ class GeneticAlgorithm:
 
         Args:
             config (tuple[int]): Flattened 1D representation of the grid or a sub-grid.
-            expected_size (int, optional): The expected size for reshaping. If not provided, uses grid_size * grid_size.
 
         Returns:
             tuple[int]: Canonical form of the configuration.
@@ -823,22 +868,30 @@ class GeneticAlgorithm:
         if config in self.canonical_forms_cache:
             return self.canonical_forms_cache[config]
 
-        grid = np.array(config).reshape(int(np.sqrt(len(config))), int(
-            np.sqrt(len(config))))  # Reshape dynamically based on config size
+        # Reshape dynamically based on config size
+        grid_size = int(np.sqrt(len(config)))
+        grid = np.array(config).reshape(grid_size, grid_size)
         live_cells = np.argwhere(grid == 1)
 
         if live_cells.size == 0:
             canonical = tuple(grid.flatten())  # Return empty grid as-is
         else:
+            # Normalize position: Shift live cells to top-left corner
             min_row, min_col = live_cells.min(axis=0)
-            translated_grid = np.roll(grid, shift=-min_row, axis=0)
-            translated_grid = np.roll(translated_grid, shift=-min_col, axis=1)
+            translated_grid = np.zeros_like(grid)
+            for cell in live_cells:
+                normalized_row = cell[0] - min_row
+                normalized_col = cell[1] - min_col
+                translated_grid[normalized_row, normalized_col] = 1
 
-            # Generate all rotations and find the lexicographically smallest
+            # Generate all rotations
             rotations = [np.rot90(translated_grid, k).flatten()
                          for k in range(4)]
+
+            # Find lexicographically smallest rotation
             canonical = tuple(min(rotations, key=lambda x: tuple(x)))
 
+        # Cache the result for future use
         self.canonical_forms_cache[config] = canonical
         return canonical
 
@@ -1156,8 +1209,7 @@ class GeneticAlgorithm:
         logging.debug("""Tracked diversity: Average Hamming Distance = {}""".format(
             average_hamming_distance))
 
-    @staticmethod
-    def hamming_distance(config1, config2):
+    def hamming_distance(self, config1, config2):
         """
         Calculate the Hamming distance between two configurations.
 
@@ -1168,7 +1220,7 @@ class GeneticAlgorithm:
         Returns:
             int: Hamming distance.
         """
-        return sum(c1 != c2 for c1, c2 in zip(config1, config2))
+        return sum(c1 != c2 for c1, c2 in zip(config1, config2)) / (self.grid_size ** 2)
 
     def get_diversity_trend(self):
         """
