@@ -380,8 +380,9 @@ class GeneticAlgorithm:
                       elitism_count} configurations.""")
 
         # Calculate number of generations before introducing fresh diversity based on mutation rate
-        generations_before_diversity = int(100 * max(self.mutation_rate_lower_limit, self.mutation_rate))
-        if generation % generations_before_diversity != 0:
+        generations_before_diversity = int(self.generations * max(self.mutation_rate_lower_limit, self.mutation_rate) ** 4)
+        
+        if generation % (generations_before_diversity if generations_before_diversity > 0 else self.generations) != 0:
             amount = self.population_size // 4
             for _ in range(amount):
                 try:
