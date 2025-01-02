@@ -378,9 +378,7 @@ class GeneticAlgorithm:
             self.population (set): The updated population for the next generation.
         """
         new_population = set()
-        # Minimum average normalized Hamming distance to consider offspring as diverse
-        diversity_threshold = 0.1
-
+        
         if generation % 10 != 0:
             # Generate offspring for the current generation
             num_children = self.population_size // 4
@@ -397,20 +395,20 @@ class GeneticAlgorithm:
                 child_cannonical = self.get_canonical_form(child)
                 parent1_cannonical = self.get_canonical_form(parent1)
                 parent2_cannonical = self.get_canonical_form(parent2)
-
                 # Calculate normalized Hamming distances to parents
                 dis_parent1 = self.hamming_distance(
                     child_cannonical, parent1_cannonical)
                 dis_parent2 = self.hamming_distance(
                     child_cannonical, parent2_cannonical)
-                dist = (dis_parent1 + dis_parent2) / 2
 
-                if dist == 0:
+                avg_dis = (dis_parent1 + dis_parent2) / 2
+
+                if not dis_parent1 or not dis_parent2:
                     logging.debug("""Found 2 identical canonical forms""")
 
                 # Add child to the new population if diversity criteria are met
                 # and if its canonical form is not already in the population
-                if dist > diversity_threshold and child_cannonical not in existing_canonical_forms:
+                if dis_parent1 and dis_parent2 and child_cannonical not in existing_canonical_forms:
                     new_population.add(child)
                     existing_canonical_forms.add(child_cannonical)
         else:
