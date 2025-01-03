@@ -20,7 +20,7 @@ from InteractiveSimulation import InteractiveSimulation
 logging.basicConfig(
     filename="simulation.log",
     filemode='a',
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
@@ -30,11 +30,11 @@ class Configuration:
         self,
         grid_size=30,
         population_size=20,
-        generations=200,
+        generations=300,
         mutation_rate_upper_limit=0.3,
         mutation_rate_lower_limit=0.1,
         alive_cells_weight=0.12,
-        lifespan_weight=100.0,
+        lifespan_weight=1000.0,
         alive_growth_weight=2,
         initial_living_cells_count_penalty_weight=100,
         predefined_configurations=None,

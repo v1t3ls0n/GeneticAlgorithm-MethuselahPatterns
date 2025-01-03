@@ -194,7 +194,7 @@ class GeneticAlgorithm:
                     population_pool.append(tuple(configuration))
                     break
 
-        logging.debug("Enriched population with variety.")
+        # logging.debug("""Enriched population with variety.""")
         return population_pool
 
     def generate_new_population_pool(self, amount):
@@ -274,8 +274,8 @@ class GeneticAlgorithm:
                 )
             else:
                 self.configuration_cache[configuration_tuple]['normalized_fitness_score'] = 1.0
-            logging.debug(
-                """Configuration already evaluated. Retrieved from cache.""")
+            # logging.debug(
+            #     """Configuration already evaluated. Retrieved from cache.""")
             return self.configuration_cache[configuration_tuple]
 
         expected_size = self.grid_size * self.grid_size
@@ -386,9 +386,9 @@ class GeneticAlgorithm:
         if self.diversity_history:
             normalized_diversity = self.diversity_history[-1] / max(
                 self.diversity_history)
-            diversity_threshold = max(0.05, 0.3 - normalized_diversity)
+            diversity_threshold = max(0.0, 0.2 - normalized_diversity)
         else:
-            diversity_threshold = 0.05
+            diversity_threshold = 0.005
 
         logging.debug(f"""Generation {generation}: Diversity threshold set to {
                       diversity_threshold:.3f}""")
@@ -424,6 +424,7 @@ class GeneticAlgorithm:
                 # Add child to the new population if diversity criteria are met
                 # and if its canonical form is not already in the population
                 if avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
+                    # if child_cannonical not in existing_canonical_forms:
                     new_population.add(child)
                     existing_canonical_forms.add(child_cannonical)
                 else:
@@ -470,7 +471,7 @@ class GeneticAlgorithm:
         Returns:
             tuple: Two parent configurations for crossover.
         """
-        if generation % 10 == 0 and generation != 0:
+        if generation % generation == 0 and generation != 0:
             # Every 10th generation, use corrected scores with penalties
             corrected_scores = self.calculate_corrected_scores()
         else:
@@ -941,11 +942,11 @@ class GeneticAlgorithm:
                     normalized_grid[normalized_row, normalized_col] = 1
                 normalized_rotations.append(tuple(normalized_grid.flatten()))
 
-                logging.debug(f"Normalized Rotation {i}:\n{normalized_grid}")
+                # logging.debug(f"""Normalized Rotation {i}:\n{normalized_grid}""")
 
             # Step 3: Select the lexicographically smallest configuration
             canonical = min(normalized_rotations)
-            logging.debug(f"Canonical Form: {canonical}")
+            # logging.debug(f"""Canonical Form: {canonical}""")
 
         # Cache the result for future use
         self.canonical_forms_cache[config] = canonical
@@ -991,7 +992,8 @@ class GeneticAlgorithm:
 
                 # Add neighbors to the queue
                 for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                    nr, nc = (row + dr) % self.grid_size, (col + dc) % self.grid_size
+                    nr, nc = (row + dr) % self.grid_size, (col +
+                                                           dc) % self.grid_size
                     if not visited[nr, nc] and grid[nr, nc] == 1:
                         queue.append((nr, nc))
             return block
@@ -1003,15 +1005,14 @@ class GeneticAlgorithm:
                     block = bfs_find_block(row, col)
 
                     # Get the canonical form of the block
-                    block_canonical = self.get_canonical_form(tuple(block.flatten()))
+                    block_canonical = self.get_canonical_form(
+                        tuple(block.flatten()))
 
                     # Add the canonical block to the set
                     unique_blocks.add(block_canonical)
 
         self.block_frequencies_cache[config] = unique_blocks
         return unique_blocks
-
-
 
     def calculate_corrected_scores(self):
         """
@@ -1062,8 +1063,10 @@ class GeneticAlgorithm:
             if len(active_cells) == 0:
                 cell_frequency_penalty = 1  # Avoid division by zero
             else:
-                total_frequency = sum(frequency_vector[i] for i in active_cells)
-                cell_frequency_penalty = (total_frequency / len(active_cells)) ** 3
+                total_frequency = sum(
+                    frequency_vector[i] for i in active_cells)
+                cell_frequency_penalty = (
+                    total_frequency / len(active_cells)) ** 3
 
             # Block recurrence penalty (penalizing blocks that appear in multiple configurations)
             block_frequency_penalty = 1
@@ -1074,12 +1077,15 @@ class GeneticAlgorithm:
             block_frequency_penalty = block_frequency_penalty ** 3
 
             # Combine penalties into a uniqueness score
-            uniqueness_score = (canonical_penalty * cell_frequency_penalty * block_frequency_penalty) ** 2
+            uniqueness_score = (
+                canonical_penalty * cell_frequency_penalty * block_frequency_penalty) ** 2
             uniqueness_scores.append(uniqueness_score)
 
         # Update min/max uniqueness scores globally
-        self.min_uniqueness_score = min(uniqueness_scores) if uniqueness_scores else 0
-        self.max_uniqueness_score = max(uniqueness_scores) if uniqueness_scores else 1
+        self.min_uniqueness_score = min(
+            uniqueness_scores) if uniqueness_scores else 0
+        self.max_uniqueness_score = max(
+            uniqueness_scores) if uniqueness_scores else 1
 
         # Normalize uniqueness scores and calculate corrected scores
         for config, uniqueness_score in zip(self.population, uniqueness_scores):
@@ -1087,13 +1093,12 @@ class GeneticAlgorithm:
                                     (self.max_uniqueness_score - self.min_uniqueness_score) \
                 if self.max_uniqueness_score != self.min_uniqueness_score else 1.0
 
-            corrected_score = (normalized_fitness if normalized_fitness is not None else 0) / max(1, normalized_uniqueness)
+            corrected_score = (
+                normalized_fitness if normalized_fitness is not None else 0) / max(1, normalized_uniqueness)
             corrected_scores.append((config, corrected_score))
 
-        logging.debug("""Calculated corrected scores for parent selection.""")
+        # logging.debug("""Calculated corrected scores for parent selection.""")
         return corrected_scores
-
-
 
     def adjust_mutation_rate(self, generation):
         """
@@ -1115,8 +1120,8 @@ class GeneticAlgorithm:
                 1, self.generations_statistics[generation - 1]['avg_fitness'])
             self.mutation_rate = max(self.mutation_rate_lower_limit, min(
                 self.mutation_rate_upper_limit, improvement_ratio * self.mutation_rate))
-            logging.debug("""Generation {}: Mutation rate adjusted to {} based on improvement ratio.""".format(
-                generation + 1, self.mutation_rate))
+            # logging.debug("""Generation {}: Mutation rate adjusted to {} based on improvement ratio.""".format(
+            # generation + 1, self.mutation_rate))
         else:
             # Calculate improvement over the last 10 generations
             last_10_fitness = [
@@ -1293,8 +1298,8 @@ class GeneticAlgorithm:
             average_hamming_distance = sum(hamming_distances) / total_pairs
 
         self.diversity_history.append(average_hamming_distance)
-        logging.debug("""Tracked diversity: Average Hamming Distance = {}""".format(
-            average_hamming_distance))
+        # logging.debug("""Tracked diversity: Average Hamming Distance = {}""".format(
+        # average_hamming_distance))
 
     def hamming_distance(self, config1, config2):
         """
