@@ -296,7 +296,8 @@ class GeneticAlgorithm:
                     min_index = j
             return max(max_value, 0) / dis if dis != 0 else 0
 
-        game = GameOfLife(self.grid_size, configuration_tuple, boundary_type=self.boundary_type)
+        game = GameOfLife(self.grid_size, configuration_tuple,
+                          boundary_type=self.boundary_type)
         game.run()
         max_alive_cells_count = max(
             game.alive_history) if game.alive_history else 0
@@ -952,54 +953,85 @@ class GeneticAlgorithm:
 
     def detect_recurrent_blocks(self, config):
         """
-        Detect recurring canonical blocks within the configuration, considering rotations.
+        Detect unique canonical blocks within a configuration by identifying contiguous clusters of live cells.
 
         Args:
             config (tuple[int]): Flattened 1D representation of the grid.
 
         Returns:
-            dict: Frequency of each canonical block in the configuration.
+            set: A set of canonical blocks that appear in the configuration.
         """
         if config in self.block_frequencies_cache:
             return self.block_frequencies_cache[config]
 
-        block_size = 4   # Define the block size
-        padded_block_size = block_size + (block_size % 2)  # Ensure even size
         grid = np.array(config).reshape(self.grid_size, self.grid_size)
-        block_frequency = {}
+        visited = np.zeros_like(grid, dtype=bool)  # Track visited cells
+        unique_blocks = set()
 
-        for row in range(0, self.grid_size, block_size):
-            for col in range(0, self.grid_size, block_size):
-                block = grid[row:row + block_size, col:col + block_size]
+        def bfs_find_block(start_row, start_col):
+            """
+            Perform BFS to identify a block (cluster of live cells) starting from a given cell.
 
-                # Add padding if block is smaller than expected
-                padded_block = np.zeros(
-                    (padded_block_size, padded_block_size), dtype=int)
-                padded_block[:block.shape[0], :block.shape[1]] = block
+            Args:
+                start_row (int): Starting row index.
+                start_col (int): Starting column index.
 
-                block_canonical = self.get_canonical_form(
-                    tuple(padded_block.flatten()))
-                if block_canonical not in block_frequency:
-                    block_frequency[block_canonical] = 0
-                block_frequency[block_canonical] += 1
+            Returns:
+                np.ndarray: Block with live cells as 1 and empty cells as 0.
+            """
+            queue = [(start_row, start_col)]
+            block = np.zeros_like(grid, dtype=int)
+            while queue:
+                row, col = queue.pop(0)
+                if visited[row, col] or grid[row, col] == 0:
+                    continue
 
-        self.block_frequencies_cache[config] = block_frequency
-        return block_frequency
+                visited[row, col] = True
+                block[row, col] = 1
+
+                # Add neighbors to the queue
+                for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    nr, nc = (row + dr) % self.grid_size, (col + dc) % self.grid_size
+                    if not visited[nr, nc] and grid[nr, nc] == 1:
+                        queue.append((nr, nc))
+            return block
+
+        for row in range(self.grid_size):
+            for col in range(self.grid_size):
+                if grid[row, col] == 1 and not visited[row, col]:
+                    # Find the contiguous block using BFS
+                    block = bfs_find_block(row, col)
+
+                    # Get the canonical form of the block
+                    block_canonical = self.get_canonical_form(tuple(block.flatten()))
+
+                    # Add the canonical block to the set
+                    unique_blocks.add(block_canonical)
+
+        self.block_frequencies_cache[config] = unique_blocks
+        return unique_blocks
+
+
 
     def calculate_corrected_scores(self):
         """
-        Calculate corrected scores by combining canonical form and cell frequency penalties.
+        Calculate corrected scores by combining penalties for canonical form frequency,
+        block frequency across configurations, and cell frequency.
 
         Returns:
             list[tuple[int, float]]: List of configurations with corrected scores.
         """
+        # Reset the global block frequency cache
+        self.block_frequencies_cache = {}
+        global_block_frequency = {}
+
         total_cells = self.grid_size * self.grid_size
         frequency_vector = np.zeros(total_cells)
         canonical_frequency = {}
-        block_frequencies = {}
 
         uniqueness_scores = []
 
+        # First pass: Calculate global frequencies
         for config in self.population:
             frequency_vector += np.array(config)
             canonical = self.get_canonical_form(config)
@@ -1007,20 +1039,20 @@ class GeneticAlgorithm:
                 canonical_frequency[canonical] = 0
             canonical_frequency[canonical] += 1
 
-            # Detect and update block frequencies
-            block_frequency = self.detect_recurrent_blocks(config)
-            for block, count in block_frequency.items():
-                if block not in block_frequencies:
-                    block_frequencies[block] = 0
-                block_frequencies[block] += count
+            # Detect unique blocks and update global block frequency
+            unique_blocks = self.detect_recurrent_blocks(config)
+            for block in unique_blocks:
+                if block not in global_block_frequency:
+                    global_block_frequency[block] = 0
+                global_block_frequency[block] += 1
 
         corrected_scores = []
 
+        # Second pass: Calculate penalties and corrected scores
         for config in self.population:
-            # Use normalized_fitness_score
+            # Use normalized fitness score
             normalized_fitness = self.configuration_cache[config]['normalized_fitness_score']
-            active_cells = [
-                i for i, cell in enumerate(config) if cell == 1]
+            active_cells = [i for i, cell in enumerate(config) if cell == 1]
 
             # Canonical form penalty
             canonical = self.get_canonical_form(config)
@@ -1030,41 +1062,38 @@ class GeneticAlgorithm:
             if len(active_cells) == 0:
                 cell_frequency_penalty = 1  # Avoid division by zero
             else:
-                total_frequency = sum(
-                    frequency_vector[i] for i in active_cells)
-                cell_frequency_penalty = (
-                    total_frequency / len(active_cells)) ** 3
+                total_frequency = sum(frequency_vector[i] for i in active_cells)
+                cell_frequency_penalty = (total_frequency / len(active_cells)) ** 3
 
-            # Block recurrence penalty
+            # Block recurrence penalty (penalizing blocks that appear in multiple configurations)
             block_frequency_penalty = 1
-            block_frequency = self.detect_recurrent_blocks(config)
-            for block, count in block_frequency.items():
-                block_frequency_penalty *= block_frequencies.get(block, 1)
+            unique_blocks = self.block_frequencies_cache[config]
+            for block in unique_blocks:
+                global_block_count = global_block_frequency.get(block, 1)
+                block_frequency_penalty *= global_block_count
             block_frequency_penalty = block_frequency_penalty ** 3
-            # Combine penalties
-            uniqueness_score = (
-                canonical_penalty * cell_frequency_penalty * block_frequency_penalty) ** 2
+
+            # Combine penalties into a uniqueness score
+            uniqueness_score = (canonical_penalty * cell_frequency_penalty * block_frequency_penalty) ** 2
             uniqueness_scores.append(uniqueness_score)
 
         # Update min/max uniqueness scores globally
-        self.min_uniqueness_score = min(
-            uniqueness_scores) if uniqueness_scores else 0
-        self.max_uniqueness_score = max(
-            uniqueness_scores) if uniqueness_scores else 1
+        self.min_uniqueness_score = min(uniqueness_scores) if uniqueness_scores else 0
+        self.max_uniqueness_score = max(uniqueness_scores) if uniqueness_scores else 1
 
+        # Normalize uniqueness scores and calculate corrected scores
         for config, uniqueness_score in zip(self.population, uniqueness_scores):
-            # Normalize uniqueness score
             normalized_uniqueness = (uniqueness_score - self.min_uniqueness_score) / \
                                     (self.max_uniqueness_score - self.min_uniqueness_score) \
                 if self.max_uniqueness_score != self.min_uniqueness_score else 1.0
 
-            # Use normalized_fitness in corrected_score
-            corrected_score = (
-                normalized_fitness if normalized_fitness is not None else 0) / max(1, normalized_uniqueness)
+            corrected_score = (normalized_fitness if normalized_fitness is not None else 0) / max(1, normalized_uniqueness)
             corrected_scores.append((config, corrected_score))
 
         logging.debug("""Calculated corrected scores for parent selection.""")
         return corrected_scores
+
+
 
     def adjust_mutation_rate(self, generation):
         """
