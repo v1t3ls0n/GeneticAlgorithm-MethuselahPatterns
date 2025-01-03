@@ -407,23 +407,24 @@ class GeneticAlgorithm:
 
                 # Compute canonical forms for diversity check
                 child_cannonical = self.get_canonical_form(child)
-                parent1_cannonical = self.get_canonical_form(parent1)
-                parent2_cannonical = self.get_canonical_form(parent2)
+                # parent1_cannonical = self.get_canonical_form(parent1)
+                # parent2_cannonical = self.get_canonical_form(parent2)
 
-                # Calculate normalized Hamming distances to parents
-                dis_parent1 = self.hamming_distance(
-                    child_cannonical, parent1_cannonical)
-                dis_parent2 = self.hamming_distance(
-                    child_cannonical, parent2_cannonical)
+                # # Calculate normalized Hamming distances to parents
+                # dis_parent1 = self.hamming_distance(
+                #     child_cannonical, parent1_cannonical)
+                # dis_parent2 = self.hamming_distance(
+                #     child_cannonical, parent2_cannonical)
 
-                avg_dis = (dis_parent1 + dis_parent2) / 2
+                # avg_dis = (dis_parent1 + dis_parent2) / 2
 
-                logging.debug(f"""Child avg_dis: {avg_dis:.3f}, dis_parent1: {
-                              dis_parent1:.3f}, dis_parent2: {dis_parent2:.3f}""")
+                # logging.debug(f"""Child avg_dis: {avg_dis:.3f}, dis_parent1: {
+                #               dis_parent1:.3f}, dis_parent2: {dis_parent2:.3f}""")
 
                 # Add child to the new population if diversity criteria are met
                 # and if its canonical form is not already in the population
-                if avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
+                # if avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
+                if child_cannonical not in existing_canonical_forms:
                     # if child_cannonical not in existing_canonical_forms:
                     new_population.add(child)
                     existing_canonical_forms.add(child_cannonical)
