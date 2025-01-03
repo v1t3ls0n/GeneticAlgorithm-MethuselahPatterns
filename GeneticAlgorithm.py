@@ -483,7 +483,7 @@ class GeneticAlgorithm:
         if self.diversity_history:
             normalized_diversity = self.diversity_history[-1] / max(
                 self.diversity_history)
-            diversity_threshold = max(0.0, 0.2 - normalized_diversity)
+            diversity_threshold = max(0.0, 0.05 - normalized_diversity)
         else:
             diversity_threshold = 0.005
 
@@ -538,7 +538,7 @@ class GeneticAlgorithm:
                               dis_parent1:.3f}, dis_parent2: {dis_parent2:.3f}.""")
 
                 # Add child to the new population if diversity criteria are met
-                if  (avg_dis > diversity_threshold) and child_cannonical not in existing_canonical_forms:
+                if  avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
                     new_population.add(child)
                     existing_canonical_forms.add(child_cannonical)
                 else:
