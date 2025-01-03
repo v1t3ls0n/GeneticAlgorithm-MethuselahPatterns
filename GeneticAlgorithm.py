@@ -239,6 +239,92 @@ class GeneticAlgorithm:
         fitness = ((lifespan_score + alive_cells_score + growth_score)
                    * (large_configuration_penalty) * stableness)
         return fitness
+   
+    def calculate_corrected_scores(self):
+        """
+        Calculate corrected scores by combining penalties for canonical form frequency,
+        block frequency across configurations, and cell frequency.
+
+        Returns:
+            list[tuple[int, float]]: List of configurations with corrected scores.
+        """
+        # Reset the global block frequency cache
+        self.block_frequencies_cache = {}
+        global_block_frequency = {}
+
+        total_cells = self.grid_size * self.grid_size
+        frequency_vector = np.zeros(total_cells)
+        canonical_frequency = {}
+
+        uniqueness_scores = []
+
+        # First pass: Calculate global frequencies
+        for config in self.population:
+            frequency_vector += np.array(config)
+            canonical = self.get_canonical_form(config)
+            if canonical not in canonical_frequency:
+                canonical_frequency[canonical] = 0
+            canonical_frequency[canonical] += 1
+
+            # Detect unique blocks and update global block frequency
+            unique_blocks = self.detect_recurrent_blocks(config)
+            for block in unique_blocks:
+                if block not in global_block_frequency:
+                    global_block_frequency[block] = 0
+                global_block_frequency[block] += 1
+
+
+        # Second pass: Calculate penalties and corrected scores
+        for config in self.population:
+            # Use normalized fitness score
+            normalized_fitness = self.configuration_cache[config]['normalized_fitness_score']
+            active_cells = [i for i, cell in enumerate(config) if cell == 1]
+
+            # Canonical form penalty
+            canonical = self.get_canonical_form(config)
+            canonical_penalty = canonical_frequency.get(canonical, 1)
+
+            # Cell frequency penalty
+            if len(active_cells) == 0:
+                cell_frequency_penalty = 1  # Avoid division by zero
+            else:
+                total_frequency = sum(
+                    frequency_vector[i] for i in active_cells)
+                cell_frequency_penalty = (
+                    total_frequency / len(active_cells)) 
+
+            # Block recurrence penalty (penalizing blocks that appear in multiple configurations)
+            block_frequency_penalty = 1
+            unique_blocks = self.block_frequencies_cache[config]
+            for block in unique_blocks:
+                global_block_count = global_block_frequency.get(block, 1)
+                block_frequency_penalty *= global_block_count
+            block_frequency_penalty = block_frequency_penalty 
+
+            # Combine penalties into a uniqueness score
+            uniqueness_score = (
+                (canonical_penalty ** 2) * cell_frequency_penalty * block_frequency_penalty) 
+            uniqueness_scores.append(uniqueness_score)
+
+        # Update min/max uniqueness scores globally
+        self.min_uniqueness_score = min(
+            uniqueness_scores) if uniqueness_scores else 0
+        self.max_uniqueness_score = max(
+            uniqueness_scores) if uniqueness_scores else 1
+
+        corrected_scores = []
+        # Normalize uniqueness scores and calculate corrected scores
+        for config, uniqueness_score in zip(self.population, uniqueness_scores):
+            normalized_uniqueness = (uniqueness_score - self.min_uniqueness_score) / \
+                                    (self.max_uniqueness_score - self.min_uniqueness_score) \
+                if self.max_uniqueness_score != self.min_uniqueness_score else 1.0
+
+            corrected_score = (
+                normalized_fitness if normalized_fitness is not None else 0) / max(1, normalized_uniqueness)
+            corrected_scores.append((config, corrected_score))
+
+        # logging.debug("""Calculated corrected scores for parent selection.""")
+        return corrected_scores
 
     def evaluate(self, configuration):
         """
@@ -1026,92 +1112,6 @@ class GeneticAlgorithm:
 
         self.block_frequencies_cache[config] = unique_blocks
         return unique_blocks
-
-    def calculate_corrected_scores(self):
-        """
-        Calculate corrected scores by combining penalties for canonical form frequency,
-        block frequency across configurations, and cell frequency.
-
-        Returns:
-            list[tuple[int, float]]: List of configurations with corrected scores.
-        """
-        # Reset the global block frequency cache
-        self.block_frequencies_cache = {}
-        global_block_frequency = {}
-
-        total_cells = self.grid_size * self.grid_size
-        frequency_vector = np.zeros(total_cells)
-        canonical_frequency = {}
-
-        uniqueness_scores = []
-
-        # First pass: Calculate global frequencies
-        for config in self.population:
-            frequency_vector += np.array(config)
-            canonical = self.get_canonical_form(config)
-            if canonical not in canonical_frequency:
-                canonical_frequency[canonical] = 0
-            canonical_frequency[canonical] += 1
-
-            # Detect unique blocks and update global block frequency
-            unique_blocks = self.detect_recurrent_blocks(config)
-            for block in unique_blocks:
-                if block not in global_block_frequency:
-                    global_block_frequency[block] = 0
-                global_block_frequency[block] += 1
-
-        corrected_scores = []
-
-        # Second pass: Calculate penalties and corrected scores
-        for config in self.population:
-            # Use normalized fitness score
-            normalized_fitness = self.configuration_cache[config]['normalized_fitness_score']
-            active_cells = [i for i, cell in enumerate(config) if cell == 1]
-
-            # Canonical form penalty
-            canonical = self.get_canonical_form(config)
-            canonical_penalty = canonical_frequency.get(canonical, 1)
-
-            # Cell frequency penalty
-            if len(active_cells) == 0:
-                cell_frequency_penalty = 1  # Avoid division by zero
-            else:
-                total_frequency = sum(
-                    frequency_vector[i] for i in active_cells)
-                cell_frequency_penalty = (
-                    total_frequency / len(active_cells)) ** 3
-
-            # Block recurrence penalty (penalizing blocks that appear in multiple configurations)
-            block_frequency_penalty = 1
-            unique_blocks = self.block_frequencies_cache[config]
-            for block in unique_blocks:
-                global_block_count = global_block_frequency.get(block, 1)
-                block_frequency_penalty *= global_block_count
-            block_frequency_penalty = block_frequency_penalty ** 3
-
-            # Combine penalties into a uniqueness score
-            uniqueness_score = (
-                canonical_penalty * cell_frequency_penalty * block_frequency_penalty) ** 2
-            uniqueness_scores.append(uniqueness_score)
-
-        # Update min/max uniqueness scores globally
-        self.min_uniqueness_score = min(
-            uniqueness_scores) if uniqueness_scores else 0
-        self.max_uniqueness_score = max(
-            uniqueness_scores) if uniqueness_scores else 1
-
-        # Normalize uniqueness scores and calculate corrected scores
-        for config, uniqueness_score in zip(self.population, uniqueness_scores):
-            normalized_uniqueness = (uniqueness_score - self.min_uniqueness_score) / \
-                                    (self.max_uniqueness_score - self.min_uniqueness_score) \
-                if self.max_uniqueness_score != self.min_uniqueness_score else 1.0
-
-            corrected_score = (
-                normalized_fitness if normalized_fitness is not None else 0) / max(1, normalized_uniqueness)
-            corrected_scores.append((config, corrected_score))
-
-        # logging.debug("""Calculated corrected scores for parent selection.""")
-        return corrected_scores
 
     def adjust_mutation_rate(self, generation):
         """
