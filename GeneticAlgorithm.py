@@ -3,6 +3,7 @@ from GameOfLife import GameOfLife
 import random
 import numpy as np
 import collections
+from functools import lru_cache
 
 
 class GeneticAlgorithm:
@@ -327,7 +328,6 @@ class GeneticAlgorithm:
         self.configuration_cache[configuration_tuple] = {
             'fitness_score': fitness_score,
             'normalized_fitness_score': normalized_fitness,
-            'history': tuple(game.history[:]),
             'lifespan': game.lifespan,
             'alive_growth': alive_growth,
             'max_alive_cells_count': max_alive_cells_count,
@@ -382,17 +382,6 @@ class GeneticAlgorithm:
         """
         new_population = set()
 
-        # Calculate diversity threshold based on normalized diversity metric
-        if self.diversity_history:
-            normalized_diversity = self.diversity_history[-1] / max(
-                self.diversity_history)
-            diversity_threshold = max(0.0, 0.2 - normalized_diversity)
-        else:
-            diversity_threshold = 0.005
-
-        logging.debug(f"""Generation {generation}: Diversity threshold set to {
-                      diversity_threshold:.3f}""")
-
         if generation % 10 != 0:
             # Generate offspring for the current generation
             num_children = self.population_size // 4
@@ -407,23 +396,7 @@ class GeneticAlgorithm:
 
                 # Compute canonical forms for diversity check
                 child_cannonical = self.get_canonical_form(child)
-                # parent1_cannonical = self.get_canonical_form(parent1)
-                # parent2_cannonical = self.get_canonical_form(parent2)
-
-                # # Calculate normalized Hamming distances to parents
-                # dis_parent1 = self.hamming_distance(
-                #     child_cannonical, parent1_cannonical)
-                # dis_parent2 = self.hamming_distance(
-                #     child_cannonical, parent2_cannonical)
-
-                # avg_dis = (dis_parent1 + dis_parent2) / 2
-
-                # logging.debug(f"""Child avg_dis: {avg_dis:.3f}, dis_parent1: {
-                #               dis_parent1:.3f}, dis_parent2: {dis_parent2:.3f}""")
-
-                # Add child to the new population if diversity criteria are met
-                # and if its canonical form is not already in the population
-                # if avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
+                # Add child to the new populationif its canonical form is not already in the population
                 if child_cannonical not in existing_canonical_forms:
                     # if child_cannonical not in existing_canonical_forms:
                     new_population.add(child)
@@ -472,7 +445,7 @@ class GeneticAlgorithm:
         Returns:
             tuple: Two parent configurations for crossover.
         """
-        if generation % generation == 0 and generation != 0:
+        if generation % 3 == 0 and generation != 0:
             # Every 10th generation, use corrected scores with penalties
             corrected_scores = self.calculate_corrected_scores()
         else:
@@ -480,7 +453,15 @@ class GeneticAlgorithm:
             corrected_scores = [(config, self.configuration_cache[config]
                                  ['normalized_fitness_score']) for config in self.population]
 
-        parents = self.select_parents_method(corrected_scores)
+        selection_methods = [
+            self.select_parents_normalized_probability,
+            self.select_parents_tournament,
+            self.select_parents_rank_based
+        ]
+
+        selected_method = random.choices(selection_methods, weights=[
+                                         0.5, 0.25, 0.25], k=1)[0]
+        parents = selected_method(corrected_scores, num_parents=2)
         return parents
 
     def crossover(self, parent1, parent2):
@@ -1350,6 +1331,23 @@ class GeneticAlgorithm:
 
         return self.get_experiment_results()
 
+    def reconstruct_history(self, configurations):
+        """
+        Reconstruct the history for the selected configurations.
+
+        Args:
+            configurations (list[tuple[int]]): List of configurations to reconstruct history for.
+
+        Returns:
+            dict: Updated configuration cache with full history for selected configurations.
+        """
+        for configuration in configurations:
+            if 'history' not in self.configuration_cache[configuration]:
+                game = GameOfLife(self.grid_size, configuration, boundary_type=self.boundary_type)
+                game.run()
+                self.configuration_cache[configuration]['history'] = tuple(game.history[:])
+
+
     def get_experiment_results(self):
         """
         Compile and return the results of the GA experiment.
@@ -1383,7 +1381,7 @@ class GeneticAlgorithm:
                 'alive_growth': self.configuration_cache[config]['alive_growth'],
                 'stableness': self.configuration_cache[config]['stableness'],
                 'initial_living_cells_count': self.configuration_cache[config]['initial_living_cells_count'],
-                'history': list(self.configuration_cache[config]['history']),
+                'history': list(self.reconstruct_history(config)),
                 'config': config,
                 'is_first_generation': False
             }
@@ -1415,7 +1413,7 @@ Initial Configuration Living Cells Count: {}""".format(
                 'alive_growth': self.configuration_cache[config]['alive_growth'],
                 'stableness': self.configuration_cache[config]['stableness'],
                 'initial_living_cells_count': self.configuration_cache[config]['initial_living_cells_count'],
-                'history': list(self.configuration_cache[config]['history']),
+                'history': list(self.reconstruct_history(config)),
                 'config': config,
                 'is_first_generation': True
             }
