@@ -1345,7 +1345,9 @@ class GeneticAlgorithm:
             if 'history' not in self.configuration_cache[configuration]:
                 game = GameOfLife(self.grid_size, configuration, boundary_type=self.boundary_type)
                 game.run()
-                self.configuration_cache[configuration]['history'] = tuple(game.history[:])
+                history = tuple(game.history[:])
+                self.configuration_cache[configuration]['history'] = history
+                return history
 
 
     def get_experiment_results(self):
