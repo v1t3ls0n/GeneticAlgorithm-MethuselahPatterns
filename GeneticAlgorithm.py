@@ -366,45 +366,48 @@ class GeneticAlgorithm:
         """
         Generate the next generation of configurations for the genetic algorithm.
 
-        This function determines how the population evolves based on the current generation.
-        Depending on the generation number, it alternates between:
-        - Performing genetic operations (selection, crossover, mutation) to produce offspring.
-        - Introducing fresh diversity into the population every 10th generation.
+        This function dynamically evolves the population based on diversity metrics
+        and genetic operations. If diversity falls below a critical threshold, or
+        if the generation number is a multiple of 10, fresh configurations are 
+        injected into the population to maintain genetic diversity.
 
-        The diversity threshold is dynamically adjusted using the normalized diversity metric
-        based on `self.diversity_history`.
+        Steps:
+        1. Evaluate the population's diversity and adjust the threshold dynamically.
+        2. If diversity is low or the generation is a multiple of 10:
+        - Inject fresh, unique configurations into the population.
+        3. Otherwise:
+        - Perform genetic operations (selection, crossover, mutation) to produce offspring.
+        - Add offspring to the population if they meet diversity criteria.
+        4. Combine the new and existing population and retain the top configurations.
 
         Args:
             generation (int): The current generation number.
 
         Updates:
             self.population (set): The updated population for the next generation.
+
+        Logs:
+            - Diversity metrics, threshold adjustments, and injection of new diversity.
+            - Selection, mutation, and crossover operations for genetic diversity.
+            - Rejections due to low diversity or duplication.
         """
         new_population = set()
 
-        if generation % 10 != 0:
-            # Generate offspring for the current generation
-            num_children = self.population_size // 4
-            existing_canonical_forms = {self.get_canonical_form(
-                config) for config in self.population}
-
-            for _ in range(num_children):
-                parent1, parent2 = self.select_parents(generation=generation)
-                child = self.crossover(parent1, parent2)
-                if random.uniform(0, 1) < self.mutation_rate:
-                    child = self.mutate(child)
-
-                # Compute canonical forms for diversity check
-                child_cannonical = self.get_canonical_form(child)
-                # Add child to the new populationif its canonical form is not already in the population
-                if child_cannonical not in existing_canonical_forms:
-                    # if child_cannonical not in existing_canonical_forms:
-                    new_population.add(child)
-                    existing_canonical_forms.add(child_cannonical)
-                else:
-                    logging.debug(
-                        """Child rejected due to low diversity or duplication.""")
+        # Calculate diversity threshold based on normalized diversity metric
+        if self.diversity_history:
+            normalized_diversity = self.diversity_history[-1] / max(
+                self.diversity_history)
+            diversity_threshold = max(0.0, 0.2 - normalized_diversity)
         else:
+            diversity_threshold = 0.005
+
+        logging.debug(f"""Generation {generation}: Diversity threshold set to {
+                      diversity_threshold:.3f}.""")
+
+        # Check if diversity falls below a critical threshold
+        low_diversity = normalized_diversity < 0.2 if self.diversity_history else False
+
+        if generation % 10 == 0 or low_diversity:
             # Introduce fresh diversity by generating a new population
             logging.debug(f"""Introducing fresh diversity for generation {
                           generation + 1}.""")
@@ -421,6 +424,40 @@ class GeneticAlgorithm:
                     existing_canonical_forms.add(canonical_form)
                 else:
                     logging.debug("""Candidate rejected due to duplication.""")
+        else:
+            # Generate offspring for the current generation
+            num_children = self.population_size // 4
+            existing_canonical_forms = {self.get_canonical_form(
+                config) for config in self.population}
+
+            for _ in range(num_children):
+                parent1, parent2 = self.select_parents(generation=generation)
+                child = self.crossover(parent1, parent2)
+                if random.uniform(0, 1) < self.mutation_rate:
+                    child = self.mutate(child)
+
+                # Compute canonical forms for diversity check
+                child_cannonical = self.get_canonical_form(child)
+                parent1_cannonical = self.get_canonical_form(parent1)
+                parent2_cannonical = self.get_canonical_form(parent2)
+
+                # Calculate normalized Hamming distances to parents
+                dis_parent1 = self.hamming_distance(
+                    child_cannonical, parent1_cannonical)
+                dis_parent2 = self.hamming_distance(
+                    child_cannonical, parent2_cannonical)
+                avg_dis = (dis_parent1 + dis_parent2) / 2
+
+                logging.debug(f"""Child avg_dis: {avg_dis:.3f}, dis_parent1: {
+                              dis_parent1:.3f}, dis_parent2: {dis_parent2:.3f}.""")
+
+                # Add child to the new population if diversity criteria are met
+                if avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
+                    new_population.add(child)
+                    existing_canonical_forms.add(child_cannonical)
+                else:
+                    logging.debug(
+                        """Child rejected due to low diversity or duplication.""")
 
         # Combine new and existing population, then filter based on fitness
         combined = list(new_population) + list(self.population)
@@ -445,8 +482,8 @@ class GeneticAlgorithm:
         Returns:
             tuple: Two parent configurations for crossover.
         """
-        if generation % 3 == 0 and generation != 0:
-            # Every 10th generation, use corrected scores with penalties
+        if generation % generation == 0 and generation != 0:
+            # use corrected scores with penalties
             corrected_scores = self.calculate_corrected_scores()
         else:
             # Use normalized_fitness_score for selection
@@ -499,33 +536,52 @@ class GeneticAlgorithm:
 
     def mutate(self, configuration):
         """
-        Apply one of three mutation strategies to a configuration:
+        Apply one of three mutation strategies to a configuration. When diversity is low,
+        the probabilities of harsher mutations increase to encourage exploration and 
+        prevent premature convergence.
 
-        1. Basic mutation (40% chance):
-           - Random cell flips with mutation rate probability
-           - Uniform distribution of changes
-
-        2. Cluster mutation (40% chance):
-           - Flips cells in random 3x3 neighborhoods
-           - Creates localized pattern changes
-
-        3. Harsh mutation (20% chance):
-           - Flips large contiguous blocks of cells
-           - Enables major pattern alterations
+        Mutation Strategies:
+        1. Basic mutation:
+        - Random cell flips with mutation rate probability.
+        - Uniform distribution of changes.
+        2. Cluster mutation:
+        - Flips cells in random 3x3 neighborhoods.
+        - Creates localized pattern changes.
+        3. Harsh mutation:
+        - Flips large contiguous blocks of cells.
+        - Enables major pattern alterations.
 
         Args:
-            configuration (tuple[int]): Configuration to mutate.
+            configuration (tuple[int]): The configuration to mutate.
 
         Returns:
-            tuple[int]: Mutated configuration.
+            tuple[int]: The mutated configuration.
         """
-        mutation_methods = [self.mutate_basic,
-                            self.mutate_clusters, self.mutate_harsh]
-        mutation_probabilities = [0.4, 0.4, 0.2]
-        selected_mutation_method = random.choices(
-            mutation_methods, weights=mutation_probabilities, k=1)[0]
+        # Adjust mutation probabilities based on diversity
+        if self.diversity_history:
+            normalized_diversity = self.diversity_history[-1] / max(self.diversity_history)
+        else:
+            normalized_diversity = 1.0  # Assume high diversity for the first generation
+
+        if normalized_diversity < 0.1:
+            # Low diversity: favor harsh mutations
+            mutation_probabilities = [0.2, 0.3, 0.5]
+        elif normalized_diversity < 0.3:
+            # Moderate diversity: balance mutation strategies
+            mutation_probabilities = [0.3, 0.4, 0.3]
+        else:
+            # High diversity: favor basic and cluster mutations
+            mutation_probabilities = [0.4, 0.4, 0.2]
+
+        mutation_methods = [self.mutate_basic, self.mutate_clusters, self.mutate_harsh]
+        selected_mutation_method = random.choices(mutation_methods, weights=mutation_probabilities, k=1)[0]
         mutated_configuration = selected_mutation_method(configuration)
+
+        logging.debug(f"""Applied mutation strategy: {selected_mutation_method.__name__} with probabilities 
+        (basic: {mutation_probabilities[0]:.2f}, cluster: {mutation_probabilities[1]:.2f}, harsh: {mutation_probabilities[2]:.2f}).""")
+
         return mutated_configuration
+
 
     def crossover_basic(self, parent1, parent2):
         """
@@ -853,27 +909,6 @@ class GeneticAlgorithm:
             """Selected parents (Rank-Based): {}""".format(selected_parents))
         return selected_parents
 
-    def select_parents_method(self, corrected_scores):
-        """
-        Choose a selection method based on predefined probabilities and return selected parents.
-
-        Args:
-            corrected_scores (list[tuple[int, float]]): List of tuples containing configurations and their corrected scores.
-
-        Returns:
-            list[tuple[int]]: Selected parent configurations.
-        """
-        selection_methods = [
-            self.select_parents_normalized_probability,
-            self.select_parents_tournament,
-            self.select_parents_rank_based
-        ]
-        selected_method = random.choices(
-            selection_methods, weights=[0.5, 0.25, 0.25], k=1
-        )[0]
-        parents = selected_method(corrected_scores, num_parents=2)
-        return parents
-
     def get_canonical_form(self, config):
         """
         Compute the canonical form of a configuration by normalizing its position and rotation.
@@ -908,9 +943,9 @@ class GeneticAlgorithm:
             # Step 2: Generate all rotations
             rotations = [np.rot90(trimmed_grid, k) for k in range(4)]
 
-            logging.debug("All Rotations:")
-            for i, rot in enumerate(rotations):
-                logging.debug(f"Rotation {i}:\n{rot}")
+            # logging.debug("All Rotations:")
+            # for i, rot in enumerate(rotations):
+                # logging.debug(f"Rotation {i}:\n{rot}")
 
             # Normalize all rotations to top-left
             normalized_rotations = []
@@ -1207,56 +1242,6 @@ class GeneticAlgorithm:
         # Track diversity after statistics calculation
         self.track_diversity()
 
-    def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, max_alive_cells_count, stableness, initial_living_cells_count):
-        """
-        Calculate and store population statistics for the current generation.
-
-        Computes and records:
-        - Mean and standard deviation for all fitness metrics
-        - Population dynamics measures
-        - Configuration characteristics
-
-        Args:
-            generation (int): Current generation number
-            scores (list[float]): Fitness scores for all configurations
-            lifespans (list[int]): Lifespan values for all configurations
-            alive_growth_rates (list[float]): Growth rates for all configurations
-            stableness (list[float]): Stability measures for all configurations
-            max_alive_cells_count (list[int]): Peak populations for all configurations
-            initial_living_cells_count (list[int]): Initial sizes for all configurations
-        """
-        scores = np.array(scores)
-        lifespans = np.array(lifespans)
-        alive_growth_rates = np.array(alive_growth_rates)
-        stableness = np.array(stableness)
-        max_alive_cells_count = np.array(max_alive_cells_count)
-
-        self.generations_statistics[generation]['avg_fitness'] = np.mean(
-            scores)
-        self.generations_statistics[generation]['avg_lifespan'] = np.mean(
-            lifespans)
-        self.generations_statistics[generation]['avg_alive_growth_rate'] = np.mean(
-            alive_growth_rates)
-        self.generations_statistics[generation]['avg_max_alive_cells_count'] = np.mean(
-            max_alive_cells_count)
-        self.generations_statistics[generation]['avg_stableness'] = np.mean(
-            stableness)
-        self.generations_statistics[generation]['avg_initial_living_cells_count'] = np.mean(
-            initial_living_cells_count)
-
-        self.generations_statistics[generation]['std_fitness'] = np.std(scores)
-        self.generations_statistics[generation]['std_lifespan'] = np.std(
-            lifespans)
-        self.generations_statistics[generation]['std_alive_growth_rate'] = np.std(
-            alive_growth_rates)
-        self.generations_statistics[generation]['std_max_alive_cells_count'] = np.std(
-            max_alive_cells_count)
-        self.generations_statistics[generation]['std_initial_living_cells_count'] = np.std(
-            initial_living_cells_count)
-
-        logging.debug(
-            """Calculated statistics for generation {}.""".format(generation + 1))
-
     def track_diversity(self):
         """
         Track genetic diversity within the population.
@@ -1296,42 +1281,7 @@ class GeneticAlgorithm:
         """
         return sum(c1 != c2 for c1, c2 in zip(config1, config2)) / (self.grid_size ** 2)
 
-    def get_diversity_trend(self):
-        """
-        Retrieve the history of diversity metrics.
-
-        Returns:
-            list[float]: List of average Hamming distances per generation.
-        """
-        return self.diversity_history
-
-    def run(self):
-        """
-        Execute the complete evolutionary process.
-
-        Performs the following steps:
-        1. Initializes random population
-        2. Iterates through specified generations:
-           - Generates new configurations
-           - Evaluates fitness
-           - Updates statistics
-           - Adjusts parameters
-           - Checks for stagnation
-        3. Returns results of evolution
-
-        Returns:
-            tuple: (results list, initial_configurations_start_index)
-        """
-        self.initialize()
-        for generation in range(1, self.generations):
-            self.populate(generation=generation)
-            self.compute_generation(generation=generation)
-            self.adjust_mutation_rate(generation)
-            self.check_for_stagnation(generation)
-
-        return self.get_experiment_results()
-
-    def reconstruct_history(self, configurations):
+    def reconstruct_history(self, configuration):
         """
         Reconstruct the history for the selected configurations.
 
@@ -1341,14 +1291,13 @@ class GeneticAlgorithm:
         Returns:
             dict: Updated configuration cache with full history for selected configurations.
         """
-        for configuration in configurations:
-            if 'history' not in self.configuration_cache[configuration]:
-                game = GameOfLife(self.grid_size, configuration, boundary_type=self.boundary_type)
-                game.run()
-                history = tuple(game.history[:])
-                self.configuration_cache[configuration]['history'] = history
-                return history
 
+        game = GameOfLife(self.grid_size, configuration,
+                          boundary_type=self.boundary_type)
+        game.run()
+        history = tuple(game.history[:])
+        self.configuration_cache[configuration]['history'] = history
+        return history
 
     def get_experiment_results(self):
         """
@@ -1441,3 +1390,79 @@ Initial Configuration Living Cells Count: {}""".format(
 
         initial_configurations_start_index = len(top_configs)
         return results, initial_configurations_start_index
+
+    def calc_statistics(self, generation, scores, lifespans, alive_growth_rates, max_alive_cells_count, stableness, initial_living_cells_count):
+        """
+        Calculate and store population statistics for the current generation.
+
+        Computes and records:
+        - Mean and standard deviation for all fitness metrics
+        - Population dynamics measures
+        - Configuration characteristics
+
+        Args:
+            generation (int): Current generation number
+            scores (list[float]): Fitness scores for all configurations
+            lifespans (list[int]): Lifespan values for all configurations
+            alive_growth_rates (list[float]): Growth rates for all configurations
+            stableness (list[float]): Stability measures for all configurations
+            max_alive_cells_count (list[int]): Peak populations for all configurations
+            initial_living_cells_count (list[int]): Initial sizes for all configurations
+        """
+        scores = np.array(scores)
+        lifespans = np.array(lifespans)
+        alive_growth_rates = np.array(alive_growth_rates)
+        stableness = np.array(stableness)
+        max_alive_cells_count = np.array(max_alive_cells_count)
+
+        self.generations_statistics[generation]['avg_fitness'] = np.mean(
+            scores)
+        self.generations_statistics[generation]['avg_lifespan'] = np.mean(
+            lifespans)
+        self.generations_statistics[generation]['avg_alive_growth_rate'] = np.mean(
+            alive_growth_rates)
+        self.generations_statistics[generation]['avg_max_alive_cells_count'] = np.mean(
+            max_alive_cells_count)
+        self.generations_statistics[generation]['avg_stableness'] = np.mean(
+            stableness)
+        self.generations_statistics[generation]['avg_initial_living_cells_count'] = np.mean(
+            initial_living_cells_count)
+
+        self.generations_statistics[generation]['std_fitness'] = np.std(scores)
+        self.generations_statistics[generation]['std_lifespan'] = np.std(
+            lifespans)
+        self.generations_statistics[generation]['std_alive_growth_rate'] = np.std(
+            alive_growth_rates)
+        self.generations_statistics[generation]['std_max_alive_cells_count'] = np.std(
+            max_alive_cells_count)
+        self.generations_statistics[generation]['std_initial_living_cells_count'] = np.std(
+            initial_living_cells_count)
+
+        logging.debug(
+            """Calculated statistics for generation {}.""".format(generation + 1))
+
+    def run(self):
+        """
+        Execute the complete evolutionary process.
+
+        Performs the following steps:
+        1. Initializes random population
+        2. Iterates through specified generations:
+           - Generates new configurations
+           - Evaluates fitness
+           - Updates statistics
+           - Adjusts parameters
+           - Checks for stagnation
+        3. Returns results of evolution
+
+        Returns:
+            tuple: (results list, initial_configurations_start_index)
+        """
+        self.initialize()
+        for generation in range(1, self.generations):
+            self.populate(generation=generation)
+            self.compute_generation(generation=generation)
+            self.adjust_mutation_rate(generation)
+            self.check_for_stagnation(generation)
+
+        return self.get_experiment_results()
