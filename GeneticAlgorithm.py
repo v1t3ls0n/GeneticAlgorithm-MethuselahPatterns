@@ -491,9 +491,9 @@ class GeneticAlgorithm:
                       diversity_threshold:.3f}.""")
 
         # Check if diversity falls below a critical threshold
-        low_diversity = normalized_diversity < 0.2 if self.diversity_history else False
+        low_diversity = normalized_diversity < 0.05 if self.diversity_history else False
 
-        if generation % 10 == 0 or low_diversity:
+        if generation % 10 == 0 or (low_diversity and np.random.uniform(0,1) < 0.25):
             # Introduce fresh diversity by generating a new population
             logging.debug(f"""Introducing fresh diversity for generation {
                           generation + 1}.""")
@@ -1178,18 +1178,16 @@ class GeneticAlgorithm:
 
         unique_fitness_scores = len(set(avg_fitness))
         total_generations = len(avg_fitness)
-        stagnation_score = total_generations / \
-            unique_fitness_scores if unique_fitness_scores > 0 else float(
-                'inf')
+        stagnation_score = total_generations / max(unique_fitness_scores, 1)
 
         if stagnation_score > 8:
             self.mutation_rate = min(
-                self.mutation_rate_upper_limit, self.mutation_rate * 1.5)
+                self.mutation_rate_upper_limit, self.mutation_rate * 1.2)
             logging.debug("""Generation {}: High stagnation detected (score: {}). Increasing mutation rate to {}.""".format(
                 generation + 1, stagnation_score, self.mutation_rate))
         elif stagnation_score > 5:
             self.mutation_rate = min(
-                self.mutation_rate_upper_limit, self.mutation_rate * 1.2)
+                self.mutation_rate_upper_limit, self.mutation_rate * 1.05)
             logging.debug("""Generation {}: Moderate stagnation detected (score: {}). Increasing mutation rate to {}.""".format(
                 generation + 1, stagnation_score, self.mutation_rate))
 
