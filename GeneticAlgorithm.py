@@ -893,7 +893,7 @@ class GeneticAlgorithm:
         """
         N = self.grid_size
         mutated = list(configuration)
-        for _ in range(random.randint(1, N)):
+        for _ in range(random.randint(1, N) * random.randint(1, N)):
             if random.uniform(0, 1) < self.mutation_rate:
                 center_row = random.randint(0, N - 1)
                 center_col = random.randint(0, N - 1)
