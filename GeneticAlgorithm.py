@@ -431,7 +431,7 @@ class GeneticAlgorithm:
                 config) for config in self.population}
 
             for _ in range(num_children):
-                parent1, parent2 = self.select_parents(generation=generation)
+                parent1, parent2 = self.select_parents()
                 child = self.crossover(parent1, parent2)
                 if random.uniform(0, 1) < self.mutation_rate:
                     child = self.mutate(child)
@@ -472,7 +472,7 @@ class GeneticAlgorithm:
         logging.debug(f"""Generation {generation}: Population updated with {
                       len(self.population)} configurations.""")
 
-    def select_parents(self, generation):
+    def select_parents(self):
         """
         main parent selection integrating all selection strategies.
 
@@ -482,14 +482,8 @@ class GeneticAlgorithm:
         Returns:
             tuple: Two parent configurations for crossover.
         """
-        if generation % generation == 0 and generation != 0:
-            # use corrected scores with penalties
-            corrected_scores = self.calculate_corrected_scores()
-        else:
-            # Use normalized_fitness_score for selection
-            corrected_scores = [(config, self.configuration_cache[config]
-                                 ['normalized_fitness_score']) for config in self.population]
-
+        
+        corrected_scores = self.calculate_corrected_scores()
         selection_methods = [
             self.select_parents_normalized_probability,
             self.select_parents_tournament,
@@ -559,7 +553,8 @@ class GeneticAlgorithm:
         """
         # Adjust mutation probabilities based on diversity
         if self.diversity_history:
-            normalized_diversity = self.diversity_history[-1] / max(self.diversity_history)
+            normalized_diversity = self.diversity_history[-1] / max(
+                self.diversity_history)
         else:
             normalized_diversity = 1.0  # Assume high diversity for the first generation
 
@@ -573,15 +568,16 @@ class GeneticAlgorithm:
             # High diversity: favor basic and cluster mutations
             mutation_probabilities = [0.4, 0.4, 0.2]
 
-        mutation_methods = [self.mutate_basic, self.mutate_clusters, self.mutate_harsh]
-        selected_mutation_method = random.choices(mutation_methods, weights=mutation_probabilities, k=1)[0]
+        mutation_methods = [self.mutate_basic,
+                            self.mutate_clusters, self.mutate_harsh]
+        selected_mutation_method = random.choices(
+            mutation_methods, weights=mutation_probabilities, k=1)[0]
         mutated_configuration = selected_mutation_method(configuration)
 
-        logging.debug(f"""Applied mutation strategy: {selected_mutation_method.__name__} with probabilities 
+        logging.debug(f"""Applied mutation strategy: {selected_mutation_method.__name__} with probabilities
         (basic: {mutation_probabilities[0]:.2f}, cluster: {mutation_probabilities[1]:.2f}, harsh: {mutation_probabilities[2]:.2f}).""")
 
         return mutated_configuration
-
 
     def crossover_basic(self, parent1, parent2):
         """
@@ -945,7 +941,7 @@ class GeneticAlgorithm:
 
             # logging.debug("All Rotations:")
             # for i, rot in enumerate(rotations):
-                # logging.debug(f"Rotation {i}:\n{rot}")
+            # logging.debug(f"Rotation {i}:\n{rot}")
 
             # Normalize all rotations to top-left
             normalized_rotations = []
