@@ -538,7 +538,7 @@ class GeneticAlgorithm:
                               dis_parent1:.3f}, dis_parent2: {dis_parent2:.3f}.""")
 
                 # Add child to the new population if diversity criteria are met
-                if  (True or avg_dis > diversity_threshold) and child_cannonical not in existing_canonical_forms:
+                if  (avg_dis > diversity_threshold) and child_cannonical not in existing_canonical_forms:
                     new_population.add(child)
                     existing_canonical_forms.add(child_cannonical)
                 else:
@@ -1002,25 +1002,25 @@ class GeneticAlgorithm:
             tuple[int]: Canonical form of the configuration.
         """
         if config in self.canonical_forms_cache:
-            logging.debug("Configuration found in cache.")
+            logging.debug("""Configuration found in cache.""")
             return self.canonical_forms_cache[config]
 
         grid_size = int(np.sqrt(len(config)))
         grid = np.array(config).reshape(grid_size, grid_size)
 
-        logging.debug(f"Initial Grid:\n{grid}")
+        logging.debug(f"""Initial Grid:\n{grid}""")
 
         # Step 1: Trim empty rows and columns
         non_empty_rows = np.any(grid, axis=1)
         non_empty_cols = np.any(grid, axis=0)
         trimmed_grid = grid[non_empty_rows][:, non_empty_cols]
 
-        logging.debug(f"Trimmed Grid:\n{trimmed_grid}")
+        logging.debug(f"""Trimmed Grid:\n{trimmed_grid}""")
 
         if trimmed_grid.size == 0:
             # Empty configuration
             canonical = tuple(grid.flatten())
-            logging.debug("Grid is empty after trimming.")
+            logging.debug("""Grid is empty after trimming.""")
         else:
             # Step 2: Generate all rotations
             rotations = [np.rot90(trimmed_grid, k) for k in range(4)]
