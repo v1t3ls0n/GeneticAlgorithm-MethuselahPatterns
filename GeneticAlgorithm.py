@@ -493,7 +493,7 @@ class GeneticAlgorithm:
         # Check if diversity falls below a critical threshold
         low_diversity = normalized_diversity < 0.05 if self.diversity_history else False
 
-        if generation % 10 == 0 or (low_diversity and np.random.uniform(0,1) < 0.25):
+        if generation % (self.generations // 10) == 0 or (low_diversity and np.random.uniform(0,1) < 0.25):
             # Introduce fresh diversity by generating a new population
             logging.debug(f"""Introducing fresh diversity for generation {
                           generation + 1}.""")
