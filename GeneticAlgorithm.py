@@ -538,7 +538,7 @@ class GeneticAlgorithm:
                               dis_parent1:.3f}, dis_parent2: {dis_parent2:.3f}.""")
 
                 # Add child to the new population if diversity criteria are met
-                if avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
+                if  avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
                     new_population.add(child)
                     existing_canonical_forms.add(child_cannonical)
                 else:
@@ -1182,12 +1182,12 @@ class GeneticAlgorithm:
             unique_fitness_scores if unique_fitness_scores > 0 else float(
                 'inf')
 
-        if stagnation_score > 5:
+        if stagnation_score > 8:
             self.mutation_rate = min(
                 self.mutation_rate_upper_limit, self.mutation_rate * 1.5)
             logging.debug("""Generation {}: High stagnation detected (score: {}). Increasing mutation rate to {}.""".format(
                 generation + 1, stagnation_score, self.mutation_rate))
-        elif stagnation_score > 2:
+        elif stagnation_score > 5:
             self.mutation_rate = min(
                 self.mutation_rate_upper_limit, self.mutation_rate * 1.2)
             logging.debug("""Generation {}: Moderate stagnation detected (score: {}). Increasing mutation rate to {}.""".format(
