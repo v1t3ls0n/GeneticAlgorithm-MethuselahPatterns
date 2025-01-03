@@ -76,7 +76,7 @@ class GeneticAlgorithm:
         self.boundary_type = boundary_type
         self.predefined_configurations = predefined_configurations
 
-    def enrich_population_with_variety(self, clusters_type_amount, scatter_type_amount, basic_patterns_type_amount):
+    def generate_varied_random_configurations(self, clusters_type_amount, scatter_type_amount, basic_patterns_type_amount):
         """
         Generate diverse configurations using three distinct pattern types, ensuring uniqueness:
 
@@ -198,12 +198,12 @@ class GeneticAlgorithm:
         # logging.debug("""Enriched population with variety.""")
         return population_pool
 
-    def generate_new_population_pool(self, amount):
+    def create_new_population(self, amount):
         clusters_type_amount = amount // 2 + amount % 2
         scatter_type_amount = amount // 4
         basic_patterns_type_amount = amount // 4
 
-        population = self.enrich_population_with_variety(
+        population = self.generate_varied_random_configurations(
             clusters_type_amount=clusters_type_amount,
             scatter_type_amount=scatter_type_amount,
             basic_patterns_type_amount=basic_patterns_type_amount
@@ -355,7 +355,7 @@ class GeneticAlgorithm:
         logging.info(
             """Initializing population with diverse configurations.""")
 
-        population_pool = self.generate_new_population_pool(
+        population_pool = self.create_new_population(
             amount=self.population_size)
 
         self.initial_population.update(population_pool)
@@ -411,7 +411,7 @@ class GeneticAlgorithm:
             # Introduce fresh diversity by generating a new population
             logging.debug(f"""Introducing fresh diversity for generation {
                           generation + 1}.""")
-            new_population_pool = self.generate_new_population_pool(
+            new_population_pool = self.create_new_population(
                 amount=self.population_size)
 
             # Filter by unique canonical forms, including the existing population
@@ -482,7 +482,7 @@ class GeneticAlgorithm:
         Returns:
             tuple: Two parent configurations for crossover.
         """
-        
+
         corrected_scores = self.calculate_corrected_scores()
         selection_methods = [
             self.select_parents_normalized_probability,
