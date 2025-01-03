@@ -879,7 +879,7 @@ class GeneticAlgorithm:
             mutated_configuration))
         return mutated_configuration
 
-    def mutate_clusters(self, configuration, mutation_rate=0.1, cluster_size=3):
+    def mutate_clusters(self, configuration):
         """
         Perform cluster mutation by flipping cells in random neighborhoods.
 
@@ -893,8 +893,8 @@ class GeneticAlgorithm:
         """
         N = self.grid_size
         mutated = list(configuration)
-        for _ in range(cluster_size):
-            if random.uniform(0, 1) < mutation_rate:
+        for _ in range(random.randint(1, N)):
+            if random.uniform(0, 1) < self.mutation_rate:
                 center_row = random.randint(0, N - 1)
                 center_col = random.randint(0, N - 1)
                 for i in range(-1, 2):
