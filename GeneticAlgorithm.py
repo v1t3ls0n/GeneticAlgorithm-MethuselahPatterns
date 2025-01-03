@@ -538,7 +538,7 @@ class GeneticAlgorithm:
                               dis_parent1:.3f}, dis_parent2: {dis_parent2:.3f}.""")
 
                 # Add child to the new population if diversity criteria are met
-                if  avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
+                if  (True or avg_dis > diversity_threshold) and child_cannonical not in existing_canonical_forms:
                     new_population.add(child)
                     existing_canonical_forms.add(child_cannonical)
                 else:
