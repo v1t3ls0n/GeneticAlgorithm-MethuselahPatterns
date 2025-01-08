@@ -74,6 +74,7 @@ class GeneticAlgorithm:
         self.min_uniqueness_score = float('inf')  # Minimum uniqueness score
         self.max_uniqueness_score = float('-inf')  # Maximum uniqueness score
         self.boundary_type = boundary_type
+        self.diversity_threshold = 3 / self.grid_size ** 2 
         self.predefined_configurations = predefined_configurations
 
     def generate_varied_random_configurations(self, clusters_type_amount, scatter_type_amount, basic_patterns_type_amount):
@@ -239,7 +240,7 @@ class GeneticAlgorithm:
         fitness = ((lifespan_score + alive_cells_score + growth_score)
                    * (large_configuration_penalty) * stableness)
         return fitness
-   
+
     def calculate_corrected_scores(self):
         """
         Calculate corrected scores by combining penalties for canonical form frequency,
@@ -273,7 +274,6 @@ class GeneticAlgorithm:
                     global_block_frequency[block] = 0
                 global_block_frequency[block] += 1
 
-
         # Second pass: Calculate penalties and corrected scores
         for config in self.population:
             # Use normalized fitness score
@@ -291,7 +291,7 @@ class GeneticAlgorithm:
                 total_frequency = sum(
                     frequency_vector[i] for i in active_cells)
                 cell_frequency_penalty = (
-                    total_frequency / len(active_cells)) 
+                    total_frequency / len(active_cells))
 
             # Block recurrence penalty (penalizing blocks that appear in multiple configurations)
             block_frequency_penalty = 1
@@ -299,11 +299,11 @@ class GeneticAlgorithm:
             for block in unique_blocks:
                 global_block_count = global_block_frequency.get(block, 1)
                 block_frequency_penalty *= global_block_count
-            block_frequency_penalty = block_frequency_penalty 
+            block_frequency_penalty = block_frequency_penalty
 
             # Combine penalties into a uniqueness score
             uniqueness_score = (
-                (canonical_penalty ** 2) * cell_frequency_penalty * block_frequency_penalty) 
+                (canonical_penalty ** 2) * cell_frequency_penalty * block_frequency_penalty)
             uniqueness_scores.append(uniqueness_score)
 
         # Update min/max uniqueness scores globally
@@ -478,22 +478,24 @@ class GeneticAlgorithm:
             - Rejections due to low diversity or duplication.
         """
         new_population = set()
-
+        size = self.grid_size * self.grid_size
         # Calculate diversity threshold based on normalized diversity metric
         if self.diversity_history:
             normalized_diversity = self.diversity_history[-1] / max(
                 self.diversity_history)
-            diversity_threshold = max(0.0, 0.05 - normalized_diversity)
+            diversity_threshold = max(0.0, self.diversity_threshold - normalized_diversity)
         else:
-            diversity_threshold = 0.005
+            diversity_threshold = self.diversity_threshold
 
-        logging.debug(f"""Generation {generation}: Diversity threshold set to {
-                      diversity_threshold:.3f}.""")
+        logging.debug(f"""Generation {generation}:
+                      Diversity threshold set to {diversity_threshold:.3f}.
+                      Normalized Diversity is {normalized_diversity:.3f}
+                      """)
 
         # Check if diversity falls below a critical threshold
-        low_diversity = normalized_diversity < 0.05 if self.diversity_history else False
+        low_diversity = normalized_diversity < diversity_threshold if self.diversity_history else False
 
-        if generation % 10 == 0 or (low_diversity and np.random.uniform(0,1) < 0.25):
+        if generation % 10 == 0 or (low_diversity and np.random.uniform(0, 1) < 0.25):
             # Introduce fresh diversity by generating a new population
             logging.debug(f"""Introducing fresh diversity for generation {
                           generation + 1}.""")
@@ -538,7 +540,7 @@ class GeneticAlgorithm:
                               dis_parent1:.3f}, dis_parent2: {dis_parent2:.3f}.""")
 
                 # Add child to the new population if diversity criteria are met
-                if  avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
+                if avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
                     new_population.add(child)
                     existing_canonical_forms.add(child_cannonical)
                 else:
@@ -644,10 +646,10 @@ class GeneticAlgorithm:
         else:
             normalized_diversity = 1.0  # Assume high diversity for the first generation
 
-        if normalized_diversity < 0.1:
+        if normalized_diversity < self.diversity_threshold:
             # Low diversity: favor harsh mutations
             mutation_probabilities = [0.2, 0.3, 0.5]
-        elif normalized_diversity < 0.3:
+        elif normalized_diversity < 10 * self.diversity_threshold:
             # Moderate diversity: balance mutation strategies
             mutation_probabilities = [0.3, 0.4, 0.3]
         else:
@@ -1252,7 +1254,8 @@ class GeneticAlgorithm:
             average_hamming_distance = 0
         else:
             hamming_distances = [
-                self.hamming_distance(population_list[i], population_list[j])
+                self.hamming_distance(self.get_canonical_form(
+                    population_list[i]), self.get_canonical_form(population_list[j]))
                 for i in range(len(population_list))
                 for j in range(i + 1, len(population_list))
             ]
