@@ -512,7 +512,7 @@ class GeneticAlgorithm:
                     logging.debug("""Candidate rejected due to duplication.""")
         else:
             # Generate offspring for the current generation
-            num_children = self.population_size
+            num_children = self.population_size // 4
             existing_canonical_forms = {self.get_canonical_form(
                 config) for config in self.population}
 

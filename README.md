@@ -191,7 +191,7 @@ Ensures all configurations are unique by normalizing patterns:
 If you use this code in your research, please cite:
 
 ```bibtex
-@software{game_of_life_genetic,
+@software{Methuselah-Pattern-Finder-for-Conway-s-Game-of-Life,
   author = {Guy Vitelson},
   title = {Methuselah Pattern Finder for Conway's Game of Life},
   year = 2024,
