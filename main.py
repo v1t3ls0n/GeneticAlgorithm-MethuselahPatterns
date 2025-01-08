@@ -28,9 +28,9 @@ logging.basicConfig(
 class Configuration:
     def __init__(
         self,
-        grid_size=10,
+        grid_size=40,
         population_size=64,
-        generations=300,
+        generations=400,
         mutation_rate_upper_limit=0.2,
         mutation_rate_lower_limit=0.001,
         alive_cells_weight=0.0,
