@@ -29,14 +29,14 @@ class Configuration:
     def __init__(
         self,
         grid_size=5,
-        population_size=100,
+        population_size=32,
         generations=1000,
         mutation_rate_upper_limit=0.2,
         mutation_rate_lower_limit=0.001,
         alive_cells_weight=0.0,
         lifespan_weight=400.0,
-        alive_growth_weight=1,
-        initial_living_cells_count_penalty_weight=5,
+        alive_growth_weight=0.01,
+        initial_living_cells_count_penalty_weight=1,
         predefined_configurations=None,
         boundary_type="wrap"
     ):

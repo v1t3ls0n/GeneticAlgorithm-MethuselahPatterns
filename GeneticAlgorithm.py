@@ -74,7 +74,7 @@ class GeneticAlgorithm:
         self.min_uniqueness_score = float('inf')  # Minimum uniqueness score
         self.max_uniqueness_score = float('-inf')  # Maximum uniqueness score
         self.boundary_type = boundary_type
-        self.diversity_threshold = 3 / self.grid_size ** 2 
+        self.diversity_threshold = 1 / self.grid_size ** 2 
         self.predefined_configurations = predefined_configurations
 
     def generate_varied_random_configurations(self, clusters_type_amount, scatter_type_amount, basic_patterns_type_amount):
@@ -138,10 +138,10 @@ class GeneticAlgorithm:
                         configuration[index] = 1
 
                 # Check for uniqueness
-                canonical_form = self.get_canonical_form(tuple(configuration))
+                canonical_form = self.pad_cannonical_form(tuple(configuration))
                 if canonical_form not in unique_canonical_forms:
                     unique_canonical_forms.add(canonical_form)
-                    population_pool.append(tuple(configuration))
+                    population_pool.append(tuple(canonical_form))
                     break
 
         # Generate Scattered Configurations
@@ -156,10 +156,10 @@ class GeneticAlgorithm:
                     configuration[index] = 1
 
                 # Check for uniqueness
-                canonical_form = self.get_canonical_form(tuple(configuration))
+                canonical_form = self.pad_cannonical_form(tuple(configuration))
                 if canonical_form not in unique_canonical_forms:
                     unique_canonical_forms.add(canonical_form)
-                    population_pool.append(tuple(configuration))
+                    population_pool.append(tuple(canonical_form))
                     break
 
         # Generate Basic Patterns Configuration
@@ -190,10 +190,10 @@ class GeneticAlgorithm:
                         configuration[index] = 1
 
                 # Check for uniqueness
-                canonical_form = self.get_canonical_form(tuple(configuration))
+                canonical_form = self.pad_cannonical_form(tuple(configuration))
                 if canonical_form not in unique_canonical_forms:
                     unique_canonical_forms.add(canonical_form)
-                    population_pool.append(tuple(configuration))
+                    population_pool.append(tuple(canonical_form))
                     break
 
         # logging.debug("""Enriched population with variety.""")
@@ -478,22 +478,17 @@ class GeneticAlgorithm:
             - Rejections due to low diversity or duplication.
         """
         new_population = set()
-        size = self.grid_size * self.grid_size
         # Calculate diversity threshold based on normalized diversity metric
         if self.diversity_history:
             normalized_diversity = self.diversity_history[-1] / max(
                 self.diversity_history)
-            diversity_threshold = max(0.0, self.diversity_threshold - normalized_diversity)
-        else:
-            diversity_threshold = self.diversity_threshold
 
         logging.debug(f"""Generation {generation}:
-                      Diversity threshold set to {diversity_threshold:.3f}.
                       Normalized Diversity is {normalized_diversity:.3f}
                       """)
 
         # Check if diversity falls below a critical threshold
-        low_diversity = normalized_diversity < diversity_threshold if self.diversity_history else False
+        low_diversity = normalized_diversity < self.diversity_threshold if self.diversity_history else False
 
         if generation % 10 == 0 or (low_diversity and np.random.uniform(0, 1) < 0.25):
             # Introduce fresh diversity by generating a new population
@@ -503,20 +498,17 @@ class GeneticAlgorithm:
                 amount=self.population_size)
 
             # Filter by unique canonical forms, including the existing population
-            existing_canonical_forms = {self.get_canonical_form(
-                config) for config in self.population}
+            existing_canonical_forms = self.population
             for candidate in new_population_pool:
-                canonical_form = self.get_canonical_form(candidate)
-                if canonical_form not in existing_canonical_forms:
+                if candidate not in existing_canonical_forms:
                     new_population.add(candidate)
-                    existing_canonical_forms.add(canonical_form)
+                    existing_canonical_forms.add(candidate)
                 else:
                     logging.debug("""Candidate rejected due to duplication.""")
         else:
             # Generate offspring for the current generation
             num_children = self.population_size // 4
-            existing_canonical_forms = {self.get_canonical_form(
-                config) for config in self.population}
+            existing_canonical_forms = {config for config in self.population}
 
             for _ in range(num_children):
                 parent1, parent2 = self.select_parents()
@@ -525,9 +517,9 @@ class GeneticAlgorithm:
                     child = self.mutate(child)
 
                 # Compute canonical forms for diversity check
-                child_cannonical = self.get_canonical_form(child)
-                parent1_cannonical = self.get_canonical_form(parent1)
-                parent2_cannonical = self.get_canonical_form(parent2)
+                child_cannonical = self.pad_cannonical_form(child)
+                parent1_cannonical = parent1
+                parent2_cannonical = parent2
 
                 # Calculate normalized Hamming distances to parents
                 dis_parent1 = self.hamming_distance(
@@ -540,8 +532,8 @@ class GeneticAlgorithm:
                               dis_parent1:.3f}, dis_parent2: {dis_parent2:.3f}.""")
 
                 # Add child to the new population if diversity criteria are met
-                if avg_dis > diversity_threshold and child_cannonical not in existing_canonical_forms:
-                    new_population.add(child)
+                if avg_dis > self.diversity_threshold and child_cannonical not in existing_canonical_forms:
+                    new_population.add(child_cannonical)
                     existing_canonical_forms.add(child_cannonical)
                 else:
                     logging.debug(
@@ -992,6 +984,12 @@ class GeneticAlgorithm:
         logging.debug(
             """Selected parents (Rank-Based): {}""".format(selected_parents))
         return selected_parents
+   
+    def pad_cannonical_form(self,config):
+        canonical = self.get_canonical_form(config)
+        total_size = self.grid_size ** 2
+        current_size = len(canonical)
+        return canonical + (0,) * (total_size - current_size)
 
     def get_canonical_form(self, config):
         """
@@ -1027,10 +1025,6 @@ class GeneticAlgorithm:
             # Step 2: Generate all rotations
             rotations = [np.rot90(trimmed_grid, k) for k in range(4)]
 
-            # logging.debug("All Rotations:")
-            # for i, rot in enumerate(rotations):
-            # logging.debug(f"Rotation {i}:\n{rot}")
-
             # Normalize all rotations to top-left
             normalized_rotations = []
             for i, rot in enumerate(rotations):
@@ -1047,10 +1041,11 @@ class GeneticAlgorithm:
 
             # Step 3: Select the lexicographically smallest configuration
             canonical = min(normalized_rotations)
-            # logging.debug(f"""Canonical Form: {canonical}""")
+            logging.debug(f"""Canonical Form: {canonical}""")
 
         # Cache the result for future use
         self.canonical_forms_cache[config] = canonical
+        
         return canonical
 
     def detect_recurrent_blocks(self, config):
