@@ -50,6 +50,7 @@ class GeneticAlgorithm:
         """
         logging.info("""Initializing GeneticAlgorithm.""")
         self.grid_size = grid_size
+        self.total_cells = grid_size ** 2
         self.population_size = population_size
         self.generations = generations
         self.mutation_rate_lower_limit = mutation_rate_lower_limit
@@ -74,7 +75,7 @@ class GeneticAlgorithm:
         self.min_uniqueness_score = float('inf')  # Minimum uniqueness score
         self.max_uniqueness_score = float('-inf')  # Maximum uniqueness score
         self.boundary_type = boundary_type
-        self.diversity_threshold = 1 / self.grid_size ** 2 
+        self.diversity_threshold = 1 / (grid_size ** 2)
         self.predefined_configurations = predefined_configurations
 
     def generate_varied_random_configurations(self, clusters_type_amount, scatter_type_amount, basic_patterns_type_amount):
@@ -93,9 +94,9 @@ class GeneticAlgorithm:
         Returns:
             list[tuple[int]]: Collection of unique initial configurations.
         """
-        total_cells = self.grid_size * self.grid_size
+        total_cells = self.total_cells
         max_cluster_size = self.grid_size
-        min_cluster_size = 2
+        min_cluster_size = 3
         max_scattered_cells = self.grid_size * 2
         min_scattered_cells = 0
         max_pattern_cells = self.grid_size * 2
@@ -252,20 +253,13 @@ class GeneticAlgorithm:
         # Reset the global block frequency cache
         self.block_frequencies_cache = {}
         global_block_frequency = {}
-
-        total_cells = self.grid_size * self.grid_size
+        total_cells = self.total_cells
         frequency_vector = np.zeros(total_cells)
-        canonical_frequency = {}
-
         uniqueness_scores = []
 
         # First pass: Calculate global frequencies
         for config in self.population:
             frequency_vector += np.array(config)
-            canonical = self.get_canonical_form(config)
-            if canonical not in canonical_frequency:
-                canonical_frequency[canonical] = 0
-            canonical_frequency[canonical] += 1
 
             # Detect unique blocks and update global block frequency
             unique_blocks = self.detect_recurrent_blocks(config)
@@ -279,10 +273,6 @@ class GeneticAlgorithm:
             # Use normalized fitness score
             normalized_fitness = self.configuration_cache[config]['normalized_fitness_score']
             active_cells = [i for i, cell in enumerate(config) if cell == 1]
-
-            # Canonical form penalty
-            canonical = self.get_canonical_form(config)
-            canonical_penalty = canonical_frequency.get(canonical, 1)
 
             # Cell frequency penalty
             if len(active_cells) == 0:
@@ -302,8 +292,8 @@ class GeneticAlgorithm:
             block_frequency_penalty = block_frequency_penalty
 
             # Combine penalties into a uniqueness score
-            uniqueness_score = (
-                (canonical_penalty ** 2) * cell_frequency_penalty * block_frequency_penalty)
+            uniqueness_score = (cell_frequency_penalty *
+                                block_frequency_penalty)
             uniqueness_scores.append(uniqueness_score)
 
         # Update min/max uniqueness scores globally
@@ -365,7 +355,7 @@ class GeneticAlgorithm:
             #     """Configuration already evaluated. Retrieved from cache.""")
             return self.configuration_cache[configuration_tuple]
 
-        expected_size = self.grid_size * self.grid_size
+        expected_size = self.total_cells
         if len(configuration_tuple) != expected_size:
             raise ValueError("""Configuration size must be {}, but got {}""".format(
                 expected_size, len(configuration_tuple)))
@@ -837,7 +827,7 @@ class GeneticAlgorithm:
         mutated_configuration = tuple(new_configuration)
 
         # Assert child size
-        expected_size = self.grid_size * self.grid_size
+        expected_size = self.total_cells
         assert len(mutated_configuration) == expected_size, """Mutated configuration size mismatch: expected {}, got {}""".format(
             expected_size, len(mutated_configuration))
 
@@ -865,7 +855,7 @@ class GeneticAlgorithm:
         mutated_configuration = tuple(new_configuration)
 
         # Assert child size
-        expected_size = self.grid_size * self.grid_size
+        expected_size = self.total_cells
         assert len(mutated_configuration) == expected_size, """Mutated configuration size mismatch: expected {}, got {}""".format(
             expected_size, len(mutated_configuration))
 
@@ -900,7 +890,7 @@ class GeneticAlgorithm:
         mutated_configuration = tuple(mutated)
 
         # Assert child size
-        expected_size = self.grid_size * self.grid_size
+        expected_size = self.total_cells
         assert len(mutated_configuration) == expected_size, """Mutated configuration size mismatch: expected {}, got {}""".format(
             expected_size, len(mutated_configuration))
 
@@ -984,10 +974,10 @@ class GeneticAlgorithm:
         logging.debug(
             """Selected parents (Rank-Based): {}""".format(selected_parents))
         return selected_parents
-   
-    def pad_cannonical_form(self,config):
+
+    def pad_cannonical_form(self, config):
         canonical = self.get_canonical_form(config)
-        total_size = self.grid_size ** 2
+        total_size = self.total_cells
         current_size = len(canonical)
         return canonical + (0,) * (total_size - current_size)
 
@@ -1045,7 +1035,7 @@ class GeneticAlgorithm:
 
         # Cache the result for future use
         self.canonical_forms_cache[config] = canonical
-        
+
         return canonical
 
     def detect_recurrent_blocks(self, config):
@@ -1249,8 +1239,8 @@ class GeneticAlgorithm:
             average_hamming_distance = 0
         else:
             hamming_distances = [
-                self.hamming_distance(self.get_canonical_form(
-                    population_list[i]), self.get_canonical_form(population_list[j]))
+                self.hamming_distance(
+                    population_list[i], population_list[j])
                 for i in range(len(population_list))
                 for j in range(i + 1, len(population_list))
             ]
@@ -1271,7 +1261,7 @@ class GeneticAlgorithm:
         Returns:
             int: Hamming distance.
         """
-        return sum(c1 != c2 for c1, c2 in zip(config1, config2)) / (self.grid_size ** 2)
+        return sum(c1 != c2 for c1, c2 in zip(config1, config2)) / (self.total_cells)
 
     def reconstruct_history(self, configuration):
         """
