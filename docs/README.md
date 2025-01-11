@@ -138,6 +138,10 @@ The visualization interface consists of three windows:
 ### 3. Run Parameters Window
 - Displays the parameters used in the GA run for reference.
 
+## 📷 UI Screenshot
+
+![UI Screenshot](docs/ui_screenshot.png)
+
 ## 🔢 Key Metrics
 
 - **Lifespan**: Number of unique states before stabilization
