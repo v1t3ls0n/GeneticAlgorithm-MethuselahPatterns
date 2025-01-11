@@ -140,7 +140,7 @@ The visualization interface consists of three windows:
 
 ## 📷 UI Screenshot
 
-![UI Screenshot](docs/ui_screenshot.png)
+![UI Screenshot](ui_screenshot.png)
 
 ## 🔢 Key Metrics
 
